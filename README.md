@@ -131,7 +131,7 @@ claudex remove <name|index> [--yes]
 claudex test [name|index]
 claudex lang <zh|en>
 claudex status
-claudex update [--from-local <path>]
+claudex update [--from-local <path>] [--from-npm]
 claudex doctor [--provider <name>]
 claudex run [claude args...]
 ```

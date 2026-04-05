@@ -218,7 +218,7 @@ Usage:
   claudex test [name|index]
   claudex lang <zh|en|中文|英文>
   claudex status
-  claudex update [--from-local <path>]
+  claudex update [--from-local <path>] [--from-npm]
   claudex run [claude args...]
   claudex provider add [--name N --base-url URL --api-key KEY --haiku-model H --sonnet-model S --opus-model O]
   claudex provider list
@@ -531,7 +531,9 @@ async function runClaude(extraArgs) {
 
 async function cmdUpdate(rest) {
   const { flags } = parseFlags(rest);
+  const repoUrl = 'git+https://github.com/huaguihai/claudex-cli.git#main';
   const fromLocal = typeof flags['from-local'] === 'string' ? flags['from-local'] : '';
+  const fromNpm = Boolean(flags['from-npm']);
   if (fromLocal) {
     console.log(`Updating from local path: ${fromLocal}`);
     await runProcess('npm', ['i', '-g', fromLocal], process.env);
@@ -539,8 +541,15 @@ async function cmdUpdate(rest) {
     return;
   }
 
-  console.log('Updating from npm registry: claudex-cli@latest');
-  await runProcess('npm', ['i', '-g', 'claudex-cli@latest'], process.env);
+  if (fromNpm) {
+    console.log('Updating from npm registry: claudex-cli@latest');
+    await runProcess('npm', ['i', '-g', 'claudex-cli@latest'], process.env);
+    console.log('Update complete.');
+    return;
+  }
+
+  console.log(`Updating from GitHub: ${repoUrl}`);
+  await runProcess('npm', ['i', '-g', repoUrl], process.env);
   console.log('Update complete.');
 }
 
