@@ -54,7 +54,11 @@ const TXT = {
     choose14: '请选择 (1-4): ',
     invalid14: '输入无效，请输入 1-4。',
     langTitle: '语言设置',
-    langPrompt: '请输入语言代码（zh/en）: ',
+    lang1: '1. 中文',
+    lang2: '2. English',
+    lang3: '3. 返回',
+    langChoose: '请选择 (1-3): ',
+    langInvalid: '输入无效，请输入 1-3。',
     langSaved: '语言已切换为: {v}',
     opFailed: '操作失败: {v}',
     execFailed: '执行失败: {v}',
@@ -130,7 +134,11 @@ const TXT = {
     choose14: 'Choose (1-4): ',
     invalid14: 'Invalid input. Enter 1-4.',
     langTitle: 'Language',
-    langPrompt: 'Enter language code (zh/en): ',
+    lang1: '1. Chinese',
+    lang2: '2. English',
+    lang3: '3. Back',
+    langChoose: 'Choose (1-3): ',
+    langInvalid: 'Invalid input. Enter 1-3.',
     langSaved: 'Language set to: {v}',
     opFailed: 'Operation failed: {v}',
     execFailed: 'Execution failed: {v}',
@@ -188,7 +196,7 @@ Usage:
   claudex use <name>
   claudex remove <name> [--yes]
   claudex test [name]
-  claudex lang <zh|en>
+  claudex lang <zh|en|中文|英文>
   claudex status
   claudex update [--from-local <path>]
   claudex run [claude args...]
@@ -297,9 +305,16 @@ async function getLanguage() {
   return 'zh';
 }
 
+function normalizeLanguage(inputLang) {
+  const v = (inputLang || '').trim().toLowerCase();
+  if (v === 'zh' || v === 'cn' || v === 'zh-cn' || v === 'chinese' || v === '中文') return 'zh';
+  if (v === 'en' || v === 'en-us' || v === 'english' || v === '英文') return 'en';
+  return '';
+}
+
 async function setLanguage(lang) {
-  const v = (lang || '').toLowerCase();
-  if (v !== 'zh' && v !== 'en') throw new Error('language must be zh or en');
+  const v = normalizeLanguage(lang);
+  if (!v) throw new Error('language must be zh/en or 中文/英文');
   await ensureDir(appDir);
   await fsp.writeFile(languageFile, `${v}\n`, 'utf8');
   return v;
@@ -725,13 +740,27 @@ async function moreSettingsMenu(lang) {
     }
     if (choice === '3') {
       console.log(`\n${t(lang, 'langTitle')}`);
-      const chosen = (await ask(t(lang, 'langPrompt'))).toLowerCase();
-      if (chosen === 'zh' || chosen === 'en') {
-        const saved = await setLanguage(chosen);
-        lang = saved;
-        console.log(t(lang, 'langSaved', { v: saved }));
-      } else {
-        console.log(t(lang, 'invalid14'));
+      console.log(t(lang, 'lang1'));
+      console.log(t(lang, 'lang2'));
+      console.log(t(lang, 'lang3'));
+      while (true) {
+        const langChoice = await ask(t(lang, 'langChoose'));
+        if (langChoice === '1') {
+          const saved = await setLanguage('zh');
+          lang = saved;
+          console.log(t(lang, 'langSaved', { v: saved }));
+          break;
+        }
+        if (langChoice === '2') {
+          const saved = await setLanguage('en');
+          lang = saved;
+          console.log(t(lang, 'langSaved', { v: saved }));
+          break;
+        }
+        if (langChoice === '3') {
+          break;
+        }
+        console.log(t(lang, 'langInvalid'));
       }
       continue;
     }
@@ -860,8 +889,8 @@ export async function main(argv = process.argv.slice(2)) {
   }
 
   if (cmd === 'lang') {
-    const next = (rest[0] || '').toLowerCase();
-    if (next !== 'zh' && next !== 'en') throw new Error('usage: claudex lang <zh|en>');
+    const next = normalizeLanguage(rest[0] || '');
+    if (!next) throw new Error('usage: claudex lang <zh|en|中文|英文>');
     const saved = await setLanguage(next);
     console.log(t(saved, 'langSaved', { v: saved }));
     return;

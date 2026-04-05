@@ -2,7 +2,8 @@
 
 用一条命令切换并启动 Claude 模型服务商。
 
-[English README](./README.md)
+[![English](https://img.shields.io/badge/English-111827?style=flat-square)](./README.md)
+[![简体中文](https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-DC2626?style=flat-square)](./README_cn.md)
 
 [![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](./package.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
