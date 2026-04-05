@@ -14,6 +14,13 @@ const currentProviderFile = path.join(appDir, 'current-provider');
 const languageFile = path.join(appDir, 'language');
 const legacyCurrentProviderFile = path.join(claudeDir, 'current-provider');
 
+class BackSignal extends Error {
+  constructor() {
+    super('BACK_SIGNAL');
+    this.name = 'BackSignal';
+  }
+}
+
 const TXT = {
   zh: {
     menuTitle: 'Claudex 主菜单',
@@ -96,6 +103,9 @@ const TXT = {
     testUsage: '用法: claudex provider test <name>',
     providerUsage: '用法: claudex provider <add|list|use|remove|test>',
     removeConfirm: '删除 {v} ? (y/N): '
+    ,
+    backHint: '（输入 b 返回上一级）',
+    backDone: '已返回上一级。'
   },
   en: {
     menuTitle: 'Claudex Main Menu',
@@ -177,7 +187,9 @@ const TXT = {
     removeUsage: 'usage: claudex provider remove <name> [--yes]',
     testUsage: 'usage: claudex provider test <name>',
     providerUsage: 'usage: claudex provider <add|list|use|remove|test>',
-    removeConfirm: 'Delete {v}? (y/N): '
+    removeConfirm: 'Delete {v}? (y/N): ',
+    backHint: '(type b to go back)',
+    backDone: 'Back to previous menu.'
   }
 };
 
@@ -185,6 +197,15 @@ function t(lang, key, vars = {}) {
   const table = TXT[lang] || TXT.zh;
   const base = table[key] || TXT.zh[key] || key;
   return base.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''));
+}
+
+function isBackInput(v) {
+  const s = (v || '').trim().toLowerCase();
+  return s === 'b' || s === 'back';
+}
+
+function withBackHint(prompt, lang) {
+  return `${prompt} ${t(lang, 'backHint')}`;
 }
 
 function usage() {
@@ -380,12 +401,18 @@ async function ask(question) {
 async function promptProviderAdd(flags, lang) {
   const rl = readline.createInterface({ input, output });
   try {
-    const name = (flags.name || (await rl.question(t(lang, 'providerNameQ')))).trim();
-    const baseUrl = (flags['base-url'] || (await rl.question(t(lang, 'baseUrlQ')))).trim();
-    const apiKey = (flags['api-key'] || (await rl.question(t(lang, 'apiKeyQ')))).trim();
-    const haikuModel = (flags['haiku-model'] || (await rl.question(t(lang, 'haikuQ')))).trim();
-    const sonnetModel = (flags['sonnet-model'] || (await rl.question(t(lang, 'sonnetQ')))).trim();
-    const opusModel = (flags['opus-model'] || (await rl.question(t(lang, 'opusQ')))).trim();
+    const askOrFlag = async (flagValue, key) => {
+      const v = (flagValue || (await rl.question(withBackHint(t(lang, key), lang)))).trim();
+      if (isBackInput(v)) throw new BackSignal();
+      return v;
+    };
+
+    const name = await askOrFlag(flags.name, 'providerNameQ');
+    const baseUrl = await askOrFlag(flags['base-url'], 'baseUrlQ');
+    const apiKey = await askOrFlag(flags['api-key'], 'apiKeyQ');
+    const haikuModel = await askOrFlag(flags['haiku-model'], 'haikuQ');
+    const sonnetModel = await askOrFlag(flags['sonnet-model'], 'sonnetQ');
+    const opusModel = await askOrFlag(flags['opus-model'], 'opusQ');
 
     if (!name || !baseUrl || !apiKey || !haikuModel || !sonnetModel || !opusModel) {
       throw new Error(t(lang, 'requiredErr'));
@@ -550,9 +577,10 @@ async function pickProvider(lang, promptText) {
     const p = providers[i];
     console.log(`${i + 1}. ${p === current ? '*' : ' '} ${p}`);
   }
-  const chosenRaw = await ask(promptText || t(lang, 'askProvider'));
+  const chosenRaw = await ask((promptText || t(lang, 'askProvider')));
   const chosen = chosenRaw.trim();
   if (!chosen) throw new Error(t(lang, 'notEnteredProvider'));
+  if (isBackInput(chosen)) throw new BackSignal();
 
   if (/^\d+$/.test(chosen)) {
     const idx = Number(chosen) - 1;
@@ -580,7 +608,16 @@ async function cmdProvider(subArgs, lang) {
   const { flags, rest: positional } = parseFlags(rest);
 
   if (action === 'add') {
-    const info = await promptProviderAdd(flags, lang);
+    let info;
+    try {
+      info = await promptProviderAdd(flags, lang);
+    } catch (err) {
+      if (err instanceof BackSignal) {
+        console.log(t(lang, 'backDone'));
+        return;
+      }
+      throw err;
+    }
     const file = await writeProviderSettings(info);
     if (flags.current || flags['set-current']) await setCurrentProvider(info.name);
     console.log(t(lang, 'saved', { v: file }));
@@ -694,7 +731,16 @@ async function cmdDoctor(flags, lang) {
 
 async function configureWizard(lang) {
   await cmdInit(lang);
-  const info = await promptProviderAdd({}, lang);
+  let info;
+  try {
+    info = await promptProviderAdd({}, lang);
+  } catch (err) {
+    if (err instanceof BackSignal) {
+      console.log(t(lang, 'backDone'));
+      return;
+    }
+    throw err;
+  }
   const file = await writeProviderSettings(info);
   await setCurrentProvider(info.name);
   console.log(t(lang, 'wizardSaved', { v: file }));
@@ -742,6 +788,10 @@ async function manageProvidersMenu(lang) {
       if (choice === '5') return;
       console.log(t(lang, 'invalid15'));
     } catch (err) {
+      if (err instanceof BackSignal) {
+        console.log(t(lang, 'backDone'));
+        continue;
+      }
       console.log(t(lang, 'opFailed', { v: String(err.message || err) }));
     }
   }
@@ -842,6 +892,10 @@ async function mainMenu(lang) {
       }
       console.log(t(lang, 'invalid17'));
     } catch (err) {
+      if (err instanceof BackSignal) {
+        console.log(t(lang, 'backDone'));
+        continue;
+      }
       console.log(t(lang, 'execFailed', { v: String(err.message || err) }));
     }
   }
