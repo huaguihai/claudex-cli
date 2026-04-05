@@ -13,7 +13,6 @@ const backupsDir = path.join(appDir, 'backups');
 const currentProviderFile = path.join(appDir, 'current-provider');
 const languageFile = path.join(appDir, 'language');
 const legacyCurrentProviderFile = path.join(claudeDir, 'current-provider');
-
 class BackSignal extends Error {
   constructor() {
     super('BACK_SIGNAL');
@@ -21,9 +20,19 @@ class BackSignal extends Error {
   }
 }
 
+const BANNER_ART = [
+  '  ____ _        _   _   _ ____  _______  __',
+  ' / ___| |      / \\ | | | |  _ \\| ____\\ \\/ /',
+  '| |   | |     / _ \\| | | | | | |  _|  \\  / ',
+  '| |___| |___ / ___ \\ |_| | |_| | |___ /  \\ ',
+  ' \\____|_____/_/   \\_\\___/|____/|_____/_/\\_\\'
+];
+
 const TXT = {
   zh: {
     menuTitle: 'Claudex 主菜单',
+    bannerSub: 'Provider Switching Console',
+    bannerBy: 'Powered by github.com/huaguihai',
     m1: '1. 开始配置claudex',
     m2: '2. 查看当前配置',
     m3: '3. 切换模型服务商',
@@ -33,12 +42,12 @@ const TXT = {
     m7: '7. 退出',
     choose17: '请选择 (1-7): ',
     invalid17: '输入无效，请输入 1-7。',
-    bye: '已退出。',
-    currentProvider: '当前服务商: {v}',
+    bye: '👋 已退出。',
+    currentProvider: '📌 当前服务商: {v}',
     currentSettings: '当前配置文件: {file} {state}',
     providers: '服务商列表: {v}',
     noProviders: '未找到任何服务商配置（~/.claude/settings.<name>.json）',
-    noActiveProvider: '当前未设置服务商，请执行: claudex use <name>',
+    noActiveProvider: '⚠️ 当前未设置服务商，请执行: claudex use <name>',
     providersAvailable: '可选服务商:',
     askProvider: '请输入服务商序号或名称: ',
     askSwitchTo: '请输入要切换到的服务商序号或名称: ',
@@ -69,14 +78,14 @@ const TXT = {
     langChoose: '请选择 (1-3): ',
     langInvalid: '输入无效，请输入 1-3。',
     langSaved: '语言已切换为: {v}',
-    opFailed: '操作失败: {v}',
-    execFailed: '执行失败: {v}',
-    saved: '已保存: {v}',
-    updated: '已更新: {v}',
-    deleted: '已删除: {v}',
+    opFailed: '❌ 操作失败: {v}',
+    execFailed: '❌ 执行失败: {v}',
+    saved: '💾 已保存: {v}',
+    updated: '✏️ 已更新: {v}',
+    deleted: '🗑️ 已删除: {v}',
     cancelled: '已取消',
-    testOK: '测试通过: {name} ({status})',
-    doctorTitle: '诊断检查:',
+    testOK: '✅ 测试通过: {name} ({status})',
+    doctorTitle: '🩺 诊断检查:',
     envConflicts: '- 环境变量冲突:',
     envNone: '- 环境变量冲突: 无',
     fixHint: '  修复: unset ANTHROPIC_AUTH_TOKEN ANTHROPIC_API_KEY ANTHROPIC_BASE_URL',
@@ -104,10 +113,13 @@ const TXT = {
     providerUsage: '用法: claudex provider <add|list|use|remove|test>',
     removeConfirm: '删除 {v} ? (y/N): ',
     backGuide: '提示：输入 b 或 back 可返回上一级。',
-    backDone: '已返回上一级。'
+    backDone: '↩️ 已返回上一级。',
+    testingNow: '🔍 正在测试连接: {name} ...'
   },
   en: {
     menuTitle: 'Claudex Main Menu',
+    bannerSub: 'Provider Switching Console',
+    bannerBy: 'Powered by github.com/huaguihai',
     m1: '1. Initial setup for Claudex',
     m2: '2. View current configuration',
     m3: '3. Switch model provider',
@@ -117,12 +129,12 @@ const TXT = {
     m7: '7. Exit',
     choose17: 'Choose (1-7): ',
     invalid17: 'Invalid input. Enter 1-7.',
-    bye: 'Exited.',
-    currentProvider: 'Current provider: {v}',
+    bye: '👋 Exited.',
+    currentProvider: '📌 Current provider: {v}',
     currentSettings: 'Current settings: {file} {state}',
     providers: 'Providers: {v}',
     noProviders: 'No providers found in ~/.claude/settings.<name>.json',
-    noActiveProvider: 'No active provider. Run: claudex use <name>',
+    noActiveProvider: '⚠️ No active provider. Run: claudex use <name>',
     providersAvailable: 'Available providers:',
     askProvider: 'Enter provider index or name: ',
     askSwitchTo: 'Enter provider index or name to switch to: ',
@@ -153,14 +165,14 @@ const TXT = {
     langChoose: 'Choose (1-3): ',
     langInvalid: 'Invalid input. Enter 1-3.',
     langSaved: 'Language set to: {v}',
-    opFailed: 'Operation failed: {v}',
-    execFailed: 'Execution failed: {v}',
-    saved: 'Saved: {v}',
-    updated: 'Updated: {v}',
-    deleted: 'Deleted: {v}',
+    opFailed: '❌ Operation failed: {v}',
+    execFailed: '❌ Execution failed: {v}',
+    saved: '💾 Saved: {v}',
+    updated: '✏️ Updated: {v}',
+    deleted: '🗑️ Deleted: {v}',
     cancelled: 'Cancelled',
-    testOK: 'Test OK: {name} ({status})',
-    doctorTitle: 'Doctor checks:',
+    testOK: '✅ Test OK: {name} ({status})',
+    doctorTitle: '🩺 Doctor checks:',
     envConflicts: '- Env conflicts:',
     envNone: '- Env conflicts: none',
     fixHint: '  Fix: unset ANTHROPIC_AUTH_TOKEN ANTHROPIC_API_KEY ANTHROPIC_BASE_URL',
@@ -188,7 +200,8 @@ const TXT = {
     providerUsage: 'usage: claudex provider <add|list|use|remove|test>',
     removeConfirm: 'Delete {v}? (y/N): ',
     backGuide: 'Tip: enter b or back to return to the previous menu.',
-    backDone: 'Back to previous menu.'
+    backDone: '↩️ Back to previous menu.',
+    testingNow: '🔍 Testing connection: {name} ...'
   }
 };
 
@@ -201,6 +214,23 @@ function t(lang, key, vars = {}) {
 function isBackInput(v) {
   const s = (v || '').trim().toLowerCase();
   return s === 'b' || s === 'back';
+}
+
+function renderBanner(lang) {
+  const width = BANNER_ART.reduce((m, line) => Math.max(m, line.length), 0);
+  const center = (text) => {
+    const s = String(text ?? '');
+    const left = Math.max(0, Math.floor((width - s.length) / 2));
+    return `${' '.repeat(left)}${s}`;
+  };
+
+  console.log('');
+  for (const line of BANNER_ART) {
+    console.log(line);
+  }
+  console.log(center(t(lang, 'bannerSub')));
+  console.log(center(t(lang, 'bannerBy')));
+  console.log('');
 }
 
 function usage() {
@@ -761,6 +791,7 @@ function shouldRunTestInput(ansRaw) {
 async function askAndRunProviderTest(providerName, lang) {
   const ans = await ask(t(lang, 'testNowQ'));
   if (!shouldRunTestInput(ans)) return;
+  console.log(t(lang, 'testingNow', { name: providerName }));
   const result = await testProvider(providerName);
   console.log(t(lang, 'testPass', { name: providerName, status: result.status }));
 }
@@ -862,7 +893,8 @@ async function moreSettingsMenu(lang) {
 
 async function mainMenu(lang) {
   while (true) {
-    console.log('\n==============================');
+    renderBanner(lang);
+    console.log('----------------------------------------');
     console.log(t(lang, 'menuTitle'));
     console.log(t(lang, 'm1'));
     console.log(t(lang, 'm2'));
@@ -871,7 +903,7 @@ async function mainMenu(lang) {
     console.log(t(lang, 'm5'));
     console.log(t(lang, 'm6'));
     console.log(t(lang, 'm7'));
-    console.log('==============================');
+    console.log('----------------------------------------');
     const choice = await ask(t(lang, 'choose17'));
 
     try {
