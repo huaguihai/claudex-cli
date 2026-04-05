@@ -750,12 +750,19 @@ async function configureWizard(lang) {
   const file = await writeProviderSettings(info);
   await setCurrentProvider(info.name);
   console.log(t(lang, 'wizardSaved', { v: file }));
+  await askAndRunProviderTest(info.name, lang);
+}
 
-  const ans = (await ask(t(lang, 'testNowQ'))).toLowerCase();
-  if (ans === '' || ans === 'y' || ans === 'yes') {
-    const result = await testProvider(info.name);
-    console.log(t(lang, 'testPass', { name: info.name, status: result.status }));
-  }
+function shouldRunTestInput(ansRaw) {
+  const ans = (ansRaw || '').trim().toLowerCase();
+  return ans === '' || ans === 'y' || ans === 'yes' || ans === '是' || ans === 'ok';
+}
+
+async function askAndRunProviderTest(providerName, lang) {
+  const ans = await ask(t(lang, 'testNowQ'));
+  if (!shouldRunTestInput(ans)) return;
+  const result = await testProvider(providerName);
+  console.log(t(lang, 'testPass', { name: providerName, status: result.status }));
 }
 
 async function manageProvidersMenu(lang) {
@@ -773,6 +780,7 @@ async function manageProvidersMenu(lang) {
         const info = await promptProviderAdd({}, lang);
         const file = await writeProviderSettings(info);
         console.log(t(lang, 'saved', { v: file }));
+        await askAndRunProviderTest(info.name, lang);
         continue;
       }
       if (choice === '2') {
@@ -780,6 +788,7 @@ async function manageProvidersMenu(lang) {
         const info = await promptProviderAdd({ name }, lang);
         const file = await writeProviderSettings(info);
         console.log(t(lang, 'updated', { v: file }));
+        await askAndRunProviderTest(info.name, lang);
         continue;
       }
       if (choice === '3') {
