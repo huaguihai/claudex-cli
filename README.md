@@ -2,13 +2,15 @@
 
 A lightweight CLI for non-technical users to configure and switch Claude Code providers without editing shell files manually.
 
+[中文说明 (README_cn.md)](./README_cn.md)
+
 ## Features
 
-- Interactive provider setup (`provider add`)
-- Persistent provider switch (`provider use`)
-- One-command run with conflict-safe env cleanup (`run`)
-- Health diagnostics (`doctor`, `provider test`)
-- Safe backup before file changes (`init`, `remove`)
+- Interactive setup flow for providers
+- Persistent provider switching
+- One-command launch with environment conflict cleanup
+- Health diagnostics (`doctor`, `test`)
+- Automatic backup before file changes
 
 ## Quick Start
 
@@ -21,19 +23,19 @@ claudex menu
 
 Behavior:
 
-- `claudex`: launch Claude directly with current provider
-- `claudex --continue`: continue last conversation
-- `claudex menu`: open interactive menu
+- `claudex`: launch Claude directly with the current provider
+- `claudex --continue`: continue the most recent conversation
+- `claudex menu`: open interactive menu mode
 
-`claudex menu` will open:
+## Menu Items (`claudex menu`)
 
-1. 开始配置claudex（首次使用）
-2. 查看当前配置
-3. 切换模型服务商
-4. 管理模型服务商（新增/编辑/删除）
-5. 问题排查
-6. 更多设置
-7. 退出
+1. Initial setup for Claudex (first-time use)
+2. View current configuration
+3. Switch model provider
+4. Manage model providers (add/edit/remove)
+5. Troubleshooting
+6. More settings
+7. Exit
 
 ## Commands
 
@@ -60,8 +62,8 @@ claudex run [claude args...]
 
 ## Notes
 
-- `run` removes `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_API_KEY`, and `ANTHROPIC_BASE_URL` from current shell env before launching `claude` to avoid auth conflicts.
-- `init` adds a shell helper `cdxrun()` to your shell rc file.
+- `run` removes `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_API_KEY`, and `ANTHROPIC_BASE_URL` from the current shell environment before launching `claude`, to avoid auth conflicts.
+- `init` adds a shell helper `cdxrun()` to your shell profile.
 
 ## License
 
