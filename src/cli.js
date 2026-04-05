@@ -11,6 +11,7 @@ const claudeDir = path.join(home, '.claude');
 const appDir = path.join(home, '.config', 'claudex-cli');
 const backupsDir = path.join(appDir, 'backups');
 const currentProviderFile = path.join(appDir, 'current-provider');
+const legacyCurrentProviderFile = path.join(claudeDir, 'current-provider');
 
 function usage() {
   console.log(`claudex v0.1.0
@@ -27,7 +28,7 @@ Usage:
   claudex test [name]
   claudex status
   claudex run [claude args...]
-  claudex provider add [--name N --base-url URL --api-key KEY --model MODEL]
+  claudex provider add [--name N --base-url URL --api-key KEY --haiku-model H --sonnet-model S --opus-model O]
   claudex provider list
   claudex provider use <name>
   claudex provider remove <name> [--yes]
@@ -94,8 +95,27 @@ async function listProviders() {
 
 async function getCurrentProvider() {
   if (await exists(currentProviderFile)) {
-    return (await fsp.readFile(currentProviderFile, 'utf8')).trim();
+    const p = (await fsp.readFile(currentProviderFile, 'utf8')).trim();
+    if (p) return p;
   }
+
+  // Compatibility: migrate legacy state from ~/.claude/current-provider.
+  if (await exists(legacyCurrentProviderFile)) {
+    const legacy = (await fsp.readFile(legacyCurrentProviderFile, 'utf8')).trim();
+    if (legacy && (await exists(providerSettingsPath(legacy)))) {
+      await setCurrentProvider(legacy);
+      return legacy;
+    }
+  }
+
+  // Compatibility: infer from CLAUDE_SETTINGS_FILE if present.
+  const settingsFile = process.env.CLAUDE_SETTINGS_FILE || '';
+  const m = settingsFile.match(/settings\.([a-zA-Z0-9_-]+)\.json$/);
+  if (m && m[1] && (await exists(providerSettingsPath(m[1])))) {
+    await setCurrentProvider(m[1]);
+    return m[1];
+  }
+
   return null;
 }
 
@@ -163,19 +183,21 @@ async function promptProviderAdd(flags) {
     const name = (flags.name || (await rl.question('服务商名称（例如 gpt）: '))).trim();
     const baseUrl = (flags['base-url'] || (await rl.question('服务地址（例如 https://api.example.com）: '))).trim();
     const apiKey = (flags['api-key'] || (await rl.question('API Key: '))).trim();
-    const model = (flags.model || (await rl.question('默认模型（例如 gpt-5.4）: '))).trim();
+    const haikuModel = (flags['haiku-model'] || (await rl.question('Haiku 模型（例如 gpt-5.4-mini）: '))).trim();
+    const sonnetModel = (flags['sonnet-model'] || (await rl.question('Sonnet 模型（例如 gpt-5.4）: '))).trim();
+    const opusModel = (flags['opus-model'] || (await rl.question('Opus 模型（例如 gpt-5.4-xhigh）: '))).trim();
 
-    if (!name || !baseUrl || !apiKey || !model) {
-      throw new Error('name/base-url/api-key/model are required.');
+    if (!name || !baseUrl || !apiKey || !haikuModel || !sonnetModel || !opusModel) {
+      throw new Error('name/base-url/api-key/haiku-model/sonnet-model/opus-model are required.');
     }
 
-    return { name, baseUrl, apiKey, model };
+    return { name, baseUrl, apiKey, haikuModel, sonnetModel, opusModel };
   } finally {
     rl.close();
   }
 }
 
-async function writeProviderSettings({ name, baseUrl, apiKey, model }) {
+async function writeProviderSettings({ name, baseUrl, apiKey, haikuModel, sonnetModel, opusModel }) {
   await ensureDir(claudeDir);
   const file = providerSettingsPath(name);
   await backupFile(file);
@@ -183,9 +205,9 @@ async function writeProviderSettings({ name, baseUrl, apiKey, model }) {
     env: {
       ANTHROPIC_BASE_URL: baseUrl,
       ANTHROPIC_API_KEY: apiKey,
-      ANTHROPIC_DEFAULT_HAIKU_MODEL: model,
-      ANTHROPIC_DEFAULT_SONNET_MODEL: model,
-      ANTHROPIC_DEFAULT_OPUS_MODEL: model
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: haikuModel,
+      ANTHROPIC_DEFAULT_SONNET_MODEL: sonnetModel,
+      ANTHROPIC_DEFAULT_OPUS_MODEL: opusModel
     }
   };
   await writeJson(file, data);
@@ -328,6 +350,9 @@ async function cmdProvider(subArgs) {
     }
     for (const p of providers) {
       console.log(`${p === current ? '*' : ' '} ${p}`);
+    }
+    if (!current) {
+      console.log('\nNo active provider. Run: claudex use <name>');
     }
     return;
   }

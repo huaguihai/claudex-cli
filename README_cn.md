@@ -42,7 +42,9 @@ claudex add
 # - 服务商名称（例如 gpt）
 # - 服务地址
 # - API key
-# - 默认模型
+# - Haiku 模型
+# - Sonnet 模型
+# - Opus 模型
 
 # 5) 切换到该服务商
 claudex use gpt

@@ -42,7 +42,9 @@ claudex add
 # - provider name (e.g. gpt)
 # - base URL
 # - API key
-# - default model
+# - haiku model
+# - sonnet model
+# - opus model
 
 # 5) Switch to that provider
 claudex use gpt
