@@ -102,9 +102,8 @@ const TXT = {
     removeUsage: '用法: claudex provider remove <name> [--yes]',
     testUsage: '用法: claudex provider test <name>',
     providerUsage: '用法: claudex provider <add|list|use|remove|test>',
-    removeConfirm: '删除 {v} ? (y/N): '
-    ,
-    backHint: '（输入 b 返回上一级）',
+    removeConfirm: '删除 {v} ? (y/N): ',
+    backGuide: '提示：输入 b 或 back 可返回上一级。',
     backDone: '已返回上一级。'
   },
   en: {
@@ -188,7 +187,7 @@ const TXT = {
     testUsage: 'usage: claudex provider test <name>',
     providerUsage: 'usage: claudex provider <add|list|use|remove|test>',
     removeConfirm: 'Delete {v}? (y/N): ',
-    backHint: '(type b to go back)',
+    backGuide: 'Tip: enter b or back to return to the previous menu.',
     backDone: 'Back to previous menu.'
   }
 };
@@ -202,10 +201,6 @@ function t(lang, key, vars = {}) {
 function isBackInput(v) {
   const s = (v || '').trim().toLowerCase();
   return s === 'b' || s === 'back';
-}
-
-function withBackHint(prompt, lang) {
-  return `${prompt} ${t(lang, 'backHint')}`;
 }
 
 function usage() {
@@ -401,8 +396,9 @@ async function ask(question) {
 async function promptProviderAdd(flags, lang) {
   const rl = readline.createInterface({ input, output });
   try {
+    console.log(t(lang, 'backGuide'));
     const askOrFlag = async (flagValue, key) => {
-      const v = (flagValue || (await rl.question(withBackHint(t(lang, key), lang)))).trim();
+      const v = (flagValue || (await rl.question(t(lang, key)))).trim();
       if (isBackInput(v)) throw new BackSignal();
       return v;
     };
@@ -577,6 +573,7 @@ async function pickProvider(lang, promptText) {
     const p = providers[i];
     console.log(`${i + 1}. ${p === current ? '*' : ' '} ${p}`);
   }
+  console.log(t(lang, 'backGuide'));
   const chosenRaw = await ask((promptText || t(lang, 'askProvider')));
   const chosen = chosenRaw.trim();
   if (!chosen) throw new Error(t(lang, 'notEnteredProvider'));
