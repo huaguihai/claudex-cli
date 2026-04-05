@@ -18,7 +18,7 @@ one-liner: Switch and run Claude providers with one command
 language: Node.js
 min_runtime: node >= 18.0.0
 package_manager: npm
-install: npm i -g claudex-cli
+install: npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 verify: claudex --help
 config_file: ~/.claude/settings.<name>.json; ~/.config/claudex-cli/current-provider
 entry: bin/claudex.js
@@ -32,7 +32,7 @@ node -v
 # require: >= 18
 
 # 2) Install
-npm i -g claudex-cli
+npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 
 # 3) Initialize shell helper and local state
 claudex init
@@ -106,7 +106,7 @@ It prevents auth conflicts when shell-level variables override provider file set
 ### Global install
 
 ```bash
-npm i -g claudex-cli
+npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 ```
 
 ### Local run from source
@@ -135,6 +135,11 @@ claudex update [--from-local <path>] [--from-npm]
 claudex doctor [--provider <name>]
 claudex run [claude args...]
 ```
+
+Update source behavior:
+
+- `claudex update` uses the GitHub source by default.
+- `claudex update --from-npm` explicitly uses npm registry.
 
 ## Configuration Reference
 

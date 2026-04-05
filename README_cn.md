@@ -18,7 +18,7 @@ one-liner: 用一条命令切换并启动 Claude 模型服务商
 language: Node.js
 min_runtime: node >= 18.0.0
 package_manager: npm
-install: npm i -g claudex-cli
+install: npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 verify: claudex --help
 config_file: ~/.claude/settings.<name>.json; ~/.config/claudex-cli/current-provider
 entry: bin/claudex.js
@@ -32,7 +32,7 @@ node -v
 # 要求: >= 18
 
 # 2) 安装
-npm i -g claudex-cli
+npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 
 # 3) 初始化（写入 shell helper + 本地状态目录）
 claudex init
@@ -106,7 +106,7 @@ graph LR
 ### 全局安装
 
 ```bash
-npm i -g claudex-cli
+npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 ```
 
 ### 源码运行
@@ -135,6 +135,11 @@ claudex update [--from-local <path>] [--from-npm]
 claudex doctor [--provider <name>]
 claudex run [claude args...]
 ```
+
+更新源说明：
+
+- `claudex update` 默认从 GitHub 源更新。
+- `claudex update --from-npm` 才会走 npm registry。
 
 ## 配置参考
 
