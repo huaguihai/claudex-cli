@@ -126,9 +126,9 @@ claudex menu
 claudex init
 claudex add
 claudex list
-claudex use <name>
-claudex remove <name> [--yes]
-claudex test [name]
+claudex use <name|序号>
+claudex remove <name|序号> [--yes]
+claudex test [name|序号]
 claudex lang <zh|en>
 claudex status
 claudex update [--from-local <path>]

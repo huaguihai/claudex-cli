@@ -17,7 +17,7 @@ const legacyCurrentProviderFile = path.join(claudeDir, 'current-provider');
 const TXT = {
   zh: {
     menuTitle: 'Claudex 主菜单',
-    m1: '1. 开始配置claudex（首次使用）',
+    m1: '1. 开始配置claudex',
     m2: '2. 查看当前配置',
     m3: '3. 切换模型服务商',
     m4: '4. 管理模型服务商',
@@ -33,11 +33,13 @@ const TXT = {
     noProviders: '未找到任何服务商配置（~/.claude/settings.<name>.json）',
     noActiveProvider: '当前未设置服务商，请执行: claudex use <name>',
     providersAvailable: '可选服务商:',
-    askProvider: '请输入服务商名称: ',
-    askSwitchTo: '请输入要切换到的服务商名称: ',
-    askEdit: '请输入要编辑的服务商名称: ',
-    askDelete: '请输入要删除的服务商名称: ',
+    askProvider: '请输入服务商序号或名称: ',
+    askSwitchTo: '请输入要切换到的服务商序号或名称: ',
+    askEdit: '请输入要编辑的服务商序号或名称: ',
+    askDelete: '请输入要删除的服务商序号或名称: ',
     notEnteredProvider: '未输入服务商名称',
+    providerIndexOutOfRange: '序号超出范围，请输入有效序号。',
+    providerNotFound: '未找到服务商: {v}',
     manageTitle: '管理模型服务商',
     mg1: '1. 新增服务商',
     mg2: '2. 编辑服务商（覆盖保存）',
@@ -97,7 +99,7 @@ const TXT = {
   },
   en: {
     menuTitle: 'Claudex Main Menu',
-    m1: '1. Initial setup for Claudex (first-time use)',
+    m1: '1. Initial setup for Claudex',
     m2: '2. View current configuration',
     m3: '3. Switch model provider',
     m4: '4. Manage model providers',
@@ -113,11 +115,13 @@ const TXT = {
     noProviders: 'No providers found in ~/.claude/settings.<name>.json',
     noActiveProvider: 'No active provider. Run: claudex use <name>',
     providersAvailable: 'Available providers:',
-    askProvider: 'Enter provider name: ',
-    askSwitchTo: 'Enter provider name to switch to: ',
-    askEdit: 'Enter provider name to edit: ',
-    askDelete: 'Enter provider name to delete: ',
+    askProvider: 'Enter provider index or name: ',
+    askSwitchTo: 'Enter provider index or name to switch to: ',
+    askEdit: 'Enter provider index or name to edit: ',
+    askDelete: 'Enter provider index or name to delete: ',
     notEnteredProvider: 'No provider name entered',
+    providerIndexOutOfRange: 'Index out of range. Enter a valid provider index.',
+    providerNotFound: 'Provider not found: {v}',
     manageTitle: 'Manage Model Providers',
     mg1: '1. Add provider',
     mg2: '2. Edit provider (overwrite)',
@@ -193,9 +197,9 @@ Usage:
   claudex init
   claudex add
   claudex list
-  claudex use <name>
-  claudex remove <name> [--yes]
-  claudex test [name]
+  claudex use <name|index>
+  claudex remove <name|index> [--yes]
+  claudex test [name|index]
   claudex lang <zh|en|中文|英文>
   claudex status
   claudex update [--from-local <path>]
@@ -542,12 +546,33 @@ async function pickProvider(lang, promptText) {
 
   const current = await getCurrentProvider();
   console.log(t(lang, 'providersAvailable'));
-  for (const p of providers) {
-    console.log(`${p === current ? '*' : ' '} ${p}`);
+  for (let i = 0; i < providers.length; i += 1) {
+    const p = providers[i];
+    console.log(`${i + 1}. ${p === current ? '*' : ' '} ${p}`);
   }
-  const chosen = await ask(promptText || t(lang, 'askProvider'));
+  const chosenRaw = await ask(promptText || t(lang, 'askProvider'));
+  const chosen = chosenRaw.trim();
   if (!chosen) throw new Error(t(lang, 'notEnteredProvider'));
+
+  if (/^\d+$/.test(chosen)) {
+    const idx = Number(chosen) - 1;
+    if (idx < 0 || idx >= providers.length) throw new Error(t(lang, 'providerIndexOutOfRange'));
+    return providers[idx];
+  }
+
+  if (!providers.includes(chosen)) throw new Error(t(lang, 'providerNotFound', { v: chosen }));
   return chosen;
+}
+
+async function resolveProviderArg(input, lang) {
+  const chosen = (input || '').trim();
+  if (!chosen) return '';
+  if (!/^\d+$/.test(chosen)) return chosen;
+
+  const providers = await listProviders();
+  const idx = Number(chosen) - 1;
+  if (idx < 0 || idx >= providers.length) throw new Error(t(lang, 'providerIndexOutOfRange'));
+  return providers[idx];
 }
 
 async function cmdProvider(subArgs, lang) {
@@ -570,8 +595,9 @@ async function cmdProvider(subArgs, lang) {
       console.log(t(lang, 'noProviders'));
       return;
     }
-    for (const p of providers) {
-      console.log(`${p === current ? '*' : ' '} ${p}`);
+    for (let i = 0; i < providers.length; i += 1) {
+      const p = providers[i];
+      console.log(`${i + 1}. ${p === current ? '*' : ' '} ${p}`);
     }
     if (!current) {
       console.log(`\n${t(lang, 'noActiveProvider')}`);
@@ -580,7 +606,7 @@ async function cmdProvider(subArgs, lang) {
   }
 
   if (action === 'use') {
-    const name = positional[0];
+    const name = await resolveProviderArg(positional[0], lang);
     if (!name) throw new Error(t(lang, 'useUsage'));
     const file = providerSettingsPath(name);
     if (!(await exists(file))) throw new Error(`provider settings not found: ${file}`);
@@ -590,7 +616,7 @@ async function cmdProvider(subArgs, lang) {
   }
 
   if (action === 'remove') {
-    const name = positional[0];
+    const name = await resolveProviderArg(positional[0], lang);
     if (!name) throw new Error(t(lang, 'removeUsage'));
     const file = providerSettingsPath(name);
     if (!(await exists(file))) throw new Error(`provider settings not found: ${file}`);
@@ -614,7 +640,7 @@ async function cmdProvider(subArgs, lang) {
   }
 
   if (action === 'test') {
-    const name = positional[0];
+    const name = await resolveProviderArg(positional[0], lang);
     if (!name) throw new Error(t(lang, 'testUsage'));
     const result = await testProvider(name);
     console.log(t(lang, 'testOK', { name, status: result.status }));
@@ -866,7 +892,7 @@ export async function main(argv = process.argv.slice(2)) {
 
   if (cmd === 'test') {
     const [name] = rest;
-    const provider = name || (await getCurrentProvider());
+    const provider = (await resolveProviderArg(name || '', lang)) || (await getCurrentProvider());
     if (!provider) throw new Error('usage: claudex test [name]');
     const result = await testProvider(provider);
     console.log(t(lang, 'testOK', { name: provider, status: result.status }));
