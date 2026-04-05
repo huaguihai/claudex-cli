@@ -128,6 +128,7 @@ claudex list
 claudex use <name>
 claudex remove <name> [--yes]
 claudex test [name]
+claudex lang <zh|en>
 claudex status
 claudex update [--from-local <path>]
 claudex doctor [--provider <name>]

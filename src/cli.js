@@ -11,7 +11,169 @@ const claudeDir = path.join(home, '.claude');
 const appDir = path.join(home, '.config', 'claudex-cli');
 const backupsDir = path.join(appDir, 'backups');
 const currentProviderFile = path.join(appDir, 'current-provider');
+const languageFile = path.join(appDir, 'language');
 const legacyCurrentProviderFile = path.join(claudeDir, 'current-provider');
+
+const TXT = {
+  zh: {
+    menuTitle: 'Claudex 主菜单',
+    m1: '1. 开始配置claudex（首次使用）',
+    m2: '2. 查看当前配置',
+    m3: '3. 切换模型服务商',
+    m4: '4. 管理模型服务商',
+    m5: '5. 问题排查',
+    m6: '6. 更多设置',
+    m7: '7. 退出',
+    choose17: '请选择 (1-7): ',
+    invalid17: '输入无效，请输入 1-7。',
+    bye: '已退出。',
+    currentProvider: '当前服务商: {v}',
+    currentSettings: '当前配置文件: {file} {state}',
+    providers: '服务商列表: {v}',
+    noProviders: '未找到任何服务商配置（~/.claude/settings.<name>.json）',
+    noActiveProvider: '当前未设置服务商，请执行: claudex use <name>',
+    providersAvailable: '可选服务商:',
+    askProvider: '请输入服务商名称: ',
+    askSwitchTo: '请输入要切换到的服务商名称: ',
+    askEdit: '请输入要编辑的服务商名称: ',
+    askDelete: '请输入要删除的服务商名称: ',
+    notEnteredProvider: '未输入服务商名称',
+    manageTitle: '管理模型服务商',
+    mg1: '1. 新增服务商',
+    mg2: '2. 编辑服务商（覆盖保存）',
+    mg3: '3. 删除服务商',
+    mg4: '4. 列出服务商',
+    mg5: '5. 返回主菜单',
+    choose15: '请选择 (1-5): ',
+    invalid15: '输入无效，请输入 1-5。',
+    moreTitle: '更多设置',
+    more1: '1. 初始化/修复 shell 快捷函数',
+    more2: '2. 显示命令帮助',
+    more3: '3. 语言设置（中文 / English）',
+    more4: '4. 返回主菜单',
+    choose14: '请选择 (1-4): ',
+    invalid14: '输入无效，请输入 1-4。',
+    langTitle: '语言设置',
+    langPrompt: '请输入语言代码（zh/en）: ',
+    langSaved: '语言已切换为: {v}',
+    opFailed: '操作失败: {v}',
+    execFailed: '执行失败: {v}',
+    saved: '已保存: {v}',
+    updated: '已更新: {v}',
+    deleted: '已删除: {v}',
+    cancelled: '已取消',
+    testOK: '测试通过: {name} ({status})',
+    doctorTitle: '诊断检查:',
+    envConflicts: '- 环境变量冲突:',
+    envNone: '- 环境变量冲突: 无',
+    fixHint: '  修复: unset ANTHROPIC_AUTH_TOKEN ANTHROPIC_API_KEY ANTHROPIC_BASE_URL',
+    doctorNoCurrent: '- 当前服务商: 无',
+    providerTestOK: '- 服务商测试: 通过 ({name}, HTTP {status})',
+    providerTestFail: '- 服务商测试: 失败 ({name})',
+    providerNameQ: '服务商名称（例如 gpt）: ',
+    baseUrlQ: '服务地址（例如 https://api.example.com）: ',
+    apiKeyQ: 'API Key: ',
+    haikuQ: 'Haiku 模型（例如 gpt-5.4-mini）: ',
+    sonnetQ: 'Sonnet 模型（例如 gpt-5.4）: ',
+    opusQ: 'Opus 模型（例如 gpt-5.4-xhigh）: ',
+    requiredErr: 'name/base-url/api-key/haiku-model/sonnet-model/opus-model 为必填项',
+    initialized: '初始化完成: {v}',
+    shellFile: 'Shell 配置文件: {v}',
+    helperAdded: '已写入快捷函数: cdxrun',
+    helperRun: '请执行: source {v}',
+    helperExists: '快捷函数已存在',
+    wizardSaved: '已保存配置: {v}',
+    testNowQ: '是否立即测试连接？(Y/n): ',
+    testPass: '连接测试通过: {name} (HTTP {status})',
+    useUsage: '用法: claudex provider use <name>',
+    removeUsage: '用法: claudex provider remove <name> [--yes]',
+    testUsage: '用法: claudex provider test <name>',
+    providerUsage: '用法: claudex provider <add|list|use|remove|test>',
+    removeConfirm: '删除 {v} ? (y/N): '
+  },
+  en: {
+    menuTitle: 'Claudex Main Menu',
+    m1: '1. Initial setup for Claudex (first-time use)',
+    m2: '2. View current configuration',
+    m3: '3. Switch model provider',
+    m4: '4. Manage model providers',
+    m5: '5. Troubleshooting',
+    m6: '6. More settings',
+    m7: '7. Exit',
+    choose17: 'Choose (1-7): ',
+    invalid17: 'Invalid input. Enter 1-7.',
+    bye: 'Exited.',
+    currentProvider: 'Current provider: {v}',
+    currentSettings: 'Current settings: {file} {state}',
+    providers: 'Providers: {v}',
+    noProviders: 'No providers found in ~/.claude/settings.<name>.json',
+    noActiveProvider: 'No active provider. Run: claudex use <name>',
+    providersAvailable: 'Available providers:',
+    askProvider: 'Enter provider name: ',
+    askSwitchTo: 'Enter provider name to switch to: ',
+    askEdit: 'Enter provider name to edit: ',
+    askDelete: 'Enter provider name to delete: ',
+    notEnteredProvider: 'No provider name entered',
+    manageTitle: 'Manage Model Providers',
+    mg1: '1. Add provider',
+    mg2: '2. Edit provider (overwrite)',
+    mg3: '3. Delete provider',
+    mg4: '4. List providers',
+    mg5: '5. Back to main menu',
+    choose15: 'Choose (1-5): ',
+    invalid15: 'Invalid input. Enter 1-5.',
+    moreTitle: 'More Settings',
+    more1: '1. Initialize/repair shell helper',
+    more2: '2. Show command help',
+    more3: '3. Language (中文 / English)',
+    more4: '4. Back to main menu',
+    choose14: 'Choose (1-4): ',
+    invalid14: 'Invalid input. Enter 1-4.',
+    langTitle: 'Language',
+    langPrompt: 'Enter language code (zh/en): ',
+    langSaved: 'Language set to: {v}',
+    opFailed: 'Operation failed: {v}',
+    execFailed: 'Execution failed: {v}',
+    saved: 'Saved: {v}',
+    updated: 'Updated: {v}',
+    deleted: 'Deleted: {v}',
+    cancelled: 'Cancelled',
+    testOK: 'Test OK: {name} ({status})',
+    doctorTitle: 'Doctor checks:',
+    envConflicts: '- Env conflicts:',
+    envNone: '- Env conflicts: none',
+    fixHint: '  Fix: unset ANTHROPIC_AUTH_TOKEN ANTHROPIC_API_KEY ANTHROPIC_BASE_URL',
+    doctorNoCurrent: '- Current provider: none',
+    providerTestOK: '- Provider test: OK ({name}, HTTP {status})',
+    providerTestFail: '- Provider test: FAIL ({name})',
+    providerNameQ: 'Provider name (e.g. gpt): ',
+    baseUrlQ: 'Base URL (e.g. https://api.example.com): ',
+    apiKeyQ: 'API Key: ',
+    haikuQ: 'Haiku model (e.g. gpt-5.4-mini): ',
+    sonnetQ: 'Sonnet model (e.g. gpt-5.4): ',
+    opusQ: 'Opus model (e.g. gpt-5.4-xhigh): ',
+    requiredErr: 'name/base-url/api-key/haiku-model/sonnet-model/opus-model are required.',
+    initialized: 'Initialized: {v}',
+    shellFile: 'Shell file: {v}',
+    helperAdded: 'Injected shell helper: cdxrun',
+    helperRun: 'Run: source {v}',
+    helperExists: 'Shell helper already exists',
+    wizardSaved: 'Saved config: {v}',
+    testNowQ: 'Test connection now? (Y/n): ',
+    testPass: 'Connection test passed: {name} (HTTP {status})',
+    useUsage: 'usage: claudex provider use <name>',
+    removeUsage: 'usage: claudex provider remove <name> [--yes]',
+    testUsage: 'usage: claudex provider test <name>',
+    providerUsage: 'usage: claudex provider <add|list|use|remove|test>',
+    removeConfirm: 'Delete {v}? (y/N): '
+  }
+};
+
+function t(lang, key, vars = {}) {
+  const table = TXT[lang] || TXT.zh;
+  const base = table[key] || TXT.zh[key] || key;
+  return base.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''));
+}
 
 function usage() {
   console.log(`claudex v0.1.0
@@ -26,6 +188,7 @@ Usage:
   claudex use <name>
   claudex remove <name> [--yes]
   claudex test [name]
+  claudex lang <zh|en>
   claudex status
   claudex update [--from-local <path>]
   claudex run [claude args...]
@@ -126,6 +289,22 @@ async function setCurrentProvider(name) {
   await fsp.writeFile(currentProviderFile, `${name}\n`, 'utf8');
 }
 
+async function getLanguage() {
+  if (await exists(languageFile)) {
+    const v = (await fsp.readFile(languageFile, 'utf8')).trim().toLowerCase();
+    if (v === 'zh' || v === 'en') return v;
+  }
+  return 'zh';
+}
+
+async function setLanguage(lang) {
+  const v = (lang || '').toLowerCase();
+  if (v !== 'zh' && v !== 'en') throw new Error('language must be zh or en');
+  await ensureDir(appDir);
+  await fsp.writeFile(languageFile, `${v}\n`, 'utf8');
+  return v;
+}
+
 function shellRcFile() {
   const shell = process.env.SHELL || '';
   if (shell.includes('zsh')) return path.join(home, '.zshrc');
@@ -179,18 +358,18 @@ async function ask(question) {
   }
 }
 
-async function promptProviderAdd(flags) {
+async function promptProviderAdd(flags, lang) {
   const rl = readline.createInterface({ input, output });
   try {
-    const name = (flags.name || (await rl.question('服务商名称（例如 gpt）: '))).trim();
-    const baseUrl = (flags['base-url'] || (await rl.question('服务地址（例如 https://api.example.com）: '))).trim();
-    const apiKey = (flags['api-key'] || (await rl.question('API Key: '))).trim();
-    const haikuModel = (flags['haiku-model'] || (await rl.question('Haiku 模型（例如 gpt-5.4-mini）: '))).trim();
-    const sonnetModel = (flags['sonnet-model'] || (await rl.question('Sonnet 模型（例如 gpt-5.4）: '))).trim();
-    const opusModel = (flags['opus-model'] || (await rl.question('Opus 模型（例如 gpt-5.4-xhigh）: '))).trim();
+    const name = (flags.name || (await rl.question(t(lang, 'providerNameQ')))).trim();
+    const baseUrl = (flags['base-url'] || (await rl.question(t(lang, 'baseUrlQ')))).trim();
+    const apiKey = (flags['api-key'] || (await rl.question(t(lang, 'apiKeyQ')))).trim();
+    const haikuModel = (flags['haiku-model'] || (await rl.question(t(lang, 'haikuQ')))).trim();
+    const sonnetModel = (flags['sonnet-model'] || (await rl.question(t(lang, 'sonnetQ')))).trim();
+    const opusModel = (flags['opus-model'] || (await rl.question(t(lang, 'opusQ')))).trim();
 
     if (!name || !baseUrl || !apiKey || !haikuModel || !sonnetModel || !opusModel) {
-      throw new Error('name/base-url/api-key/haiku-model/sonnet-model/opus-model are required.');
+      throw new Error(t(lang, 'requiredErr'));
     }
 
     return { name, baseUrl, apiKey, haikuModel, sonnetModel, opusModel };
@@ -323,49 +502,49 @@ async function cmdUpdate(rest) {
   console.log('Update complete.');
 }
 
-async function cmdInit() {
+async function cmdInit(lang) {
   await ensureDir(appDir);
   await ensureDir(backupsDir);
   const injected = await injectShellBlock();
   const current = await getCurrentProvider();
   if (!current) await setCurrentProvider('gemma');
 
-  console.log(`Initialized: ${appDir}`);
-  console.log(`Shell file: ${injected.rc}`);
+  console.log(t(lang, 'initialized', { v: appDir }));
+  console.log(t(lang, 'shellFile', { v: injected.rc }));
   if (injected.changed) {
-    console.log('Injected shell helper: cdxrun');
-    console.log(`Run: source ${injected.rc}`);
+    console.log(t(lang, 'helperAdded'));
+    console.log(t(lang, 'helperRun', { v: injected.rc }));
   } else {
-    console.log('Shell helper already exists');
+    console.log(t(lang, 'helperExists'));
   }
 }
 
-async function pickProvider(promptText = '请输入服务商名称: ') {
+async function pickProvider(lang, promptText) {
   const providers = await listProviders();
   if (providers.length === 0) {
-    throw new Error('还没有任何服务商，请先选择“开始配置claudex”或“管理模型服务商 -> 新增”。');
+    throw new Error(t(lang, 'noProviders'));
   }
 
   const current = await getCurrentProvider();
-  console.log('可选服务商:');
+  console.log(t(lang, 'providersAvailable'));
   for (const p of providers) {
     console.log(`${p === current ? '*' : ' '} ${p}`);
   }
-  const chosen = await ask(promptText);
-  if (!chosen) throw new Error('未输入服务商名称');
+  const chosen = await ask(promptText || t(lang, 'askProvider'));
+  if (!chosen) throw new Error(t(lang, 'notEnteredProvider'));
   return chosen;
 }
 
-async function cmdProvider(subArgs) {
+async function cmdProvider(subArgs, lang) {
   const [action, ...rest] = subArgs;
   const { flags, rest: positional } = parseFlags(rest);
 
   if (action === 'add') {
-    const info = await promptProviderAdd(flags);
+    const info = await promptProviderAdd(flags, lang);
     const file = await writeProviderSettings(info);
     if (flags.current || flags['set-current']) await setCurrentProvider(info.name);
-    console.log(`Saved: ${file}`);
-    console.log(`Test with: claudex provider test ${info.name}`);
+    console.log(t(lang, 'saved', { v: file }));
+    console.log(`claudex provider test ${info.name}`);
     return;
   }
 
@@ -373,40 +552,40 @@ async function cmdProvider(subArgs) {
     const providers = await listProviders();
     const current = await getCurrentProvider();
     if (providers.length === 0) {
-      console.log('No providers found in ~/.claude/settings.<name>.json');
+      console.log(t(lang, 'noProviders'));
       return;
     }
     for (const p of providers) {
       console.log(`${p === current ? '*' : ' '} ${p}`);
     }
     if (!current) {
-      console.log('\nNo active provider. Run: claudex use <name>');
+      console.log(`\n${t(lang, 'noActiveProvider')}`);
     }
     return;
   }
 
   if (action === 'use') {
     const name = positional[0];
-    if (!name) throw new Error('usage: claudex provider use <name>');
+    if (!name) throw new Error(t(lang, 'useUsage'));
     const file = providerSettingsPath(name);
     if (!(await exists(file))) throw new Error(`provider settings not found: ${file}`);
     await setCurrentProvider(name);
-    console.log(`Current provider: ${name}`);
+    console.log(t(lang, 'currentProvider', { v: name }));
     return;
   }
 
   if (action === 'remove') {
     const name = positional[0];
-    if (!name) throw new Error('usage: claudex provider remove <name> [--yes]');
+    if (!name) throw new Error(t(lang, 'removeUsage'));
     const file = providerSettingsPath(name);
     if (!(await exists(file))) throw new Error(`provider settings not found: ${file}`);
 
     if (!flags.yes) {
       const rl = readline.createInterface({ input, output });
-      const ans = (await rl.question(`Delete ${file}? (y/N): `)).trim().toLowerCase();
+      const ans = (await rl.question(t(lang, 'removeConfirm', { v: file }))).trim().toLowerCase();
       rl.close();
       if (ans !== 'y' && ans !== 'yes') {
-        console.log('Cancelled');
+        console.log(t(lang, 'cancelled'));
         return;
       }
     }
@@ -415,35 +594,35 @@ async function cmdProvider(subArgs) {
     await fsp.unlink(file);
     const current = await getCurrentProvider();
     if (current === name) await fsp.unlink(currentProviderFile).catch(() => {});
-    console.log(`Deleted: ${file}`);
+    console.log(t(lang, 'deleted', { v: file }));
     return;
   }
 
   if (action === 'test') {
     const name = positional[0];
-    if (!name) throw new Error('usage: claudex provider test <name>');
+    if (!name) throw new Error(t(lang, 'testUsage'));
     const result = await testProvider(name);
-    console.log(`Test OK: ${name} (${result.status})`);
+    console.log(t(lang, 'testOK', { name, status: result.status }));
     return;
   }
 
-  throw new Error('usage: claudex provider <add|list|use|remove|test>');
+  throw new Error(t(lang, 'providerUsage'));
 }
 
-async function cmdStatus() {
+async function cmdStatus(lang) {
   const current = await getCurrentProvider();
   const providers = await listProviders();
-  console.log(`Current provider: ${current || '(none)'}`);
+  console.log(t(lang, 'currentProvider', { v: current || '(none)' }));
   if (current) {
     const file = providerSettingsPath(current);
-    console.log(`Current settings: ${file} ${await exists(file) ? '(exists)' : '(missing)'}`);
+    console.log(t(lang, 'currentSettings', { file, state: await exists(file) ? '(exists)' : '(missing)' }));
   }
-  console.log(`Providers: ${providers.length ? providers.join(', ') : '(none)'}`);
+  console.log(t(lang, 'providers', { v: providers.length ? providers.join(', ') : '(none)' }));
 }
 
-async function cmdDoctor(flags) {
+async function cmdDoctor(flags, lang) {
   const target = flags.provider || (await getCurrentProvider());
-  console.log('Doctor checks:');
+  console.log(t(lang, 'doctorTitle'));
 
   const conflicts = [];
   if (process.env.ANTHROPIC_AUTH_TOKEN) conflicts.push('ANTHROPIC_AUTH_TOKEN is set in current shell');
@@ -451,155 +630,170 @@ async function cmdDoctor(flags) {
   if (process.env.ANTHROPIC_BASE_URL) conflicts.push('ANTHROPIC_BASE_URL is set in current shell');
 
   if (conflicts.length) {
-    console.log('- Env conflicts:');
+    console.log(t(lang, 'envConflicts'));
     for (const c of conflicts) console.log(`  - ${c}`);
-    console.log('  Fix: unset ANTHROPIC_AUTH_TOKEN ANTHROPIC_API_KEY ANTHROPIC_BASE_URL');
+    console.log(t(lang, 'fixHint'));
   } else {
-    console.log('- Env conflicts: none');
+    console.log(t(lang, 'envNone'));
   }
 
   if (!target) {
-    console.log('- Current provider: none');
+    console.log(t(lang, 'doctorNoCurrent'));
     return;
   }
 
   try {
     const result = await testProvider(target);
-    console.log(`- Provider test: OK (${target}, HTTP ${result.status})`);
+    console.log(t(lang, 'providerTestOK', { name: target, status: result.status }));
   } catch (err) {
-    console.log(`- Provider test: FAIL (${target})`);
+    console.log(t(lang, 'providerTestFail', { name: target }));
     console.log(`  ${String(err.message || err)}`);
   }
 }
 
-async function configureWizard() {
-  await cmdInit();
-  const info = await promptProviderAdd({});
+async function configureWizard(lang) {
+  await cmdInit(lang);
+  const info = await promptProviderAdd({}, lang);
   const file = await writeProviderSettings(info);
   await setCurrentProvider(info.name);
-  console.log(`已保存配置: ${file}`);
+  console.log(t(lang, 'wizardSaved', { v: file }));
 
-  const ans = (await ask('是否立即测试连接？(Y/n): ')).toLowerCase();
+  const ans = (await ask(t(lang, 'testNowQ'))).toLowerCase();
   if (ans === '' || ans === 'y' || ans === 'yes') {
     const result = await testProvider(info.name);
-    console.log(`连接测试通过: ${info.name} (HTTP ${result.status})`);
+    console.log(t(lang, 'testPass', { name: info.name, status: result.status }));
   }
 }
 
-async function manageProvidersMenu() {
+async function manageProvidersMenu(lang) {
   while (true) {
-    console.log('\n管理模型服务商');
-    console.log('1. 新增服务商');
-    console.log('2. 编辑服务商（覆盖保存）');
-    console.log('3. 删除服务商');
-    console.log('4. 列出服务商');
-    console.log('5. 返回主菜单');
-    const choice = await ask('请选择 (1-5): ');
+    console.log(`\n${t(lang, 'manageTitle')}`);
+    console.log(t(lang, 'mg1'));
+    console.log(t(lang, 'mg2'));
+    console.log(t(lang, 'mg3'));
+    console.log(t(lang, 'mg4'));
+    console.log(t(lang, 'mg5'));
+    const choice = await ask(t(lang, 'choose15'));
 
     try {
       if (choice === '1') {
-        const info = await promptProviderAdd({});
+        const info = await promptProviderAdd({}, lang);
         const file = await writeProviderSettings(info);
-        console.log(`已保存: ${file}`);
+        console.log(t(lang, 'saved', { v: file }));
         continue;
       }
       if (choice === '2') {
-        const name = await pickProvider('请输入要编辑的服务商名称: ');
-        const info = await promptProviderAdd({ name });
+        const name = await pickProvider(lang, t(lang, 'askEdit'));
+        const info = await promptProviderAdd({ name }, lang);
         const file = await writeProviderSettings(info);
-        console.log(`已更新: ${file}`);
+        console.log(t(lang, 'updated', { v: file }));
         continue;
       }
       if (choice === '3') {
-        const name = await pickProvider('请输入要删除的服务商名称: ');
-        await cmdProvider(['remove', name, '--yes']);
+        const name = await pickProvider(lang, t(lang, 'askDelete'));
+        await cmdProvider(['remove', name, '--yes'], lang);
         continue;
       }
       if (choice === '4') {
-        await cmdProvider(['list']);
+        await cmdProvider(['list'], lang);
         continue;
       }
       if (choice === '5') return;
-      console.log('输入无效，请输入 1-5。');
+      console.log(t(lang, 'invalid15'));
     } catch (err) {
-      console.log(`操作失败: ${String(err.message || err)}`);
+      console.log(t(lang, 'opFailed', { v: String(err.message || err) }));
     }
   }
 }
 
-async function moreSettingsMenu() {
+async function moreSettingsMenu(lang) {
   while (true) {
-    console.log('\n更多设置');
-    console.log('1. 初始化/修复 shell 快捷函数');
-    console.log('2. 显示命令帮助');
-    console.log('3. 返回主菜单');
-    const choice = await ask('请选择 (1-3): ');
+    console.log(`\n${t(lang, 'moreTitle')}`);
+    console.log(t(lang, 'more1'));
+    console.log(t(lang, 'more2'));
+    console.log(t(lang, 'more3'));
+    console.log(t(lang, 'more4'));
+    const choice = await ask(t(lang, 'choose14'));
 
     if (choice === '1') {
-      await cmdInit();
+      await cmdInit(lang);
       continue;
     }
     if (choice === '2') {
       usage();
       continue;
     }
-    if (choice === '3') return;
-    console.log('输入无效，请输入 1-3。');
+    if (choice === '3') {
+      console.log(`\n${t(lang, 'langTitle')}`);
+      const chosen = (await ask(t(lang, 'langPrompt'))).toLowerCase();
+      if (chosen === 'zh' || chosen === 'en') {
+        const saved = await setLanguage(chosen);
+        lang = saved;
+        console.log(t(lang, 'langSaved', { v: saved }));
+      } else {
+        console.log(t(lang, 'invalid14'));
+      }
+      continue;
+    }
+    if (choice === '4') return;
+    console.log(t(lang, 'invalid14'));
   }
 }
 
-async function mainMenu() {
+async function mainMenu(lang) {
   while (true) {
     console.log('\n==============================');
-    console.log('Claudex 主菜单');
-    console.log('1. 开始配置claudex（首次使用）');
-    console.log('2. 查看当前配置');
-    console.log('3. 切换模型服务商');
-    console.log('4. 管理模型服务商');
-    console.log('5. 问题排查');
-    console.log('6. 更多设置');
-    console.log('7. 退出');
+    console.log(t(lang, 'menuTitle'));
+    console.log(t(lang, 'm1'));
+    console.log(t(lang, 'm2'));
+    console.log(t(lang, 'm3'));
+    console.log(t(lang, 'm4'));
+    console.log(t(lang, 'm5'));
+    console.log(t(lang, 'm6'));
+    console.log(t(lang, 'm7'));
     console.log('==============================');
-    const choice = await ask('请选择 (1-7): ');
+    const choice = await ask(t(lang, 'choose17'));
 
     try {
       if (choice === '1') {
-        await configureWizard();
+        await configureWizard(lang);
         continue;
       }
       if (choice === '2') {
-        await cmdStatus();
+        await cmdStatus(lang);
         continue;
       }
       if (choice === '3') {
-        const name = await pickProvider('请输入要切换到的服务商名称: ');
-        await cmdProvider(['use', name]);
+        const name = await pickProvider(lang, t(lang, 'askSwitchTo'));
+        await cmdProvider(['use', name], lang);
         continue;
       }
       if (choice === '4') {
-        await manageProvidersMenu();
+        await manageProvidersMenu(lang);
         continue;
       }
       if (choice === '5') {
-        await cmdDoctor({});
+        await cmdDoctor({}, lang);
         continue;
       }
       if (choice === '6') {
-        await moreSettingsMenu();
+        await moreSettingsMenu(lang);
+        lang = await getLanguage();
         continue;
       }
       if (choice === '7' || choice.toLowerCase() === 'q') {
-        console.log('已退出。');
+        console.log(t(lang, 'bye'));
         return;
       }
-      console.log('输入无效，请输入 1-7。');
+      console.log(t(lang, 'invalid17'));
     } catch (err) {
-      console.log(`执行失败: ${String(err.message || err)}`);
+      console.log(t(lang, 'execFailed', { v: String(err.message || err) }));
     }
   }
 }
 
 export async function main(argv = process.argv.slice(2)) {
+  const lang = await getLanguage();
   const [cmd, ...rest] = argv;
   if (!cmd) {
     await runClaude([]);
@@ -612,7 +806,7 @@ export async function main(argv = process.argv.slice(2)) {
   }
 
   if (cmd === 'menu') {
-    await mainMenu();
+    await mainMenu(lang);
     return;
   }
 
@@ -622,22 +816,22 @@ export async function main(argv = process.argv.slice(2)) {
   }
 
   if (cmd === 'add') {
-    await cmdProvider(['add', ...rest]);
+    await cmdProvider(['add', ...rest], lang);
     return;
   }
 
   if (cmd === 'list') {
-    await cmdProvider(['list', ...rest]);
+    await cmdProvider(['list', ...rest], lang);
     return;
   }
 
   if (cmd === 'use') {
-    await cmdProvider(['use', ...rest]);
+    await cmdProvider(['use', ...rest], lang);
     return;
   }
 
   if (cmd === 'remove') {
-    await cmdProvider(['remove', ...rest]);
+    await cmdProvider(['remove', ...rest], lang);
     return;
   }
 
@@ -646,22 +840,30 @@ export async function main(argv = process.argv.slice(2)) {
     const provider = name || (await getCurrentProvider());
     if (!provider) throw new Error('usage: claudex test [name]');
     const result = await testProvider(provider);
-    console.log(`Test OK: ${provider} (${result.status})`);
+    console.log(t(lang, 'testOK', { name: provider, status: result.status }));
     return;
   }
 
   if (cmd === 'init') {
-    await cmdInit();
+    await cmdInit(lang);
     return;
   }
 
   if (cmd === 'provider') {
-    await cmdProvider(rest);
+    await cmdProvider(rest, lang);
     return;
   }
 
   if (cmd === 'status') {
-    await cmdStatus();
+    await cmdStatus(lang);
+    return;
+  }
+
+  if (cmd === 'lang') {
+    const next = (rest[0] || '').toLowerCase();
+    if (next !== 'zh' && next !== 'en') throw new Error('usage: claudex lang <zh|en>');
+    const saved = await setLanguage(next);
+    console.log(t(saved, 'langSaved', { v: saved }));
     return;
   }
 
@@ -672,7 +874,7 @@ export async function main(argv = process.argv.slice(2)) {
 
   if (cmd === 'doctor') {
     const { flags } = parseFlags(rest);
-    await cmdDoctor(flags);
+    await cmdDoctor(flags, lang);
     return;
   }
 
