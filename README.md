@@ -14,22 +14,39 @@ A lightweight CLI for non-technical users to configure and switch Claude Code pr
 
 ```bash
 npm i -g claudex-cli
-claudex init
-claudex provider add
-claudex provider test <name>
-claudex provider use <name>
-claudex run --continue
+claudex
+claudex --continue
+claudex menu
 ```
+
+Behavior:
+
+- `claudex`: launch Claude directly with current provider
+- `claudex --continue`: continue last conversation
+- `claudex menu`: open interactive menu
+
+`claudex menu` will open:
+
+1. 开始配置claudex（首次使用）
+2. 查看当前配置
+3. 切换模型服务商
+4. 管理模型服务商（新增/编辑/删除）
+5. 问题排查
+6. 更多设置
+7. 退出
 
 ## Commands
 
 ```text
+claudex
+claudex --continue
+claudex menu
 claudex init
-claudex provider add [--name N --base-url URL --api-key KEY --model MODEL]
-claudex provider list
-claudex provider use <name>
-claudex provider remove <name> [--yes]
-claudex provider test <name>
+claudex add
+claudex list
+claudex use <name>
+claudex remove <name> [--yes]
+claudex test [name]
 claudex status
 claudex doctor [--provider <name>]
 claudex run [claude args...]

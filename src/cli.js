@@ -16,20 +16,30 @@ function usage() {
   console.log(`claudex v0.1.0
 
 Usage:
+  claudex                     # 直接启动 Claude（使用当前配置）
+  claudex --continue          # 继续最近一次会话
+  claudex menu                # 进入交互菜单
   claudex init
+  claudex add
+  claudex list
+  claudex use <name>
+  claudex remove <name> [--yes]
+  claudex test [name]
+  claudex status
+  claudex run [claude args...]
   claudex provider add [--name N --base-url URL --api-key KEY --model MODEL]
   claudex provider list
   claudex provider use <name>
   claudex provider remove <name> [--yes]
   claudex provider test <name>
-  claudex status
   claudex doctor [--provider <name>]
-  claudex run [claude args...]
 
 Examples:
-  claudex init
-  claudex provider add
-  claudex provider use gpt
+  claudex
+  claudex --continue
+  claudex menu
+  claudex use gpt
+  claudex test
   claudex run --continue
 `);
 }
@@ -138,13 +148,22 @@ function parseFlags(argv) {
   return { flags, rest };
 }
 
+async function ask(question) {
+  const rl = readline.createInterface({ input, output });
+  try {
+    return (await rl.question(question)).trim();
+  } finally {
+    rl.close();
+  }
+}
+
 async function promptProviderAdd(flags) {
   const rl = readline.createInterface({ input, output });
   try {
-    const name = (flags.name || (await rl.question('Provider name (e.g. gpt): '))).trim();
-    const baseUrl = (flags['base-url'] || (await rl.question('Base URL (e.g. https://api.example.com): '))).trim();
-    const apiKey = (flags['api-key'] || (await rl.question('API key: '))).trim();
-    const model = (flags.model || (await rl.question('Default model (e.g. gpt-5.4): '))).trim();
+    const name = (flags.name || (await rl.question('服务商名称（例如 gpt）: '))).trim();
+    const baseUrl = (flags['base-url'] || (await rl.question('服务地址（例如 https://api.example.com）: '))).trim();
+    const apiKey = (flags['api-key'] || (await rl.question('API Key: '))).trim();
+    const model = (flags.model || (await rl.question('默认模型（例如 gpt-5.4）: '))).trim();
 
     if (!name || !baseUrl || !apiKey || !model) {
       throw new Error('name/base-url/api-key/model are required.');
@@ -271,6 +290,22 @@ async function cmdInit() {
   }
 }
 
+async function pickProvider(promptText = '请输入服务商名称: ') {
+  const providers = await listProviders();
+  if (providers.length === 0) {
+    throw new Error('还没有任何服务商，请先选择“开始配置claudex”或“管理模型服务商 -> 新增”。');
+  }
+
+  const current = await getCurrentProvider();
+  console.log('可选服务商:');
+  for (const p of providers) {
+    console.log(`${p === current ? '*' : ' '} ${p}`);
+  }
+  const chosen = await ask(promptText);
+  if (!chosen) throw new Error('未输入服务商名称');
+  return chosen;
+}
+
 async function cmdProvider(subArgs) {
   const [action, ...rest] = subArgs;
   const { flags, rest: positional } = parseFlags(rest);
@@ -384,10 +419,181 @@ async function cmdDoctor(flags) {
   }
 }
 
+async function configureWizard() {
+  await cmdInit();
+  const info = await promptProviderAdd({});
+  const file = await writeProviderSettings(info);
+  await setCurrentProvider(info.name);
+  console.log(`已保存配置: ${file}`);
+
+  const ans = (await ask('是否立即测试连接？(Y/n): ')).toLowerCase();
+  if (ans === '' || ans === 'y' || ans === 'yes') {
+    const result = await testProvider(info.name);
+    console.log(`连接测试通过: ${info.name} (HTTP ${result.status})`);
+  }
+}
+
+async function manageProvidersMenu() {
+  while (true) {
+    console.log('\n管理模型服务商');
+    console.log('1. 新增服务商');
+    console.log('2. 编辑服务商（覆盖保存）');
+    console.log('3. 删除服务商');
+    console.log('4. 列出服务商');
+    console.log('5. 返回主菜单');
+    const choice = await ask('请选择 (1-5): ');
+
+    try {
+      if (choice === '1') {
+        const info = await promptProviderAdd({});
+        const file = await writeProviderSettings(info);
+        console.log(`已保存: ${file}`);
+        continue;
+      }
+      if (choice === '2') {
+        const name = await pickProvider('请输入要编辑的服务商名称: ');
+        const info = await promptProviderAdd({ name });
+        const file = await writeProviderSettings(info);
+        console.log(`已更新: ${file}`);
+        continue;
+      }
+      if (choice === '3') {
+        const name = await pickProvider('请输入要删除的服务商名称: ');
+        await cmdProvider(['remove', name, '--yes']);
+        continue;
+      }
+      if (choice === '4') {
+        await cmdProvider(['list']);
+        continue;
+      }
+      if (choice === '5') return;
+      console.log('输入无效，请输入 1-5。');
+    } catch (err) {
+      console.log(`操作失败: ${String(err.message || err)}`);
+    }
+  }
+}
+
+async function moreSettingsMenu() {
+  while (true) {
+    console.log('\n更多设置');
+    console.log('1. 初始化/修复 shell 快捷函数');
+    console.log('2. 显示命令帮助');
+    console.log('3. 返回主菜单');
+    const choice = await ask('请选择 (1-3): ');
+
+    if (choice === '1') {
+      await cmdInit();
+      continue;
+    }
+    if (choice === '2') {
+      usage();
+      continue;
+    }
+    if (choice === '3') return;
+    console.log('输入无效，请输入 1-3。');
+  }
+}
+
+async function mainMenu() {
+  while (true) {
+    console.log('\n==============================');
+    console.log('Claudex 主菜单');
+    console.log('1. 开始配置claudex（首次使用）');
+    console.log('2. 查看当前配置');
+    console.log('3. 切换模型服务商');
+    console.log('4. 管理模型服务商');
+    console.log('5. 问题排查');
+    console.log('6. 更多设置');
+    console.log('7. 退出');
+    console.log('==============================');
+    const choice = await ask('请选择 (1-7): ');
+
+    try {
+      if (choice === '1') {
+        await configureWizard();
+        continue;
+      }
+      if (choice === '2') {
+        await cmdStatus();
+        continue;
+      }
+      if (choice === '3') {
+        const name = await pickProvider('请输入要切换到的服务商名称: ');
+        await cmdProvider(['use', name]);
+        continue;
+      }
+      if (choice === '4') {
+        await manageProvidersMenu();
+        continue;
+      }
+      if (choice === '5') {
+        await cmdDoctor({});
+        continue;
+      }
+      if (choice === '6') {
+        await moreSettingsMenu();
+        continue;
+      }
+      if (choice === '7' || choice.toLowerCase() === 'q') {
+        console.log('已退出。');
+        return;
+      }
+      console.log('输入无效，请输入 1-7。');
+    } catch (err) {
+      console.log(`执行失败: ${String(err.message || err)}`);
+    }
+  }
+}
+
 export async function main(argv = process.argv.slice(2)) {
   const [cmd, ...rest] = argv;
-  if (!cmd || cmd === '--help' || cmd === '-h') {
+  if (!cmd) {
+    await runClaude([]);
+    return;
+  }
+
+  if (cmd === '--help' || cmd === '-h') {
     usage();
+    return;
+  }
+
+  if (cmd === 'menu') {
+    await mainMenu();
+    return;
+  }
+
+  if (cmd.startsWith('-')) {
+    await runClaude(argv);
+    return;
+  }
+
+  if (cmd === 'add') {
+    await cmdProvider(['add', ...rest]);
+    return;
+  }
+
+  if (cmd === 'list') {
+    await cmdProvider(['list', ...rest]);
+    return;
+  }
+
+  if (cmd === 'use') {
+    await cmdProvider(['use', ...rest]);
+    return;
+  }
+
+  if (cmd === 'remove') {
+    await cmdProvider(['remove', ...rest]);
+    return;
+  }
+
+  if (cmd === 'test') {
+    const [name] = rest;
+    const provider = name || (await getCurrentProvider());
+    if (!provider) throw new Error('usage: claudex test [name]');
+    const result = await testProvider(provider);
+    console.log(`Test OK: ${provider} (${result.status})`);
     return;
   }
 
