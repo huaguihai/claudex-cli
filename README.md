@@ -129,6 +129,7 @@ claudex use <name>
 claudex remove <name> [--yes]
 claudex test [name]
 claudex status
+claudex update [--from-local <path>]
 claudex doctor [--provider <name>]
 claudex run [claude args...]
 ```

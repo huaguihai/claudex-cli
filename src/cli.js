@@ -27,6 +27,7 @@ Usage:
   claudex remove <name> [--yes]
   claudex test [name]
   claudex status
+  claudex update [--from-local <path>]
   claudex run [claude args...]
   claudex provider add [--name N --base-url URL --api-key KEY --haiku-model H --sonnet-model S --opus-model O]
   claudex provider list
@@ -41,6 +42,7 @@ Examples:
   claudex menu
   claudex use gpt
   claudex test
+  claudex update
   claudex run --continue
 `);
 }
@@ -271,6 +273,17 @@ function sanitizedEnv() {
   return next;
 }
 
+async function runProcess(command, args, env = process.env) {
+  await new Promise((resolve, reject) => {
+    const child = spawn(command, args, { stdio: 'inherit', env });
+    child.on('error', reject);
+    child.on('exit', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`${command} exited with code ${code}`));
+    });
+  });
+}
+
 async function runClaude(extraArgs) {
   const current = await getCurrentProvider();
   if (!current) {
@@ -293,6 +306,21 @@ async function runClaude(extraArgs) {
     });
     child.on('error', reject);
   });
+}
+
+async function cmdUpdate(rest) {
+  const { flags } = parseFlags(rest);
+  const fromLocal = typeof flags['from-local'] === 'string' ? flags['from-local'] : '';
+  if (fromLocal) {
+    console.log(`Updating from local path: ${fromLocal}`);
+    await runProcess('npm', ['i', '-g', fromLocal], process.env);
+    console.log('Update complete.');
+    return;
+  }
+
+  console.log('Updating from npm registry: claudex-cli@latest');
+  await runProcess('npm', ['i', '-g', 'claudex-cli@latest'], process.env);
+  console.log('Update complete.');
 }
 
 async function cmdInit() {
@@ -634,6 +662,11 @@ export async function main(argv = process.argv.slice(2)) {
 
   if (cmd === 'status') {
     await cmdStatus();
+    return;
+  }
+
+  if (cmd === 'update') {
+    await cmdUpdate(rest);
     return;
   }
 
