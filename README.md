@@ -1,5 +1,13 @@
 # claudex-cli
 
+```
+  ____ _        _   _   _ ____  _______  __
+ / ___| |      / \ | | | |  _ \| ____\ \/ /
+| |   | |     / _ \| | | | | | |  _|  \  /
+| |___| |___ / ___ \ |_| | |_| | |___ /  \
+ \____|_____/_/   \_\___/|____/|_____/_/\_\
+```
+
 Switch and run Claude providers with one command.
 
 [![English](https://img.shields.io/badge/English-111827?style=flat-square)](./README.md)
