@@ -144,6 +144,27 @@ claudex run [claude args...]
 - `claudex update` 默认从 GitHub 源更新。
 - `claudex update --from-npm` 才会走 npm registry。
 
+## 基本用法
+
+### 切换服务商并启动
+
+```bash
+claudex use gpt
+claudex
+```
+
+### 继续上次会话
+
+```bash
+claudex --continue
+```
+
+### 快速诊断
+
+```bash
+claudex doctor
+```
+
 ## 配置参考
 
 ### 服务商配置文件：`~/.claude/settings.<name>.json`

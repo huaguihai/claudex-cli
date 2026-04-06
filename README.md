@@ -144,6 +144,27 @@ Update source behavior:
 - `claudex update` uses the GitHub source by default.
 - `claudex update --from-npm` explicitly uses npm registry.
 
+## Usage
+
+### Switch provider and launch
+
+```bash
+claudex use gpt
+claudex
+```
+
+### Continue last conversation
+
+```bash
+claudex --continue
+```
+
+### Quick diagnostics
+
+```bash
+claudex doctor
+```
+
 ## Configuration Reference
 
 ### Provider file: `~/.claude/settings.<name>.json`
