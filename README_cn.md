@@ -36,6 +36,8 @@ npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 
 # 3) 初始化（写入 shell helper + 本地状态目录）
 claudex init
+# 注意：如果未安装 Claude Code，claudex 会在首次运行时
+# 自动检测并引导你安装。
 
 # 4) 新增服务商（交互录入）
 claudex add
@@ -64,11 +66,12 @@ claudex --continue
 
 | 能力 | 作用 |
 |---|---|
-| `claudex` | 启动 `claude --settings <当前服务商配置>` |
+| `claudex` | 启动 `claude --settings <当前服务商配置>`（未安装 Claude Code 时自动检测并引导安装） |
 | `claudex --continue` | 透传给 Claude 的续聊参数 |
 | `claudex use <name>` | 切换并持久化当前服务商 |
 | `claudex add` | 交互生成 `~/.claude/settings.<name>.json` |
 | `claudex test [name]` | 在线探测接口连通性（`/v1/messages`） |
+| `claudex doctor` | 检查 Claude Code 安装状态、环境变量冲突和 API 连通性 |
 | `claudex menu` | 面向非技术用户的引导菜单 |
 
 ## 工作原理

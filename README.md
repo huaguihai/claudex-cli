@@ -36,6 +36,8 @@ npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 
 # 3) Initialize shell helper and local state
 claudex init
+# Note: if Claude Code is not installed, claudex will detect it
+# and offer to install it automatically when you first run it.
 
 # 4) Add a provider (interactive)
 claudex add
@@ -64,11 +66,12 @@ claudex --continue
 
 | Capability | What it does |
 |---|---|
-| `claudex` | Launches `claude --settings <current-provider-file>` |
+| `claudex` | Launches `claude --settings <current-provider-file>` (auto-detects and offers to install Claude Code if missing) |
 | `claudex --continue` | Passes through to Claude continue flow |
 | `claudex use <name>` | Switches active provider and persists it |
 | `claudex add` | Creates `~/.claude/settings.<name>.json` interactively |
 | `claudex test [name]` | Sends a live API probe (`/v1/messages`) |
+| `claudex doctor` | Checks Claude Code installation, env conflicts, and live API connectivity |
 | `claudex menu` | Opens guided menu for non-technical users |
 
 ## How It Works
