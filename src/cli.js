@@ -2,7 +2,7 @@
 import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
@@ -114,7 +114,16 @@ const TXT = {
     removeConfirm: '删除 {v} ? (y/N): ',
     backGuide: '提示：输入 b 或 back 可返回上一级。',
     backDone: '↩️ 已返回上一级。',
-    testingNow: '🔍 正在测试连接: {name} ...'
+    testingNow: '🔍 正在测试连接: {name} ...',
+    claudeNotFound: '⚠️ 未检测到 Claude Code CLI（claude 命令不可用）',
+    claudeRequired: 'Claudex 需要 Claude Code 才能正常工作。',
+    claudeInstallQ: '是否现在安装 Claude Code？(Y/n): ',
+    claudeInstalling: '📦 正在安装 Claude Code ...',
+    claudeInstallOK: '✅ Claude Code 安装成功！',
+    claudeInstallFail: '❌ 安装失败: {v}',
+    claudeInstallSkip: '已跳过安装。请手动安装后重试：\n  npm install -g @anthropic-ai/claude-code',
+    claudeInstalled: '- Claude Code: 已安装 ({v})',
+    claudeNotInstalled: '- Claude Code: 未安装'
   },
   en: {
     menuTitle: 'Claudex Main Menu',
@@ -201,7 +210,16 @@ const TXT = {
     removeConfirm: 'Delete {v}? (y/N): ',
     backGuide: 'Tip: enter b or back to return to the previous menu.',
     backDone: '↩️ Back to previous menu.',
-    testingNow: '🔍 Testing connection: {name} ...'
+    testingNow: '🔍 Testing connection: {name} ...',
+    claudeNotFound: '⚠️ Claude Code CLI not found (claude command unavailable)',
+    claudeRequired: 'Claudex requires Claude Code to work properly.',
+    claudeInstallQ: 'Install Claude Code now? (Y/n): ',
+    claudeInstalling: '📦 Installing Claude Code ...',
+    claudeInstallOK: '✅ Claude Code installed successfully!',
+    claudeInstallFail: '❌ Installation failed: {v}',
+    claudeInstallSkip: 'Skipped. Install manually:\n  npm install -g @anthropic-ai/claude-code',
+    claudeInstalled: '- Claude Code: installed ({v})',
+    claudeNotInstalled: '- Claude Code: not installed'
   }
 };
 
@@ -368,6 +386,55 @@ async function setLanguage(lang) {
   await ensureDir(appDir);
   await fsp.writeFile(languageFile, `${v}\n`, 'utf8');
   return v;
+}
+
+function isClaudeInstalled() {
+  try {
+    execFileSync('claude', ['--version'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getClaudeVersion() {
+  try {
+    return execFileSync('claude', ['--version'], { encoding: 'utf8' }).trim();
+  } catch {
+    return null;
+  }
+}
+
+async function ensureClaudeInstalled(lang) {
+  if (isClaudeInstalled()) return true;
+
+  console.log(`\n${t(lang, 'claudeNotFound')}`);
+  console.log(t(lang, 'claudeRequired'));
+  console.log('');
+
+  const ans = await ask(t(lang, 'claudeInstallQ'));
+  if (!shouldRunTestInput(ans)) {
+    console.log(t(lang, 'claudeInstallSkip'));
+    return false;
+  }
+
+  console.log(t(lang, 'claudeInstalling'));
+  console.log('> npm install -g @anthropic-ai/claude-code\n');
+  try {
+    await runProcess('npm', ['install', '-g', '@anthropic-ai/claude-code']);
+  } catch (err) {
+    console.log(t(lang, 'claudeInstallFail', { v: String(err.message || err) }));
+    console.log(t(lang, 'claudeInstallSkip'));
+    return false;
+  }
+
+  if (isClaudeInstalled()) {
+    console.log(t(lang, 'claudeInstallOK'));
+    return true;
+  }
+
+  console.log(t(lang, 'claudeInstallFail', { v: 'verification failed' }));
+  return false;
 }
 
 function shellRcFile() {
@@ -738,6 +805,13 @@ async function cmdDoctor(flags, lang) {
   const target = flags.provider || (await getCurrentProvider());
   console.log(t(lang, 'doctorTitle'));
 
+  const ver = getClaudeVersion();
+  if (ver) {
+    console.log(t(lang, 'claudeInstalled', { v: ver }));
+  } else {
+    console.log(t(lang, 'claudeNotInstalled'));
+  }
+
   const conflicts = [];
   if (process.env.ANTHROPIC_AUTH_TOKEN) conflicts.push('ANTHROPIC_AUTH_TOKEN is set in current shell');
   if (process.env.ANTHROPIC_API_KEY) conflicts.push('ANTHROPIC_API_KEY is set in current shell');
@@ -952,6 +1026,7 @@ export async function main(argv = process.argv.slice(2)) {
   const lang = await getLanguage();
   const [cmd, ...rest] = argv;
   if (!cmd) {
+    if (!(await ensureClaudeInstalled(lang))) return;
     await runClaude([]);
     return;
   }
@@ -962,11 +1037,13 @@ export async function main(argv = process.argv.slice(2)) {
   }
 
   if (cmd === 'menu') {
+    if (!(await ensureClaudeInstalled(lang))) return;
     await mainMenu(lang);
     return;
   }
 
   if (cmd.startsWith('-')) {
+    if (!(await ensureClaudeInstalled(lang))) return;
     await runClaude(argv);
     return;
   }
@@ -1035,6 +1112,7 @@ export async function main(argv = process.argv.slice(2)) {
   }
 
   if (cmd === 'run') {
+    if (!(await ensureClaudeInstalled(lang))) return;
     await runClaude(rest);
     return;
   }
