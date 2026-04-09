@@ -39,6 +39,10 @@ That means the product is responsible for two things at the same time:
 - Persistent Native mode state
 - Command entry + menu entry
 - Structured runtime context injection
+- Dynamic task routing
+- Session-aware guidance
+- Subagent quality gate
+- Task quality gate
 - Provider behavior profile inference
 - Alignment policy generation
 - Provider-aware tuning and autotune support
@@ -75,6 +79,7 @@ That means the product is responsible for two things at the same time:
 
 - Routing / delegation / response-style hints become explicit policy output
 - Native profiles stop being only labels and begin affecting behavior
+- Runtime can now express follow-up context reuse, subagent evidence baselines, and task definition baselines
 
 ### Phase 4 — Evaluation Harness
 
@@ -86,6 +91,7 @@ That means the product is responsible for two things at the same time:
 - Focus only on high-frequency task quality
 - Improve the scenarios that most affect “native feel”
 - Current focus: benchmark and policy thickness, not new product surfaces
+- Current completed gap closures: dynamic-task-routing, session-aware-guidance, subagent-quality-gate, task-quality-gate
 
 ### Phase 6 — Multi-provider optimization
 

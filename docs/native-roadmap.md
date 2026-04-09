@@ -22,9 +22,14 @@
 
 ## Current architecture
 
-当前仓库已经具备 Native 运行时骨架：
+当前仓库已经具备可观测的 Native 运行时层：
 
 - `src/native-context.js`：结构化 Native runtime context
+- `src/prompt-signals.js`：任务信号分类
+- `src/route-guidance.js`：动态路由决策与 guidance
+- `src/session-guidance.js`：最近一步会话态与 follow-up 推断
+- `src/subagent-quality.js`：子代理输出最低质量门
+- `src/task-quality.js`：任务定义最低质量门
 - `src/provider-profile.js`：provider behavior profile 推断
 - `src/alignment-policy.js`：profile + provider-aware 策略提示
 - `src/provider-tuning.js`：provider 默认 profile 与 autotune 接入
@@ -92,7 +97,13 @@
 
 目标：围绕关键任务集持续逼近原生 Opus 体验。
 
-当前状态：进行中。当前 benchmark 已能稳定覆盖 repo research、small fix、workflow-sensitive、provider-sensitive 等高频场景，并且用最小 policy 补强消除了推荐 profile 口径下的核心缺失信号。
+当前状态：进行中。当前 benchmark 已能稳定覆盖 repo research、small fix、workflow-sensitive、provider-sensitive 等高频场景，并且在不扩产品面的前提下，已补齐本阶段最关键的行为层缺口：
+- dynamic task routing
+- session-aware guidance
+- subagent quality gate
+- task quality gate
+
+这意味着 Session / Quality Layer 已经打通，高频工作流的显式能力边界、follow-up 复用与最低质量门都已能被 runtime context 与 benchmark 稳定表达；但这仍不等于完全追平原生 Opus 体验，下一步应继续从 benchmark 中识别新的第一短板。
 
 关键结果：
 
@@ -164,6 +175,7 @@
 - `native-first` / `balanced` 相对 native off 有稳定收益
 - provider 差异开始可解释，而不是随机
 - benchmark 结果能指导默认 profile 与策略收敛
+- Session / Quality Layer 打通后，benchmark 仍能继续暴露新的第一短板
 
 需要重新评估路线的信号：
 
