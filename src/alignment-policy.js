@@ -12,7 +12,94 @@ function dedupePolicy(policy) {
   return policy;
 }
 
-export function buildAlignmentPolicy({ nativeProfile = 'native-first', providerProfile = null, policyPack = null } = {}) {
+function applyTaskSignals(policy, taskSignals = null, providerProfile = null, nativeProfile = 'native-first', sessionContext = null, subagentQualityGate = null, taskQualityGate = null) {
+  if (!taskSignals) return;
+
+  if (taskSignals.repoResearch) {
+    policy.routing_hints.push('dynamic-repo-research-tool-first');
+    policy.response_style_hints.push('dynamic-research-result-first');
+  }
+
+  if (taskSignals.boundedFix) {
+    policy.routing_hints.push('dynamic-bounded-fix-direct-execution');
+  }
+
+  if (taskSignals.multiFileFeature && !taskSignals.boundedFix) {
+    policy.routing_hints.push('dynamic-multi-file-plan-before-execute');
+  }
+
+  if (taskSignals.providerSensitive && providerProfile?.api_surface === 'openai-compatible') {
+    policy.routing_hints.push('dynamic-openai-compatible-guardrails');
+    policy.delegation_hints.push('dynamic-conservative-delegation');
+  }
+
+  if (taskSignals.workflowSensitive && nativeProfile === 'balanced') {
+    policy.routing_hints.push('dynamic-balanced-workflow-threshold');
+  }
+
+  if (taskSignals.workflowSensitive && nativeProfile === 'native-first' && providerProfile?.api_surface === 'anthropic') {
+    policy.delegation_hints.push('dynamic-anthropic-native-delegation');
+  }
+
+  if (taskSignals.capabilityQuestion) {
+    policy.response_style_hints.push('dynamic-capability-question-result-first');
+  }
+
+  if (taskSignals.safetySensitive) {
+    policy.safety_hints.push('dynamic-preserve-safety-boundary');
+  }
+
+  if (taskSignals.sessionFollowup) {
+    policy.routing_hints.push('dynamic-session-reuse-context');
+  }
+
+  if (taskSignals.sessionFollowup && sessionContext?.recentStepKind === 'research') {
+    policy.routing_hints.push('dynamic-followup-after-research');
+  }
+
+  if (taskSignals.sessionFollowup && sessionContext?.recentStepKind === 'plan') {
+    policy.routing_hints.push('dynamic-followup-after-plan');
+  }
+
+  if (taskSignals.sessionFollowup && sessionContext?.recentStepKind === 'implement') {
+    policy.routing_hints.push('dynamic-followup-after-implement');
+  }
+
+  if (sessionContext?.longHorizonSession) {
+    policy.routing_hints.push('require-long-horizon-session-stability');
+  }
+
+  if (subagentQualityGate?.enabled) {
+    policy.routing_hints.push('dynamic-subagent-quality-gate');
+    if (subagentQualityGate.required_evidence?.includes('file_path')) {
+      policy.routing_hints.push('require-subagent-file-path-evidence');
+    }
+    if (subagentQualityGate.required_evidence?.includes('symbol')) {
+      policy.routing_hints.push('require-subagent-symbol-evidence');
+    }
+    if (subagentQualityGate.required_evidence?.includes('command_evidence')) {
+      policy.routing_hints.push('require-subagent-command-evidence');
+    }
+    if (subagentQualityGate.evidence_richness) {
+      policy.routing_hints.push('require-subagent-evidence-richness');
+    }
+  }
+
+  if (taskQualityGate?.enabled) {
+    policy.routing_hints.push('dynamic-task-quality-gate');
+    if (taskQualityGate.subject_rules?.includes('specific_action') || taskQualityGate.subject_rules?.includes('clear_object')) {
+      policy.routing_hints.push('require-task-specific-subject');
+    }
+    if (taskQualityGate.description_rules?.includes('deliverable_required')) {
+      policy.routing_hints.push('require-task-deliverable-description');
+    }
+    if (taskQualityGate.description_rules?.includes('verification_evidence_required')) {
+      policy.routing_hints.push('require-task-verification-evidence');
+    }
+  }
+}
+
+export function buildAlignmentPolicy({ nativeProfile = 'native-first', providerProfile = null, policyPack = null, taskSignals = null, sessionContext = null, subagentQualityGate = null, taskQualityGate = null } = {}) {
   const policy = {
     policy_version: 1,
     response_style_hints: [],
@@ -42,6 +129,7 @@ export function buildAlignmentPolicy({ nativeProfile = 'native-first', providerP
     policy.routing_hints.push('use-structured-context-to-reduce-protocol-drift');
     policy.delegation_hints.push('be-conservative-with-complex-agent-orchestration');
     policy.safety_hints.push('avoid-assuming-perfect-native-tool-contract');
+    policy.routing_hints.push('require-provider-fallback-finesse');
     if (nativeProfile === 'balanced') {
       policy.routing_hints.push('balanced-default-for-openai-compatible');
     }
@@ -96,6 +184,8 @@ export function buildAlignmentPolicy({ nativeProfile = 'native-first', providerP
   if (providerProfile?.verbosity_bias === 'medium') {
     policy.response_style_hints.push('actively-compress-output');
   }
+
+  applyTaskSignals(policy, taskSignals, providerProfile, nativeProfile, sessionContext, subagentQualityGate, taskQualityGate);
 
   pushUnique(policy.routing_hints, policyPack?.routing_defaults || []);
   pushUnique(policy.delegation_hints, policyPack?.delegation_defaults || []);

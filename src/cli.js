@@ -9,6 +9,7 @@ import {
   buildNativeContext,
   buildNativeDoctorLines,
   buildNativeRuntimePrompt,
+  buildTaskSignalSummary,
   defaultNativeConfig,
   nativeStateLabel,
   validateNativeProfile
@@ -19,6 +20,23 @@ import {
 } from './provider-profile.js';
 import { buildAlignmentPolicy } from './alignment-policy.js';
 import { buildProviderTuning } from './provider-tuning.js';
+import { classifyPromptSignals } from './prompt-signals.js';
+import { buildDynamicRouteGuidance, buildRouteDecision } from './route-guidance.js';
+import {
+  appendSessionStep,
+  buildSessionContext,
+  inferStepKind,
+  readSessionState,
+  writeSessionState
+} from './session-guidance.js';
+import {
+  buildSubagentQualityGate,
+  buildSubagentQualityGuidance
+} from './subagent-quality.js';
+import {
+  buildTaskQualityGate,
+  buildTaskQualityGuidance
+} from './task-quality.js';
 
 
 const home = os.homedir();
@@ -28,6 +46,7 @@ const backupsDir = path.join(appDir, 'backups');
 const currentProviderFile = path.join(appDir, 'current-provider');
 const languageFile = path.join(appDir, 'language');
 const nativeConfigFile = path.join(appDir, 'native.json');
+const sessionStateFile = path.join(appDir, 'native-session.json');
 const legacyCurrentProviderFile = path.join(claudeDir, 'current-provider');
 class BackSignal extends Error {
   constructor() {
@@ -399,6 +418,17 @@ async function writeJson(file, obj) {
   await fsp.writeFile(file, txt, { mode: 0o600 });
 }
 
+async function readSessionStateFile() {
+  return readSessionState(sessionStateFile, async (file) => await fsp.readFile(file, 'utf8'));
+}
+
+async function writeSessionStateFile(state) {
+  await writeSessionState(sessionStateFile, state, async (file, content) => {
+    await ensureDir(path.dirname(file));
+    await fsp.writeFile(file, content + '\n', { mode: 0o600 });
+  });
+}
+
 async function listProviders() {
   if (!(await exists(claudeDir))) return [];
   const entries = await fsp.readdir(claudeDir);
@@ -492,7 +522,7 @@ async function cmdNativeDoctor(lang) {
   if (current && (await exists(settingsFile))) {
     const settings = await readJson(settingsFile);
     const auth = readProviderAuth(settings);
-    context = buildRuntimeNativeContext(current, settingsFile, config, auth);
+    context = await buildRuntimeNativeContext(current, settingsFile, config, auth, '');
   }
 
   for (const line of buildNativeDoctorLines(context, lang)) {
@@ -515,6 +545,10 @@ async function cmdNativeDoctor(lang) {
       console.log(`- 推荐来源: ${tuning.recommendation_source || 'unknown'} | 置信度: ${tuning.confidence || 'unknown'}`);
       console.log(`- 当前采用: ${currentProfile}${matchesRecommendation ? '（与推荐一致）' : '（与推荐不一致）'}`);
       console.log(`- 推荐理由: ${tuning.rationale.join('；')}`);
+      const taskSignals = buildTaskSignalSummary(context.task_signals);
+      if (taskSignals) {
+        console.log(`- 动态任务信号: ${taskSignals}`);
+      }
     } else {
       console.log(`- Recommended profile: ${tuning.recommended_profile} (${tuning.tuned_policy_pack})`);
       console.log(`- Recommendation source: ${tuning.recommendation_source || 'unknown'} | confidence: ${tuning.confidence || 'unknown'}`);
@@ -781,7 +815,7 @@ function readProviderAuth(settings) {
   };
 }
 
-function buildRuntimeNativeContext(providerName, settingsFile, config, auth) {
+async function buildRuntimeNativeContext(providerName, settingsFile, config, auth, promptText = '') {
   const protocolMode = preferredProtocolOrder(auth.baseUrl || '')[0] || 'unknown';
   const profile = buildProviderBehaviorProfile({
     providerName,
@@ -790,10 +824,51 @@ function buildRuntimeNativeContext(providerName, settingsFile, config, auth) {
     protocolMode
   });
   const providerTuning = buildProviderTuning({ providerProfile: profile });
-  const alignmentPolicy = buildAlignmentPolicy({
-    nativeProfile: config?.profile || providerTuning.recommended_profile || 'native-first',
+  const taskSignals = classifyPromptSignals(promptText);
+  const previousSessionState = await readSessionStateFile();
+  const resolvedProfile = config?.profile || providerTuning.recommended_profile || 'native-first';
+  const preliminaryRouteDecision = buildRouteDecision({
+    taskSignals,
     providerProfile: profile,
-    policyPack: providerTuning.policy_pack || null
+    nativeProfile: resolvedProfile
+  });
+  const sessionContext = buildSessionContext({
+    taskSignals,
+    routeDecision: preliminaryRouteDecision,
+    previousState: previousSessionState
+  });
+  const routeDecision = buildRouteDecision({
+    taskSignals,
+    providerProfile: profile,
+    nativeProfile: resolvedProfile,
+    sessionContext
+  });
+  const routeGuidance = buildDynamicRouteGuidance({
+    taskSignals,
+    providerProfile: profile,
+    nativeProfile: resolvedProfile,
+    sessionContext
+  });
+  const subagentQualityGate = buildSubagentQualityGate({
+    taskSignals,
+    routeDecision,
+    nativeProfile: resolvedProfile
+  });
+  const subagentQualityGuidance = buildSubagentQualityGuidance(subagentQualityGate);
+  const taskQualityGate = buildTaskQualityGate({
+    taskSignals,
+    routeDecision,
+    nativeProfile: resolvedProfile
+  });
+  const taskQualityGuidance = buildTaskQualityGuidance(taskQualityGate);
+  const alignmentPolicy = buildAlignmentPolicy({
+    nativeProfile: resolvedProfile,
+    providerProfile: profile,
+    policyPack: providerTuning.policy_pack || null,
+    taskSignals,
+    sessionContext,
+    subagentQualityGate,
+    taskQualityGate
   });
 
   return buildNativeContext(config, {
@@ -802,6 +877,19 @@ function buildRuntimeNativeContext(providerName, settingsFile, config, auth) {
     protocolMode,
     slotMapping: auth.slotMapping || {},
     compatibilityHints: profile.compatibility_hints || [],
+    taskSignals,
+    routeDecision,
+    routeGuidance,
+    recentStepKind: sessionContext.recentStepKind,
+    sessionState: previousSessionState,
+    sessionGuidance: sessionContext.sessionGuidance,
+    sessionTrajectory: sessionContext.sessionTrajectory,
+    longHorizonSession: sessionContext.longHorizonSession,
+    longHorizonGuidance: sessionContext.longHorizonGuidance,
+    subagentQualityGate,
+    subagentQualityGuidance,
+    taskQualityGate,
+    taskQualityGuidance,
     providerProfile: profile,
     alignmentPolicy,
     providerTuning
@@ -1001,7 +1089,8 @@ async function runClaude(extraArgs) {
   const native = await getNativeConfig();
   const settingsJson = await readJson(settings);
   const auth = readProviderAuth(settingsJson);
-  const context = buildRuntimeNativeContext(current, settings, native, auth);
+  const promptText = extraArgs.filter((value) => typeof value === 'string' && !value.startsWith('-')).join(' ');
+  const context = await buildRuntimeNativeContext(current, settings, native, auth, promptText);
 
   const launchArgs = ['--settings', settings];
   if (native.enabled && shouldInjectNativePrompt(extraArgs)) {
@@ -1020,6 +1109,22 @@ async function runClaude(extraArgs) {
     });
     child.on('error', reject);
   });
+
+  const nextStepKind = inferStepKind({ taskSignals: context.task_signals, routeDecision: context.route_decision });
+  const nextSessionState = {
+    last_step_kind: nextStepKind,
+    last_task_signals: Array.isArray(context.task_signals?.signalList) ? context.task_signals.signalList : [],
+    last_route_decision: context.route_decision || null,
+    source_prompt_excerpt: promptText,
+    recent_steps: appendSessionStep(context.session_state, {
+      step_kind: nextStepKind,
+      task_signals: Array.isArray(context.task_signals?.signalList) ? context.task_signals.signalList : [],
+      route_decision: context.route_decision || null,
+      prompt_excerpt: promptText,
+      updated_at: new Date().toISOString()
+    })
+  };
+  await writeSessionStateFile(nextSessionState);
 }
 
 async function cmdUpdate(rest) {
