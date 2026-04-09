@@ -17,7 +17,7 @@ Why does switching a Claude provider require editing 3 environment variables? `c
 [![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](./package.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-**Best for**: people who want `claudex` to feel like native `claude`, while still being able to switch provider configs quickly.
+**Best for**: people who want `claudex` to feel like native `claude`, while still being able to switch provider configs quickly and keep a persistent Native mode for third-party models.
 
 **Not for**: users who only use a single static provider and never switch.
 
@@ -88,10 +88,42 @@ claudex --continue
 | `claudex` | Launches `claude --settings <provider>` — auto-detects and installs Claude Code if missing |
 | `claudex use <name>` | Switches active provider in one command, persists across sessions |
 | `claudex add` | Interactive wizard: name → base URL → API key → models |
-| `claudex test [name]` | Live API probe to `/v1/messages` — confirms key + endpoint are working |
-| `claudex doctor` | Checks Claude Code install, env conflicts, and API connectivity |
+| `claudex test [name]` | Provider connectivity test with protocol-aware probing and Claude smoke fallback |
+| `claudex doctor` | Checks Claude Code install, env conflicts, Native state, and provider connectivity |
+| `claudex native ...` | Persistent Native mode: enable/disable, inspect status, choose a profile, and access the same flow from `claudex menu` |
 | `claudex menu` | Guided menu for users who prefer not to memorize commands |
-| `claudex --continue` | Passes through to Claude's continue-session flow |
+| Native runtime context | Injects structured runtime context with provider profile, alignment policy, and provider tuning |
+| Native benchmark harness | Compares `balanced` / `native-first` / `cost-first` across benchmark scenarios |
+| Native autotune | Generates profile recommendations from benchmark results |
+| Native dashboard | Renders benchmark summary, recommendations, and provider comparison into HTML |
+
+## Native Runtime System
+
+Claudex Native mode is not just a toggle. It is the product layer that tries to make third-party models behave closer to native Claude Code workflows.
+
+Current runtime layers:
+
+- `src/native-context.js` — structured Native runtime context builder
+- `src/provider-profile.js` — provider behavior profile inference
+- `src/alignment-policy.js` — routing / delegation / response-style policy hints
+- `src/provider-tuning.js` — provider-aware default profile selection and autotune integration
+- `scripts/run-native-benchmark.js` — benchmark runner
+- `scripts/summarize-native-benchmark.js` — markdown summary generator
+- `scripts/generate-native-autotune.js` — autotune recommendation generator
+- `scripts/render-native-dashboard.js` — HTML dashboard renderer
+
+Profile intent:
+
+- `native-first` — prioritize native Claude Code-like routing and workflow choices
+- `balanced` — prefer Native behavior while staying conservative on compatibility-sensitive providers
+- `cost-first` — reduce heavyweight workflow escalation and delegation
+
+Provider-aware defaults:
+
+- Anthropic-like / high-reliability providers tend toward `native-first`
+- OpenAI-compatible providers default more conservatively toward `balanced`
+- If autotune output exists, provider tuning prefers benchmark-driven recommendations over static defaults
+- Current benchmark set can already distinguish anthropic/native-first from openai-compatible, proxy, and dashscope/balanced defaults without adding extra product surface
 
 ## How It Works
 
@@ -151,6 +183,46 @@ claudex
 # => launches claude with gpt provider settings
 ```
 
+### Enable Native mode
+
+```bash
+claudex native on
+claudex native profile native-first
+# persists across provider switches until you change it
+```
+
+Native mode now appends a structured runtime context instead of a single lightweight hint. The injected context can include:
+
+- provider name and settings file
+- protocol mode and effective slot mapping
+- provider behavior profile
+- alignment policy hints
+- provider tuning / autotune recommendation
+
+If you explicitly pass `--system-prompt` or `--append-system-prompt`, your explicit prompt still wins.
+
+### Benchmark and autotune
+
+```bash
+npm run benchmark:native
+npm run benchmark:native:summary
+npm run benchmark:native:autotune
+npm run benchmark:native:dashboard
+```
+
+Outputs:
+
+- `tests/native-benchmarks/last-report.json`
+- `tests/native-benchmarks/last-summary.md`
+- `tests/native-benchmarks/last-autotune.json`
+- `tests/native-benchmarks/dashboard.html`
+
+Current benchmark/autotune behavior:
+
+- anthropic / high-reliability surfaces currently converge toward `native-first`
+- openai-compatible / proxy / dashscope surfaces currently converge toward `balanced`
+- `native doctor` now shows de-duplicated policy hints so the effective routing/delegation strategy is easier to inspect
+
 ### Continue last conversation
 
 ```bash
@@ -164,7 +236,8 @@ claudex doctor
 # => 🩺 Doctor checks:
 # => - Claude Code: installed (2.1.86)
 # => - Env conflicts: none
-# => - Provider test: OK (gpt, HTTP 200)
+# => - Native status: on (native-first)
+# => - Provider test: OK (gpt, HTTP 200, openai-chat-completions)
 ```
 
 ## Commands
@@ -181,6 +254,11 @@ claudex remove <name|index> [--yes]
 claudex test [name|index]        # test API connectivity
 claudex lang <zh|en>             # switch language
 claudex status                   # show current config
+claudex native on                # enable persistent Native mode
+claudex native off               # disable persistent Native mode
+claudex native status            # show Native status
+claudex native profile [name]    # set or interactively choose a profile
+claudex native doctor            # show Native checks
 claudex update [--from-local <path>] [--from-npm]
 claudex doctor [--provider <name>]
 claudex run [claude args...]     # pass-through to claude
@@ -221,6 +299,13 @@ All fields live under the `env` key:
 | File | `~/.config/claudex-cli/current-provider` |
 | Content | Provider name only (e.g. `gpt`) |
 
+### Native mode state
+
+| Item | Value |
+|------|-------|
+| File | `~/.config/claudex-cli/native.json` |
+| Content | `{ "enabled": boolean, "profile": "native-first|balanced|cost-first" }` |
+
 ### Backups
 
 Every time a provider file is overwritten, the previous version is saved to `~/.config/claudex-cli/backups/`.
@@ -239,3 +324,9 @@ Every time a provider file is overwritten, the previous version is saved to `~/.
 ## License
 
 MIT
+
+## Docs
+
+- `docs/product-plan.md`
+- `docs/native-roadmap.md`
+- `tests/native-benchmarks/`

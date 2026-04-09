@@ -8,7 +8,11 @@
   },
   "scripts": {
     "start": "node ./bin/claudex.js",
-    "lint": "node ./bin/claudex.js --help"
+    "lint": "node ./bin/claudex.js --help",
+    "benchmark:native": "node ./scripts/run-native-benchmark.js",
+    "benchmark:native:summary": "node ./scripts/summarize-native-benchmark.js",
+    "benchmark:native:autotune": "node ./scripts/generate-native-autotune.js",
+    "benchmark:native:dashboard": "node ./scripts/render-native-dashboard.js"
   },
   "engines": {
     "node": ">=18"

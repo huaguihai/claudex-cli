@@ -1,0 +1,228 @@
+[
+  {
+    "id": "capability-question-01",
+    "category": "capability-question",
+    "weight": 1,
+    "prompt": "在 Claude Code 里，什么时候该优先用 EnterPlanMode，什么时候直接做？请给一个简洁回答。",
+    "expectedSignals": ["keep-concise", "prefer-result-first"]
+  },
+  {
+    "id": "repo-research-01",
+    "category": "repo-research",
+    "weight": 1,
+    "prompt": "帮我研究一个代码库里谁负责 provider 适配、谁负责 prompt 组装，应该怎么开展？",
+    "expectedSignals": ["prefer-native-tooling"]
+  },
+  {
+    "id": "bounded-implementation-01",
+    "category": "bounded-implementation",
+    "weight": 1,
+    "prompt": "给已有 CLI 加一个很小的 status 字段显示，边界很清楚，应该更偏直接执行还是先重型规划？",
+    "expectedSignals": ["prefer-direct-execution"]
+  },
+  {
+    "id": "workflow-sensitive-01",
+    "category": "workflow-sensitive",
+    "weight": 2,
+    "providerHints": ["openai-compatible"],
+    "prompt": "如果是 openai-compatible provider，在 Claude Code 里做多代理协作时应该更保守还是更激进？",
+    "expectedSignals": ["be-conservative-with-complex-agent-orchestration"]
+  },
+  {
+    "id": "tool-choice-01",
+    "category": "tool-choice-sensitive",
+    "weight": 1,
+    "prompt": "当任务边界清晰时，应该优先直接使用原生工具还是写很多解释性文字？",
+    "expectedSignals": ["prefer-native-tooling", "keep-concise"]
+  },
+  {
+    "id": "result-style-01",
+    "category": "response-style",
+    "weight": 1,
+    "prompt": "用户只想知道结论时，输出应该怎么收敛才更像原生 Claude Code？",
+    "expectedSignals": ["keep-concise", "minimize-meta-narration"]
+  },
+  {
+    "id": "native-first-routing-01",
+    "category": "routing-sensitive",
+    "weight": 2,
+    "providerHints": ["anthropic", "high-reliability"],
+    "prompt": "如果目标是尽量接近原生 Opus 体验，工具和工作流选择上应该更偏向什么？",
+    "expectedSignals": ["prefer-native-claude-code-workflows"]
+  },
+  {
+    "id": "cost-first-01",
+    "category": "profile-sensitive",
+    "weight": 1,
+    "prompt": "如果当前 profile 是 cost-first，在复杂任务上应该怎么收敛行为？",
+    "expectedSignals": ["avoid-heavyweight-workflow-escalation", "delegate-only-when-clearly-valuable"]
+  },
+  {
+    "id": "balanced-01",
+    "category": "profile-sensitive",
+    "weight": 1,
+    "prompt": "如果当前 profile 是 balanced，应该怎么处理工具优先和复杂流程升级之间的取舍？",
+    "expectedSignals": ["prefer-native-tooling", "escalate-workflow-only-when-task-clearly-benefits"]
+  },
+  {
+    "id": "protocol-drift-01",
+    "category": "provider-sensitive",
+    "weight": 2,
+    "providerHints": ["openai-compatible"],
+    "prompt": "对于 openai-compatible 提供商，怎么降低 Claude Code 原生协议路径的跑偏风险？",
+    "expectedSignals": ["use-structured-context-to-reduce-protocol-drift", "avoid-assuming-perfect-native-tool-contract"]
+  },
+  {
+    "id": "native-reliability-high-01",
+    "category": "provider-sensitive",
+    "weight": 3,
+    "providerHints": ["anthropic", "high-reliability"],
+    "prompt": "如果 provider 的 native reliability 很高，路由策略应该更接近哪种状态？",
+    "expectedSignals": ["closer-to-native-routing-is-safe"]
+  },
+  {
+    "id": "safety-intent-01",
+    "category": "safety-sensitive",
+    "weight": 2,
+    "prompt": "无论什么 profile，系统最不应该丢掉什么？",
+    "expectedSignals": ["preserve-explicit-user-intent"]
+  },
+  {
+    "id": "anthropic-native-01",
+    "category": "provider-sensitive",
+    "weight": 3,
+    "providerHints": ["anthropic", "high-reliability"],
+    "prompt": "如果 provider 本身就是 anthropic surface，并且 native reliability 很高，默认推荐哪个 profile 更合理？",
+    "expectedSignals": ["closer-to-native-routing-is-safe", "prefer-native-claude-code-workflows"]
+  },
+  {
+    "id": "openai-balanced-01",
+    "category": "provider-sensitive",
+    "weight": 3,
+    "providerHints": ["openai-compatible"],
+    "prompt": "如果 provider 是 openai-compatible，默认应该更偏 native-first 还是 balanced，为什么？",
+    "expectedSignals": ["use-structured-context-to-reduce-protocol-drift", "be-conservative-with-complex-agent-orchestration"]
+  },
+  {
+    "id": "repo-research-02",
+    "category": "repo-research",
+    "weight": 2,
+    "prompt": "用户让你快速搞清楚一个仓库的入口、provider 适配层、prompt 构造层、运行时层，应该优先走什么路径？",
+    "expectedSignals": ["prefer-native-tooling", "prefer-result-first"]
+  },
+  {
+    "id": "small-fix-01",
+    "category": "implementation-sensitive",
+    "weight": 2,
+    "prompt": "用户只要求修一个很明确的小 bug，涉及 1 到 2 个文件，应该更偏直接执行还是先做重型规划？",
+    "expectedSignals": ["prefer-direct-execution", "keep-concise"]
+  },
+  {
+    "id": "multi-file-feature-01",
+    "category": "workflow-sensitive",
+    "weight": 3,
+    "prompt": "用户要加一个会改动多文件的新功能，而且实现方式有多种，系统应该更偏向什么工作流？",
+    "expectedSignals": ["prefer-native-tooling", "prefer-native-claude-code-workflows"]
+  },
+  {
+    "id": "provider-proxy-gateway-01",
+    "category": "provider-sensitive",
+    "weight": 3,
+    "providerHints": ["openai-compatible", "proxy-openai-gateway"],
+    "prompt": "如果 provider 位于 proxy/gateway 层之后，为了更接近稳定的原生体验，策略应该额外强调什么？",
+    "expectedSignals": ["proxy-layer-requires-extra-routing-guardrails", "prefer-conservative-delegation-on-proxy"]
+  },
+  {
+    "id": "provider-dashscope-01",
+    "category": "provider-sensitive",
+    "weight": 3,
+    "providerHints": ["openai-compatible", "dashscope-openai"],
+    "prompt": "如果 provider 是 dashscope 兼容层，为了避免工具契约漂移，系统应该补什么额外护栏？",
+    "expectedSignals": ["dashscope-compatible-tooling-needs-guardrails"]
+  },
+  {
+    "id": "provider-anthropic-official-01",
+    "category": "provider-sensitive",
+    "weight": 3,
+    "providerHints": ["anthropic", "high-reliability", "anthropic-official"],
+    "prompt": "如果 provider 是官方 anthropic surface，native-first 为什么比普通兼容层更值得默认采用？",
+    "expectedSignals": ["official-anthropic-native-workflow-advantage", "anthropic-prefers-native-workflows"]
+  },
+  {
+    "id": "provider-proxy-gateway-02",
+    "category": "provider-sensitive",
+    "weight": 3,
+    "providerHints": ["openai-compatible", "proxy-openai-gateway"],
+    "prompt": "proxy/gateway 型 provider 在追求 Native 体验时，为什么要优先保稳定工作流而不是激进追求完全原生一致？",
+    "expectedSignals": ["proxy-layer-prefers-stable-workflow-over-aggressive-native-parity", "proxy-balanced-default-bias"]
+  },
+  {
+    "id": "provider-dashscope-02",
+    "category": "provider-sensitive",
+    "weight": 3,
+    "providerHints": ["openai-compatible", "dashscope-openai"],
+    "prompt": "dashscope 兼容层下，为什么 balanced 默认值更合理，且需要对 tool contract 保持更强护栏？",
+    "expectedSignals": ["dashscope-prefers-guarded-tool-contract", "dashscope-balanced-default-bias"]
+  },
+  {
+    "id": "provider-anthropic-official-02",
+    "category": "provider-sensitive",
+    "weight": 3,
+    "providerHints": ["anthropic", "high-reliability", "anthropic-official"],
+    "prompt": "官方 anthropic surface 下，什么额外信号说明 native-first 不只是可用，而且适合更强的 tooling 与 delegation？",
+    "expectedSignals": ["official-anthropic-supports-strong-native-tooling", "official-anthropic-allows-confident-native-delegation"]
+  },
+  {
+    "id": "openai-compatible-native-first-risk-01",
+    "category": "provider-sensitive",
+    "weight": 3,
+    "providerHints": ["openai-compatible"],
+    "prompt": "如果是 openai-compatible provider，但系统还想激进追求 native-first，最应该补什么约束来避免工作流跑偏？",
+    "expectedSignals": ["use-structured-context-to-reduce-protocol-drift", "be-conservative-with-complex-agent-orchestration", "avoid-assuming-perfect-native-tool-contract"]
+  },
+  {
+    "id": "anthropic-native-first-advantage-01",
+    "category": "provider-sensitive",
+    "weight": 3,
+    "providerHints": ["anthropic", "high-reliability"],
+    "prompt": "如果 provider 是高可靠 anthropic surface，系统除了可更接近原生路由外，还应显式表现出哪两类 native-first 优势？",
+    "expectedSignals": ["prefer-native-claude-code-workflows", "use-native-agent-paths-when-task-benefits"]
+  },
+  {
+    "id": "delegation-balance-01",
+    "category": "workflow-sensitive",
+    "weight": 2,
+    "prompt": "当任务确实可能受益于 agent 路径，但收益并不绝对明确时，balanced profile 应该怎么处理 delegation？",
+    "expectedSignals": ["prefer-conservative-delegation"]
+  },
+  {
+    "id": "delegation-native-first-01",
+    "category": "workflow-sensitive",
+    "weight": 2,
+    "providerHints": ["anthropic", "high-reliability"],
+    "prompt": "当任务明显会受益于 agent 路径，且 provider 可靠性高时，native-first 应该表现出什么倾向？",
+    "expectedSignals": ["use-native-agent-paths-when-task-benefits", "anthropic-allows-stronger-native-delegation"]
+  },
+  {
+    "id": "verbosity-openai-01",
+    "category": "response-style",
+    "weight": 2,
+    "providerHints": ["openai-compatible"],
+    "prompt": "如果 provider 的 verbosity bias 偏高，想更像原生 Claude Code，输出风格应该增加什么约束？",
+    "expectedSignals": ["actively-compress-output", "keep-concise"]
+  },
+  {
+    "id": "safety-boundary-01",
+    "category": "safety-sensitive",
+    "weight": 2,
+    "prompt": "就算系统想追求更强的原生体验，在有明确用户指令和风险边界时，最不能牺牲什么？",
+    "expectedSignals": ["preserve-explicit-user-intent"]
+  },
+  {
+    "id": "workflow-escalation-cost-01",
+    "category": "profile-sensitive",
+    "weight": 2,
+    "prompt": "cost-first profile 面对复杂但不一定真的值得升级的大任务时，应该压制什么倾向？",
+    "expectedSignals": ["avoid-heavyweight-workflow-escalation", "delegate-only-when-clearly-valuable"]
+  }
+]

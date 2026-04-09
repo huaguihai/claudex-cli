@@ -1,0 +1,99 @@
+{
+  "generatedAt": "2026-04-09T05:33:38.103Z",
+  "sourceReport": "/root/claudex-cli/tests/native-benchmarks/last-report.json",
+  "providers": [
+    {
+      "providerName": "benchmark-openai-compat",
+      "providerFamily": "openai-compatible",
+      "providerVariant": "ice-openai",
+      "apiSurface": "openai-compatible",
+      "recommendedProfile": "balanced",
+      "weightedScore": 24,
+      "totalScenarios": 19,
+      "gateFailures": 0,
+      "rationale": [
+        "benchmark weighted score=24",
+        "total scenarios=19",
+        "provider family=openai-compatible",
+        "provider variant=ice-openai",
+        "api surface=openai-compatible",
+        "variant scenarios=0",
+        "variant dominant profile=none",
+        "critical gate failures=0",
+        "variant gate failures=0",
+        "global weighted leader=balanced"
+      ]
+    },
+    {
+      "providerName": "benchmark-proxy-gateway",
+      "providerFamily": "openai-compatible",
+      "providerVariant": "proxy-openai-gateway",
+      "apiSurface": "openai-compatible",
+      "recommendedProfile": "balanced",
+      "weightedScore": 30,
+      "totalScenarios": 21,
+      "gateFailures": 0,
+      "rationale": [
+        "benchmark weighted score=30",
+        "total scenarios=21",
+        "provider family=openai-compatible",
+        "provider variant=proxy-openai-gateway",
+        "api surface=openai-compatible",
+        "variant scenarios=2",
+        "variant dominant profile=balanced",
+        "critical gate failures=0",
+        "variant gate failures=0",
+        "global weighted leader=balanced",
+        "variant-local override=balanced"
+      ]
+    },
+    {
+      "providerName": "benchmark-dashscope-openai",
+      "providerFamily": "openai-compatible",
+      "providerVariant": "dashscope-openai",
+      "apiSurface": "openai-compatible",
+      "recommendedProfile": "balanced",
+      "weightedScore": 30,
+      "totalScenarios": 21,
+      "gateFailures": 0,
+      "rationale": [
+        "benchmark weighted score=30",
+        "total scenarios=21",
+        "provider family=openai-compatible",
+        "provider variant=dashscope-openai",
+        "api surface=openai-compatible",
+        "variant scenarios=2",
+        "variant dominant profile=balanced",
+        "critical gate failures=0",
+        "variant gate failures=0",
+        "global weighted leader=balanced",
+        "variant-local override=balanced"
+      ]
+    },
+    {
+      "providerName": "benchmark-anthropic",
+      "providerFamily": "anthropic",
+      "providerVariant": "anthropic-official",
+      "apiSurface": "anthropic",
+      "recommendedProfile": "native-first",
+      "weightedScore": 18,
+      "totalScenarios": 21,
+      "gateFailures": 0,
+      "rationale": [
+        "benchmark weighted score=18",
+        "total scenarios=21",
+        "provider family=anthropic",
+        "provider variant=anthropic-official",
+        "api surface=anthropic",
+        "variant scenarios=2",
+        "variant dominant profile=balanced",
+        "critical gate failures=0",
+        "variant gate failures=0",
+        "global weighted leader=balanced",
+        "global anthropic override=native-first",
+        "variant-local signal=balanced",
+        "global anthropic reliability override keeps native-first"
+      ]
+    }
+  ]
+}

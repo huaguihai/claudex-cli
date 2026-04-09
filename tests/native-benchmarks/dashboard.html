@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>Claudex Native Dashboard</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 32px; background: #0b1020; color: #e8ecf3; }
+    h1, h2 { margin-top: 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+    .card { background: #151b2f; border: 1px solid #2a3355; border-radius: 12px; padding: 20px; }
+    pre { background: #0f1426; padding: 16px; border-radius: 10px; overflow: auto; }
+    code { color: #9bd1ff; }
+  </style>
+</head>
+<body>
+  <h1>Claudex Native Dashboard</h1>
+  <p><strong>Generated:</strong> 2026-04-08T14:53:37.556Z</p>
+  <div class="grid">
+    
+    <section class="card">
+      <h2>benchmark-openai-compat</h2>
+      <ul>
+        <li><strong>family:</strong> openai-compatible</li>
+        <li><strong>surface:</strong> openai-compatible</li>
+        <li><strong>recommended profile:</strong> balanced</li>
+        <li><strong>weighted score:</strong> 13</li>
+        <li><strong>total scenarios:</strong> 14</li>
+      </ul>
+      <p>benchmark weighted score=13 | total scenarios=14 | provider family=openai-compatible | api surface=openai-compatible</p>
+    </section>
+  
+
+    <section class="card">
+      <h2>benchmark-anthropic</h2>
+      <ul>
+        <li><strong>family:</strong> anthropic</li>
+        <li><strong>surface:</strong> anthropic</li>
+        <li><strong>recommended profile:</strong> balanced</li>
+        <li><strong>weighted score:</strong> 9</li>
+        <li><strong>total scenarios:</strong> 14</li>
+      </ul>
+      <p>benchmark weighted score=9 | total scenarios=14 | provider family=anthropic | api surface=anthropic</p>
+    </section>
+  
+  </div>
+
+  <section class="card" style="margin-top: 24px;">
+    <h2>Benchmark Summary</h2>
+    <pre># Native Benchmark Summary
+
+- Generated: 2026-04-08T14:53:37.556Z
+- Source: /root/claudex-cli/tests/native-benchmarks/last-report.json
+
+## benchmark-openai-compat
+
+- Provider family: openai-compatible
+- API surface: openai-compatible
+- Native reliability: medium
+- Workflow bias: adapter-dependent
+
+### Recommended profile frequency
+- balanced: 9
+- native-first: 3
+- cost-first: 2
+
+### Top missing signals
+- closer-to-native-routing-is-safe: 6
+- prefer-native-claude-code-workflows: 4
+- prefer-native-tooling: 3
+- prefer-direct-execution: 2
+- minimize-meta-narration: 2
+
+### Scenario recommendations
+- capability-question-01: balanced (score=1)
+- repo-research-01: balanced (score=1)
+- bounded-implementation-01: cost-first (score=1)
+- workflow-sensitive-01: balanced (score=1)
+- tool-choice-01: balanced (score=1)
+- result-style-01: native-first (score=1)
+- native-first-routing-01: native-first (score=1)
+- cost-first-01: cost-first (score=1)
+- balanced-01: balanced (score=1)
+- protocol-drift-01: balanced (score=1)
+- native-reliability-high-01: balanced (score=0)
+- safety-intent-01: balanced (score=1)
+- anthropic-native-01: native-first (score=0.5)
+- openai-balanced-01: balanced (score=1)
+
+## benchmark-anthropic
+
+- Provider family: anthropic
+- API surface: anthropic
+- Native reliability: high
+- Workflow bias: native-like
+
+### Recommended profile frequency
+- balanced: 9
+- native-first: 3
+- cost-first: 2
+
+### Top missing signals
+- be-conservative-with-complex-agent-orchestration: 6
+- use-structured-context-to-reduce-protocol-drift: 6
+- prefer-native-claude-code-workflows: 4
+- prefer-native-tooling: 3
+- avoid-assuming-perfect-native-tool-contract: 3
+
+### Scenario recommendations
+- capability-question-01: balanced (score=1)
+- repo-research-01: balanced (score=1)
+- bounded-implementation-01: cost-first (score=1)
+- workflow-sensitive-01: balanced (score=0)
+- tool-choice-01: balanced (score=1)
+- result-style-01: native-first (score=1)
+- native-first-routing-01: native-first (score=1)
+- cost-first-01: cost-first (score=1)
+- balanced-01: balanced (score=1)
+- protocol-drift-01: balanced (score=0)
+- native-reliability-high-01: balanced (score=1)
+- safety-intent-01: balanced (score=1)
+- anthropic-native-01: native-first (score=1)
+- openai-balanced-01: balanced (score=0)
+
+</pre>
+  </section>
+</body>
+</html>
