@@ -6,6 +6,11 @@ import { buildProviderBehaviorProfile } from '../src/provider-profile.js';
 import { buildAlignmentPolicy } from '../src/alignment-policy.js';
 import { buildNativeContext } from '../src/native-context.js';
 import { buildProviderTuning } from '../src/provider-tuning.js';
+import { classifyPromptSignals } from '../src/prompt-signals.js';
+import { buildDynamicRouteGuidance, buildRouteDecision } from '../src/route-guidance.js';
+import { buildSessionContext } from '../src/session-guidance.js';
+import { buildSubagentQualityGate, buildSubagentQualityGuidance } from '../src/subagent-quality.js';
+import { buildTaskQualityGate, buildTaskQualityGuidance } from '../src/task-quality.js';
 
 const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const benchmarkPath = process.argv[2] || path.join(repoRoot, 'tests', 'native-benchmarks', 'core.json');
@@ -113,20 +118,109 @@ function scoreSignals(expectedSignals, policy, weight = 1) {
   };
 }
 
-function summarizeRecommendation(evaluations, category) {
-  const sorted = [...evaluations].sort((a, b) => b.signalCheck.weightedScore - a.signalCheck.weightedScore);
+function scoreRealTask(scenario, evaluation) {
+  const expectedProfiles = Array.isArray(scenario?.expectedProfiles) ? scenario.expectedProfiles : [];
+  const expectedSignals = Array.isArray(scenario?.expectedSignals) ? scenario.expectedSignals : [];
+  const expectedRouteDecision = scenario?.expectedRouteDecision || null;
+  const requiredCapabilities = Array.isArray(scenario?.requiredCapabilities) ? scenario.requiredCapabilities : [];
+  const actualSignals = flattenPolicySignals(evaluation?.policy || {});
+  const routeDecision = evaluation?.routeDecision || {};
+  const capabilities = new Set(['structured-native-context', 'provider-aware-profile']);
+  const providerFamily = evaluation?.contextSummary?.providerFamily || 'unknown';
+  const providerVariant = evaluation?.contextSummary?.providerVariant || 'unknown';
+
+  if (evaluation?.providerTuning?.recommended_profile) capabilities.add('provider-aware-tuning');
+  if (providerFamily === 'openai-compatible' || providerVariant === 'proxy-openai-gateway' || providerVariant === 'dashscope-openai' || providerVariant === 'anthropic-official') {
+    capabilities.add('provider-specific-guardrails');
+  }
+  if (routeDecision.workflow_mode || routeDecision.delegation_mode || routeDecision.guardrail_mode || routeDecision.response_mode || routeDecision.context_mode) {
+    capabilities.add('dynamic-task-routing');
+  }
+  if (
+    routeDecision.context_mode === 'reuse-session-context'
+    || routeDecision.context_mode === 'followup-after-research'
+    || routeDecision.context_mode === 'followup-after-plan'
+    || routeDecision.context_mode === 'followup-after-implement'
+  ) {
+    capabilities.add('session-aware-guidance');
+  }
+  if (evaluation?.context?.long_horizon_session === true || (evaluation?.context?.session_trajectory || []).length >= 3) {
+    capabilities.add('long-horizon-session-stability');
+  }
+  if (evaluation?.context?.subagent_quality_gate?.enabled || actualSignals.includes('dynamic-subagent-quality-gate')) {
+    capabilities.add('subagent-quality-gate');
+  }
+  if (actualSignals.includes('require-subagent-evidence-richness')) {
+    capabilities.add('subagent-evidence-richness');
+  }
+  if (evaluation?.context?.task_quality_gate?.enabled || actualSignals.includes('dynamic-task-quality-gate')) {
+    capabilities.add('task-quality-gate');
+  }
+  if (actualSignals.includes('require-provider-fallback-finesse')) {
+    capabilities.add('provider-fallback-finesse');
+  }
+
+  const matchedSignals = expectedSignals.filter((signal) => actualSignals.includes(signal));
+  const matchedProfile = expectedProfiles.includes(evaluation?.nativeProfile);
+  const matchedCapabilities = requiredCapabilities.filter((capability) => capabilities.has(capability));
+  const routeDecisionMatched = !expectedRouteDecision || Object.entries(expectedRouteDecision).every(([key, value]) => routeDecision?.[key] === value);
+
+  const profileScore = expectedProfiles.length === 0 ? 1 : (matchedProfile ? 1 : 0);
+  const signalScore = expectedSignals.length === 0 ? 1 : matchedSignals.length / expectedSignals.length;
+  const capabilityScore = requiredCapabilities.length === 0 ? 1 : matchedCapabilities.length / requiredCapabilities.length;
+  const decisionScore = !expectedRouteDecision ? 1 : (routeDecisionMatched ? 1 : 0);
+  const rawScore = (profileScore * 0.25) + (signalScore * 0.3) + (capabilityScore * 0.2) + (decisionScore * 0.25);
+
+  return {
+    matchedProfile,
+    matchedSignals,
+    missingSignals: expectedSignals.filter((signal) => !actualSignals.includes(signal)),
+    matchedCapabilities,
+    missingCapabilities: requiredCapabilities.filter((capability) => !capabilities.has(capability)),
+    routeDecisionMatched,
+    expectedRouteDecision,
+    actualRouteDecision: routeDecision,
+    score: rawScore,
+    passed: matchedProfile && signalScore >= 1 && capabilityScore >= 1 && decisionScore >= 1
+  };
+}
+
+function summarizeRecommendation(evaluations, category, scenarioType = 'signal') {
+  const scoreKey = scenarioType === 'real-task' ? 'realTaskCheck' : 'signalCheck';
+  const sorted = [...evaluations].sort((a, b) => (b[scoreKey]?.weightedScore || b[scoreKey]?.score || 0) - (a[scoreKey]?.weightedScore || a[scoreKey]?.score || 0));
   const best = sorted[0];
+  const bestScore = best?.[scoreKey]?.weightedScore || best?.[scoreKey]?.score || 0;
   const ties = sorted
-    .filter((item) => item.signalCheck.weightedScore === best.signalCheck.weightedScore)
+    .filter((item) => ((item[scoreKey]?.weightedScore || item[scoreKey]?.score || 0) === bestScore))
     .map((item) => item.nativeProfile);
   const categoryGate = criticalCategories.has(category);
+  const passedGate = scenarioType === 'real-task'
+    ? Boolean(best?.realTaskCheck?.passed)
+    : (categoryGate ? best.signalCheck.score >= 1 : true);
   return {
     recommendedProfile: best.nativeProfile,
-    score: best.signalCheck.score,
-    weightedScore: best.signalCheck.weightedScore,
+    score: best?.[scoreKey]?.score || 0,
+    weightedScore: best?.[scoreKey]?.weightedScore || best?.[scoreKey]?.score || 0,
     ties,
     categoryGate,
-    passedGate: categoryGate ? best.signalCheck.score >= 1 : true
+    passedGate
+  };
+}
+
+function buildScenarioChecks(scenario, evaluation) {
+  const signalCheck = scoreSignals(scenario.expectedSignals || [], evaluation.policy, scenario.weight || 1);
+  if (scenario?.scenarioType !== 'real-task') {
+    return { signalCheck, realTaskCheck: null };
+  }
+
+  const realTaskCheck = scoreRealTask(scenario, evaluation);
+  return {
+    signalCheck,
+    realTaskCheck: {
+      ...realTaskCheck,
+      weightedScore: realTaskCheck.score * (scenario.weight || 1),
+      weight: scenario.weight || 1
+    }
   };
 }
 
@@ -178,10 +272,50 @@ async function main() {
       for (const nativeProfile of profiles) {
         const providerTuning = buildProviderTuning({ providerProfile });
         const policyPack = providerTuning.policy_pack || null;
+        const taskSignals = classifyPromptSignals(scenario.prompt || '');
+        const previousSessionState = scenario.previousSessionState || null;
+        const preliminaryRouteDecision = buildRouteDecision({
+          taskSignals,
+          providerProfile,
+          nativeProfile
+        });
+        const sessionContext = buildSessionContext({
+          taskSignals,
+          routeDecision: preliminaryRouteDecision,
+          previousState: previousSessionState
+        });
+        const routeDecision = buildRouteDecision({
+          taskSignals,
+          providerProfile,
+          nativeProfile,
+          sessionContext
+        });
+        const routeGuidance = buildDynamicRouteGuidance({
+          taskSignals,
+          providerProfile,
+          nativeProfile,
+          sessionContext
+        });
+        const subagentQualityGate = buildSubagentQualityGate({
+          taskSignals,
+          routeDecision,
+          nativeProfile
+        });
+        const subagentQualityGuidance = buildSubagentQualityGuidance(subagentQualityGate);
+        const taskQualityGate = buildTaskQualityGate({
+          taskSignals,
+          routeDecision,
+          nativeProfile
+        });
+        const taskQualityGuidance = buildTaskQualityGuidance(taskQualityGate);
         const policy = buildAlignmentPolicy({
           nativeProfile,
           providerProfile,
-          policyPack
+          policyPack,
+          taskSignals,
+          sessionContext,
+          subagentQualityGate,
+          taskQualityGate
         });
         const context = buildNativeContext({ enabled: true, profile: nativeProfile }, {
           providerName: sampleProvider.providerName,
@@ -189,26 +323,64 @@ async function main() {
           protocolMode: sampleProvider.protocolMode,
           slotMapping: sampleProvider.slotMapping,
           compatibilityHints: providerProfile.compatibility_hints,
+          taskSignals,
+          routeDecision,
+          routeGuidance,
+          recentStepKind: sessionContext.recentStepKind,
+          sessionState: previousSessionState,
+          sessionGuidance: sessionContext.sessionGuidance,
+          sessionTrajectory: sessionContext.sessionTrajectory,
+          longHorizonSession: sessionContext.longHorizonSession,
+          longHorizonGuidance: sessionContext.longHorizonGuidance,
+          subagentQualityGate,
+          subagentQualityGuidance,
+          taskQualityGate,
+          taskQualityGuidance,
           providerProfile,
-          alignmentPolicy: policy
+          alignmentPolicy: policy,
+          providerTuning
+        });
+
+        const checks = buildScenarioChecks(scenario, {
+          taskSignals,
+          routeDecision,
+          routeGuidance,
+          providerTuning,
+          providerProfile,
+          nativeProfile,
+          context,
+          policy,
+          contextSummary: {
+            protocolMode: context.protocol_mode,
+            providerFamily: context.provider_profile?.provider_family,
+            providerVariant: context.provider_profile?.provider_variant,
+            apiSurface: context.provider_profile?.api_surface
+          }
         });
 
         scenarioResult.evaluations.push({
           nativeProfile,
           policy,
           policyPack,
+          providerTuning,
+          taskSignals,
+          routeDecision,
+          routeGuidance,
+          context,
           contextSummary: {
             protocolMode: context.protocol_mode,
             providerFamily: context.provider_profile?.provider_family,
             providerVariant: context.provider_profile?.provider_variant,
             apiSurface: context.provider_profile?.api_surface
           },
-          signalCheck: scoreSignals(scenario.expectedSignals || [], policy, scenario.weight || 1),
+          signalCheck: checks.signalCheck,
+          realTaskCheck: checks.realTaskCheck,
           sourceCheck: classifySignalSources(scenario.expectedSignals || [], policy, policyPack)
         });
       }
 
-      scenarioResult.recommendation = summarizeRecommendation(scenarioResult.evaluations, scenario.category);
+      scenarioResult.scenarioType = scenario.scenarioType || 'signal';
+      scenarioResult.recommendation = summarizeRecommendation(scenarioResult.evaluations, scenario.category, scenarioResult.scenarioType);
       providerResult.results.push(scenarioResult);
     }
 

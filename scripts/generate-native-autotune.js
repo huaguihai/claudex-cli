@@ -45,6 +45,9 @@ function summarizeProvider(provider) {
   const variant = provider.providerProfile?.provider_variant || 'unknown';
   const variantSummary = variantScenarioSummary(provider, variant);
   const decisionNotes = [];
+  const realTasks = (provider.results || []).filter((scenario) => scenario.scenarioType === 'real-task');
+  let realTaskPassed = 0;
+  let realTaskTotal = 0;
 
   for (const scenario of provider.results || []) {
     const profile = scenario.recommendation?.recommendedProfile || 'balanced';
@@ -52,10 +55,27 @@ function summarizeProvider(provider) {
     weighted.set(profile, (weighted.get(profile) || 0) + score);
     profileWins.set(profile, (profileWins.get(profile) || 0) + 1);
 
+    if (scenario.scenarioType === 'real-task') {
+      realTaskTotal += 1;
+      if (scenario.recommendation?.passedGate) realTaskPassed += 1;
+    }
+
     if (criticalCategories.has(scenario.category) && scenario.recommendation?.passedGate === false) {
       gateFailures.set(profile, (gateFailures.get(profile) || 0) + 1);
     }
   }
+
+  const missingCapabilityCounts = new Map();
+  for (const scenario of realTasks) {
+    const picked = (scenario.evaluations || []).find((item) => item.nativeProfile === scenario.recommendation?.recommendedProfile) || null;
+    for (const capability of picked?.realTaskCheck?.missingCapabilities || []) {
+      missingCapabilityCounts.set(capability, (missingCapabilityCounts.get(capability) || 0) + 1);
+    }
+  }
+  const topMissingCapabilities = [...missingCapabilityCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([capability, count]) => `${capability}:${count}`);
 
   const sorted = [...weighted.entries()].sort((a, b) => b[1] - a[1]);
   let [recommendedProfile, weightedScore] = sorted[0] || ['balanced', 0];
@@ -98,6 +118,127 @@ function summarizeProvider(provider) {
     decisionNotes.push('gate-failure fallback=balanced');
   }
 
+  if (realTaskTotal > 0) {
+    decisionNotes.push(`real-task pass=${realTaskPassed}/${realTaskTotal}`);
+    decisionNotes.push(`real-task scenarios=${realTaskTotal}`);
+  }
+
+  if (topMissingCapabilities.length > 0) {
+    decisionNotes.push(`missing capabilities=${topMissingCapabilities.join(',')}`);
+    decisionNotes.push('do not claim parity with hello2cc yet');
+  }
+
+  if (topMissingCapabilities.some((item) => item.startsWith('dynamic-task-routing:'))) {
+    decisionNotes.push('dynamic task routing is now the main gap');
+  }
+  if (topMissingCapabilities.some((item) => item.startsWith('session-aware-guidance:'))) {
+    decisionNotes.push('session-aware guidance remains missing');
+  }
+  if (topMissingCapabilities.some((item) => item.startsWith('subagent-quality-gate:')) || topMissingCapabilities.some((item) => item.startsWith('task-quality-gate:'))) {
+    decisionNotes.push('quality gate layer remains missing');
+  }
+  if (topMissingCapabilities.some((item) => item.startsWith('long-horizon-session-stability:'))) {
+    decisionNotes.push('single-step followup is no longer enough; long-horizon session stability is the next gap');
+  }
+  if (topMissingCapabilities.some((item) => item.startsWith('provider-fallback-finesse:'))) {
+    decisionNotes.push('provider fallback finesse is now the differentiator beyond basic guardrails');
+  }
+  if (topMissingCapabilities.some((item) => item.startsWith('subagent-evidence-richness:'))) {
+    decisionNotes.push('baseline evidence presence is solved; evidence richness is now the next frontier');
+  }
+
+  if (topMissingCapabilities.length === 0 && realTaskTotal > 0 && realTaskPassed === realTaskTotal) {
+    decisionNotes.push('current benchmark no longer shows a parity gap with hello2cc');
+    decisionNotes.push('next step is to add higher-order benchmark scenarios that can prove experience leadership');
+  }
+
+  if (topMissingCapabilities.length > 0 && !topMissingCapabilities.some((item) => item.startsWith('session-aware-guidance:')) && !topMissingCapabilities.some((item) => item.startsWith('subagent-quality-gate:')) && !topMissingCapabilities.some((item) => item.startsWith('task-quality-gate:'))) {
+    decisionNotes.push('current parity gaps now live above the Session / Quality Layer');
+  }
+
+  if (topMissingCapabilities.length > 0) {
+    decisionNotes.push('do not claim experience leadership yet');
+  }
+
+  if (topMissingCapabilities.length === 0) {
+    decisionNotes.push('baseline parity claims are now benchmark-supported');
+  }
+
+  if (topMissingCapabilities.length > 0) {
+    decisionNotes.push('do not claim parity with hello2cc yet');
+  }
+
+  if (topMissingCapabilities.length === 0) {
+    decisionNotes.push('hello2cc parity is no longer blocked by the current benchmark set');
+  }
+
+  if (topMissingCapabilities.some((item) => item.startsWith('long-horizon-session-stability:')) || topMissingCapabilities.some((item) => item.startsWith('provider-fallback-finesse:')) || topMissingCapabilities.some((item) => item.startsWith('subagent-evidence-richness:'))) {
+    decisionNotes.push('the remaining benchmark gaps are now in higher-order runtime maturity, not basic parity layers');
+  }
+
+  if (topMissingCapabilities.length === 0) {
+    decisionNotes.push('to claim superiority, extend the benchmark beyond static pre-run decisions');
+  }
+
+  if (topMissingCapabilities.some((item) => item.startsWith('long-horizon-session-stability:')) || topMissingCapabilities.some((item) => item.startsWith('provider-fallback-finesse:')) || topMissingCapabilities.some((item) => item.startsWith('subagent-evidence-richness:'))) {
+    decisionNotes.push('the path from parity to leadership now depends on higher-order benchmark coverage');
+  }
+
+  if (topMissingCapabilities.length === 0) {
+    decisionNotes.push('the current benchmark set has become a parity floor, not a leadership ceiling');
+  }
+
+  if (topMissingCapabilities.some((item) => item.startsWith('provider-fallback-finesse:')) && provider.providerProfile?.api_surface === 'openai-compatible') {
+    decisionNotes.push('openai-compatible differentiation now depends on finer-grained fallback behavior');
+  }
+
+  if (topMissingCapabilities.some((item) => item.startsWith('long-horizon-session-stability:'))) {
+    decisionNotes.push('multi-turn continuity should become the next benchmark frontier');
+  }
+
+  if (topMissingCapabilities.some((item) => item.startsWith('subagent-evidence-richness:'))) {
+    decisionNotes.push('subagent evaluation should move from evidence presence to evidence quality');
+  }
+
+  if (topMissingCapabilities.some((item) => item.startsWith('provider-fallback-finesse:'))) {
+    decisionNotes.push('provider evaluation should move from guardrails presence to adaptive fallback finesse');
+  }
+
+  if (topMissingCapabilities.length === 0) {
+    decisionNotes.push('the next benchmark wave should target long-horizon, richer-evidence, and finer-fallback scenarios');
+  }
+
+  if (topMissingCapabilities.length > 0 && realTaskTotal > 0 && realTaskPassed < realTaskTotal) {
+    decisionNotes.push('real-task underfit suggests static policy is not enough yet');
+  }
+
+  if (topMissingCapabilities.length === 0 && realTaskTotal > 0 && realTaskPassed === realTaskTotal) {
+    decisionNotes.push('current real-task benchmark is saturated; raise the bar instead of polishing the same layer');
+  }
+
+  if (realTaskTotal > 0 && realTaskPassed < realTaskTotal) {
+    decisionNotes.push('real-task underfit suggests static policy is not enough yet');
+  }
+
+  if (realTaskTotal > 0 && realTaskPassed === realTaskTotal) {
+    decisionNotes.push('current real-task set no longer differentiates parity from leadership');
+  }
+
+  if (realTaskTotal > 0 && recommendedProfile === 'balanced' && provider.providerProfile?.api_surface === 'openai-compatible') {
+    decisionNotes.push('openai-compatible keeps balanced while real-task gaps are measured separately');
+  }
+
+  if (realTaskTotal > 0 && realTaskPassed < realTaskTotal) {
+    decisionNotes.push('real-task underfit suggests static policy is not enough yet');
+  }
+
+  if (realTaskTotal > 0 && recommendedProfile === 'balanced' && provider.providerProfile?.api_surface === 'openai-compatible') {
+    decisionNotes.push('openai-compatible keeps balanced while real-task gaps are measured separately');
+  }
+  if (realTaskTotal > 0 && recommendedProfile === 'native-first' && provider.providerProfile?.api_surface === 'anthropic') {
+    decisionNotes.push('anthropic keeps native-first while real-task gaps are measured separately');
+  }
+
   return {
     providerName: provider.providerName,
     providerFamily: provider.providerProfile?.provider_family || 'unknown',
@@ -106,6 +247,8 @@ function summarizeProvider(provider) {
     recommendedProfile,
     weightedScore,
     totalScenarios: (provider.results || []).length,
+    realTaskPassed,
+    realTaskTotal,
     gateFailures: failures,
     rationale: [
       `benchmark weighted score=${weightedScore}`,
@@ -117,7 +260,7 @@ function summarizeProvider(provider) {
       `variant dominant profile=${variantSummary.dominantVariantProfile || 'none'}`,
       `critical gate failures=${failures}`,
       `variant gate failures=${variantSummary.variantGateFailures}`,
-      ...decisionNotes
+      ...[...new Set(decisionNotes)]
     ]
   };
 }

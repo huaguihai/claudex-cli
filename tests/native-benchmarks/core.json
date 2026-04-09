@@ -224,5 +224,293 @@
     "weight": 2,
     "prompt": "cost-first profile 面对复杂但不一定真的值得升级的大任务时，应该压制什么倾向？",
     "expectedSignals": ["avoid-heavyweight-workflow-escalation", "delegate-only-when-clearly-valuable"]
+  },
+  {
+    "id": "real-repo-research-runtime-01",
+    "scenarioType": "real-task",
+    "category": "repo-research",
+    "weight": 3,
+    "prompt": "给你一个陌生大仓库，用户要你先快速定位 provider 适配层、运行时层和 prompt 组装层，再给出结论。系统至少需要具备什么能力？",
+    "expectedProfiles": ["balanced"],
+    "expectedSignals": ["prefer-native-tooling", "prefer-result-first"],
+    "requiredCapabilities": ["structured-native-context", "provider-aware-profile"]
+  },
+  {
+    "id": "real-provider-proxy-guardrails-01",
+    "scenarioType": "real-task",
+    "category": "provider-sensitive",
+    "weight": 3,
+    "providerHints": ["openai-compatible", "proxy-openai-gateway"],
+    "prompt": "proxy/gateway 型 provider 下做复杂任务时，系统需要既保持 Native 体验，又避免因为路由漂移导致过度 delegation。真实运行时至少应提供哪些护栏？",
+    "expectedProfiles": ["balanced"],
+    "expectedSignals": ["proxy-layer-requires-extra-routing-guardrails", "prefer-conservative-delegation-on-proxy"],
+    "requiredCapabilities": ["provider-aware-tuning", "provider-specific-guardrails"]
+  },
+  {
+    "id": "real-dashscope-guarded-tools-01",
+    "scenarioType": "real-task",
+    "category": "provider-sensitive",
+    "weight": 3,
+    "providerHints": ["openai-compatible", "dashscope-openai"],
+    "prompt": "dashscope 兼容层下，系统要尽量像原生 Claude Code，但又不能假设 tool contract 完全可靠。真实运行时至少应给出什么护栏？",
+    "expectedProfiles": ["balanced"],
+    "expectedSignals": ["dashscope-prefers-guarded-tool-contract", "dashscope-compatible-tooling-needs-guardrails"],
+    "requiredCapabilities": ["provider-aware-tuning", "provider-specific-guardrails"]
+  },
+  {
+    "id": "real-anthropic-native-flow-01",
+    "scenarioType": "real-task",
+    "category": "provider-sensitive",
+    "weight": 3,
+    "providerHints": ["anthropic", "high-reliability"],
+    "prompt": "高可靠 anthropic surface 下，用户要做多文件功能并且明确会受益于原生 agent 路径。真实运行时需要体现哪些 native-first 优势？",
+    "expectedProfiles": ["native-first"],
+    "expectedSignals": ["prefer-native-claude-code-workflows", "use-native-agent-paths-when-task-benefits"],
+    "requiredCapabilities": ["provider-aware-tuning", "structured-native-context"]
+  },
+  {
+    "id": "real-dynamic-routing-boundary-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 4,
+    "prompt": "用户只说“修一下 checkout 的问题”，但实际可能是小修，也可能会牵涉多文件和多种实现路径。系统如果想接近原生体验，应该在运行前具备什么能力来决定是直接做、先 plan，还是上 agent？",
+    "expectedProfiles": ["balanced", "native-first"],
+    "expectedSignals": ["prefer-native-tooling", "dynamic-bounded-fix-direct-execution"],
+    "expectedRouteDecision": {"workflow_mode": "direct-execution"},
+    "requiredCapabilities": ["dynamic-task-routing"]
+  },
+  {
+    "id": "real-dynamic-routing-multifile-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 4,
+    "prompt": "用户要求新增一个会改动多个文件的新功能，而且实现方式不止一种。系统如果想接近原生体验，运行前应该具备怎样的动态路由能力来判断先 plan 再做？",
+    "expectedProfiles": ["balanced", "native-first"],
+    "expectedSignals": ["prefer-native-tooling", "dynamic-multi-file-plan-before-execute"],
+    "expectedRouteDecision": {"workflow_mode": "plan-first"},
+    "requiredCapabilities": ["dynamic-task-routing"]
+  },
+  {
+    "id": "real-dynamic-routing-provider-guardrails-01",
+    "scenarioType": "real-task",
+    "category": "provider-sensitive",
+    "weight": 4,
+    "providerHints": ["openai-compatible"],
+    "prompt": "用户要在 openai-compatible provider 下处理一个复杂任务。系统如果想接近原生体验，但又要避免跑偏，运行前至少应具备怎样的动态路由与 delegation 护栏？",
+    "expectedProfiles": ["balanced"],
+    "expectedSignals": ["dynamic-openai-compatible-guardrails", "dynamic-conservative-delegation"],
+    "expectedRouteDecision": {"guardrail_mode": "openai-compatible-guarded", "delegation_mode": "conservative"},
+    "requiredCapabilities": ["dynamic-task-routing"]
+  },
+  {
+    "id": "real-dynamic-routing-session-reuse-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 3,
+    "prompt": "用户上一条刚让系统研究完代码入口，下一条直接说“那你顺手改了吧”。如果想接近原生体验，动态路由至少应该显式利用什么 follow-up 信号？",
+    "previousSessionState": {
+      "last_step_kind": "research",
+      "last_task_signals": ["repoResearch"],
+      "last_route_decision": {"workflow_mode": "tool-first-research", "response_mode": "result-first"},
+      "source_prompt_excerpt": "先研究这个仓库入口",
+      "updated_at": "2026-04-09T00:00:00.000Z"
+    },
+    "expectedProfiles": ["balanced"],
+    "expectedSignals": ["dynamic-session-reuse-context", "dynamic-followup-after-research"],
+    "expectedRouteDecision": {"context_mode": "followup-after-research"},
+    "requiredCapabilities": ["dynamic-task-routing", "session-aware-guidance"]
+  },
+  {
+    "id": "real-dynamic-routing-anthropic-01",
+    "scenarioType": "real-task",
+    "category": "provider-sensitive",
+    "weight": 4,
+    "providerHints": ["anthropic", "high-reliability"],
+    "prompt": "高可靠 anthropic surface 下，用户要完成明显受益于 agent 路径的多文件任务。动态路由应至少显式体现什么 native-first 倾向？",
+    "expectedProfiles": ["native-first"],
+    "expectedSignals": ["dynamic-anthropic-native-delegation"],
+    "expectedRouteDecision": {"delegation_mode": "native-first"},
+    "requiredCapabilities": ["dynamic-task-routing"]
+  },
+  {
+    "id": "real-dynamic-routing-capability-question-01",
+    "scenarioType": "real-task",
+    "category": "capability-question",
+    "weight": 2,
+    "prompt": "用户只是在问 Claude Code 能不能做某件事。动态路由如果想接近原生体验，至少应该在输出风格上体现什么收敛策略？",
+    "expectedProfiles": ["balanced"],
+    "expectedSignals": ["prefer-result-first"],
+    "expectedRouteDecision": {"response_mode": "result-first"},
+    "requiredCapabilities": ["dynamic-task-routing"]
+  },
+  {
+    "id": "real-dynamic-routing-safety-01",
+    "scenarioType": "real-task",
+    "category": "safety-sensitive",
+    "weight": 2,
+    "prompt": "用户给了明确边界，同时任务又存在一定风险。动态路由如果想更像原生 Claude Code，至少不能牺牲什么？",
+    "expectedProfiles": ["balanced"],
+    "expectedSignals": ["dynamic-preserve-safety-boundary"],
+    "expectedRouteDecision": {"guardrail_mode": "safety-first"},
+    "requiredCapabilities": ["dynamic-task-routing"]
+  },
+  {
+    "id": "real-session-followup-research-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 3,
+    "prompt": "继续，下一步直接在刚才研究过的区域改代码。",
+    "previousSessionState": {
+      "last_step_kind": "research",
+      "last_task_signals": ["repoResearch"],
+      "last_route_decision": {"workflow_mode": "tool-first-research", "response_mode": "result-first"},
+      "source_prompt_excerpt": "先研究这个仓库入口",
+      "updated_at": "2026-04-09T00:00:00.000Z"
+    },
+    "expectedProfiles": ["balanced"],
+    "expectedSignals": ["dynamic-session-reuse-context", "dynamic-followup-after-research"],
+    "expectedRouteDecision": {"context_mode": "followup-after-research"},
+    "requiredCapabilities": ["dynamic-task-routing", "session-aware-guidance"]
+  },
+  {
+    "id": "real-session-followup-plan-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 3,
+    "prompt": "继续，按刚才方案直接往下实现。",
+    "previousSessionState": {
+      "last_step_kind": "plan",
+      "last_task_signals": ["multiFileFeature", "workflowSensitive"],
+      "last_route_decision": {"workflow_mode": "plan-first"},
+      "source_prompt_excerpt": "先给我方案再做",
+      "updated_at": "2026-04-09T00:00:00.000Z"
+    },
+    "expectedProfiles": ["balanced"],
+    "expectedSignals": ["dynamic-session-reuse-context", "dynamic-followup-after-plan"],
+    "expectedRouteDecision": {"context_mode": "followup-after-plan"},
+    "requiredCapabilities": ["dynamic-task-routing", "session-aware-guidance"]
+  },
+  {
+    "id": "real-session-followup-implement-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 3,
+    "prompt": "继续，把刚才改动顺手验证一下。",
+    "previousSessionState": {
+      "last_step_kind": "implement",
+      "last_task_signals": ["boundedFix"],
+      "last_route_decision": {"workflow_mode": "direct-execution"},
+      "source_prompt_excerpt": "直接修一下这个小 bug",
+      "updated_at": "2026-04-09T00:00:00.000Z"
+    },
+    "expectedProfiles": ["balanced"],
+    "expectedSignals": ["dynamic-session-reuse-context", "dynamic-followup-after-implement"],
+    "expectedRouteDecision": {"context_mode": "followup-after-implement"},
+    "requiredCapabilities": ["dynamic-task-routing", "session-aware-guidance"]
+  },
+  {
+    "id": "real-subagent-quality-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 3,
+    "prompt": "当系统把开放式研究任务交给 Explore/Plan 子代理时，如果输出只有模糊总结没有文件路径、符号和命令证据，真实行为层应该具备什么机制？",
+    "expectedProfiles": ["balanced", "native-first"],
+    "expectedSignals": [
+      "dynamic-subagent-quality-gate",
+      "require-subagent-file-path-evidence",
+      "require-subagent-symbol-evidence",
+      "require-subagent-command-evidence"
+    ],
+    "requiredCapabilities": ["subagent-quality-gate"]
+  },
+  {
+    "id": "real-task-quality-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 3,
+    "prompt": "当系统创建任务板时，如果 task subject 和 description 太薄，后续执行质量会下降。真实行为层至少需要什么机制来约束任务定义质量？",
+    "expectedProfiles": ["balanced", "native-first"],
+    "expectedSignals": [
+      "dynamic-task-quality-gate",
+      "require-task-specific-subject",
+      "require-task-deliverable-description",
+      "require-task-verification-evidence"
+    ],
+    "requiredCapabilities": ["task-quality-gate"]
+  },
+  {
+    "id": "real-session-long-horizon-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 4,
+    "prompt": "继续，直接做 verify 和收尾。",
+    "previousSessionState": {
+      "last_step_kind": "implement",
+      "last_task_signals": ["boundedFix", "sessionFollowup"],
+      "last_route_decision": {"workflow_mode": "direct-execution", "context_mode": "followup-after-plan"},
+      "source_prompt_excerpt": "继续，按刚才方案直接往下实现",
+      "updated_at": "2026-04-09T00:00:00.000Z",
+      "recent_steps": [
+        {
+          "step_kind": "research",
+          "task_signals": ["repoResearch"],
+          "route_decision": {"workflow_mode": "tool-first-research", "response_mode": "result-first"},
+          "prompt_excerpt": "先研究这个仓库入口",
+          "updated_at": "2026-04-09T00:00:00.000Z"
+        },
+        {
+          "step_kind": "plan",
+          "task_signals": ["multiFileFeature", "workflowSensitive"],
+          "route_decision": {"workflow_mode": "plan-first"},
+          "prompt_excerpt": "先给我方案再做",
+          "updated_at": "2026-04-09T00:00:00.000Z"
+        },
+        {
+          "step_kind": "implement",
+          "task_signals": ["boundedFix", "sessionFollowup"],
+          "route_decision": {"workflow_mode": "direct-execution", "context_mode": "followup-after-plan"},
+          "prompt_excerpt": "继续，按刚才方案直接往下实现",
+          "updated_at": "2026-04-09T00:00:00.000Z"
+        }
+      ]
+    },
+    "expectedProfiles": ["balanced", "native-first"],
+    "expectedSignals": [
+      "dynamic-session-reuse-context",
+      "dynamic-followup-after-implement",
+      "require-long-horizon-session-stability"
+    ],
+    "requiredCapabilities": ["session-aware-guidance", "long-horizon-session-stability"]
+  },
+  {
+    "id": "real-provider-fallback-finesse-01",
+    "scenarioType": "real-task",
+    "category": "provider-sensitive",
+    "weight": 4,
+    "providerHints": ["openai-compatible"],
+    "prompt": "在 openai-compatible provider 下，系统发现当前任务可能受益于原生 agent 路径，但 tool contract 又不够稳。若想超过只会一刀切保守降级的方案，真实运行时至少需要什么能力？",
+    "expectedProfiles": ["balanced"],
+    "expectedSignals": [
+      "dynamic-openai-compatible-guardrails",
+      "dynamic-conservative-delegation",
+      "require-provider-fallback-finesse"
+    ],
+    "requiredCapabilities": ["dynamic-task-routing", "provider-fallback-finesse"]
+  },
+  {
+    "id": "real-subagent-evidence-richness-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 4,
+    "prompt": "当系统把开放式研究任务交给子代理时，如果输出虽然给了 file path、symbol、command，但证据彼此不一致、不可操作，想超过只会检查“有没有证据”的方案，真实行为层还需要什么能力？",
+    "expectedProfiles": ["balanced", "native-first"],
+    "expectedSignals": [
+      "dynamic-subagent-quality-gate",
+      "require-subagent-file-path-evidence",
+      "require-subagent-symbol-evidence",
+      "require-subagent-command-evidence",
+      "require-subagent-evidence-richness"
+    ],
+    "requiredCapabilities": ["subagent-quality-gate", "subagent-evidence-richness"]
   }
 ]

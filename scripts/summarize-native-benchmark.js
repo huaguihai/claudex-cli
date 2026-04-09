@@ -27,6 +27,26 @@ function recommendationSummary(results) {
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
+function realTaskPassSummary(results) {
+  const realTasks = (results || []).filter((scenario) => scenario.scenarioType === 'real-task');
+  if (realTasks.length === 0) {
+    return { total: 0, passed: 0, weightedPassed: 0, weightedTotal: 0 };
+  }
+
+  let passed = 0;
+  let weightedPassed = 0;
+  let weightedTotal = 0;
+  for (const scenario of realTasks) {
+    weightedTotal += scenario.weight || 1;
+    if (scenario.recommendation?.passedGate) {
+      passed += 1;
+      weightedPassed += scenario.weight || 1;
+    }
+  }
+
+  return { total: realTasks.length, passed, weightedPassed, weightedTotal };
+}
+
 function packContributionSummary(results) {
   let fromPack = 0;
   let fromBasePolicy = 0;
@@ -64,6 +84,16 @@ async function main() {
     }
     lines.push('');
 
+    const realTask = realTaskPassSummary(provider.results || []);
+    lines.push('### Real-task pass rate');
+    if (realTask.total === 0) {
+      lines.push('- none');
+    } else {
+      lines.push(`- passed: ${realTask.passed}/${realTask.total}`);
+      lines.push(`- weighted: ${realTask.weightedPassed}/${realTask.weightedTotal}`);
+    }
+    lines.push('');
+
     const missing = topMissingSignals(provider.results || []);
     lines.push('### Top missing signals');
     if (missing.length === 0) {
@@ -86,7 +116,9 @@ async function main() {
       const picked = (scenario.evaluations || []).find((item) => item.nativeProfile === scenario.recommendation?.recommendedProfile) || null;
       const packHits = picked?.sourceCheck?.matchedFromPack?.length || 0;
       const baseHits = picked?.sourceCheck?.matchedFromBasePolicy?.length || 0;
-      lines.push(`- ${scenario.id} [${scenario.category}, w=${scenario.weight}]: ${scenario.recommendation?.recommendedProfile} (score=${scenario.recommendation?.score}, weighted=${scenario.recommendation?.weightedScore}, gate=${scenario.recommendation?.passedGate}, pack_hits=${packHits}, base_hits=${baseHits})`);
+      const scenarioType = scenario.scenarioType || 'signal';
+      const capabilityMisses = picked?.realTaskCheck?.missingCapabilities?.length || 0;
+      lines.push(`- ${scenario.id} [${scenario.category}, type=${scenarioType}, w=${scenario.weight}]: ${scenario.recommendation?.recommendedProfile} (score=${scenario.recommendation?.score}, weighted=${scenario.recommendation?.weightedScore}, gate=${scenario.recommendation?.passedGate}, pack_hits=${packHits}, base_hits=${baseHits}, missing_caps=${capabilityMisses})`);
     }
     lines.push('');
   }
