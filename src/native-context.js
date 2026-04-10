@@ -150,6 +150,9 @@ export function buildNativeDoctorLines(context, lang = 'zh') {
     }
     if (routeDecision) {
       lines.push(`- 路由决策: ${JSON.stringify(routeDecision)}`);
+      if (routeDecision.provider_drift_mode) {
+        lines.push(`  Provider 漂移处置: ${routeDecision.provider_drift_mode}`);
+      }
     }
     if (routeGuidance.length > 0) {
       lines.push('- 动态路由:');
@@ -178,6 +181,12 @@ export function buildNativeDoctorLines(context, lang = 'zh') {
       lines.push(`  证据要求: ${(subagentQualityGate.required_evidence || []).join(', ') || 'unknown'}`);
       if (subagentQualityGate.evidence_richness) {
         lines.push('  证据质量: file path、symbol、command 必须彼此一致且可操作，不能只是形式上都出现');
+      }
+      if (subagentQualityGate.conflict_resolution) {
+        lines.push(`  冲突处置: 证据冲突时按 ${subagentQualityGate.evidence_resolution_mode || 'recheck'} 模式复核，必要时降级结论`);
+      }
+      if (subagentQualityGate.prefer_local_reverification) {
+        lines.push('  本地复核优先: 若冲突证据会影响后续实现，优先切回本地工具复核');
       }
     }
     if (subagentQualityGuidance.length > 0) {
@@ -217,6 +226,9 @@ export function buildNativeDoctorLines(context, lang = 'zh') {
   }
   if (routeDecision) {
     lines.push(`- Route decision: ${JSON.stringify(routeDecision)}`);
+    if (routeDecision.provider_drift_mode) {
+      lines.push(`  Provider drift handling: ${routeDecision.provider_drift_mode}`);
+    }
   }
   if (routeGuidance.length > 0) {
     lines.push('- Dynamic routing:');
@@ -245,6 +257,12 @@ export function buildNativeDoctorLines(context, lang = 'zh') {
     lines.push(`  Evidence required: ${(subagentQualityGate.required_evidence || []).join(', ') || 'unknown'}`);
     if (subagentQualityGate.evidence_richness) {
       lines.push('  Evidence quality: file path, symbol, and command must align and remain directly actionable, not merely co-present');
+    }
+    if (subagentQualityGate.conflict_resolution) {
+      lines.push(`  Conflict handling: when evidence conflicts, re-evaluate under ${subagentQualityGate.evidence_resolution_mode || 'recheck'} mode and downgrade confidence if needed`);
+    }
+    if (subagentQualityGate.prefer_local_reverification) {
+      lines.push('  Local reverification preference: if conflicting evidence can affect implementation, prefer local tools before trusting the subagent output');
     }
   }
   if (subagentQualityGuidance.length > 0) {

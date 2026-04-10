@@ -1,6 +1,6 @@
 # Native Benchmark Summary
 
-- Generated: 2026-04-09T14:07:33.019Z
+- Generated: 2026-04-10T01:46:07.294Z
 - Source: /root/claudex-cli/tests/native-benchmarks/last-report.json
 
 ## benchmark-openai-compat
@@ -11,20 +11,20 @@
 - Workflow bias: adapter-dependent
 
 ### Recommended profile frequency
-- balanced: 28
+- balanced: 34
 - cost-first: 4
 - native-first: 2
 
 ### Real-task pass rate
-- passed: 15/15
-- weighted: 49/49
+- passed: 21/21
+- weighted: 73/73
 
 ### Top missing signals
 - none
 
 ### Signal source contribution
 - from policy pack: 24
-- from base policy: 168
+- from base policy: 243
 
 ### Scenario recommendations
 - capability-question-01 [capability-question, type=signal, w=1]: balanced (score=1, weighted=1, gate=true, pack_hits=0, base_hits=2, missing_caps=0)
@@ -61,6 +61,12 @@
 - real-session-long-horizon-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=3, missing_caps=0)
 - real-provider-fallback-finesse-01 [provider-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=3, missing_caps=0)
 - real-subagent-evidence-richness-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=5, missing_caps=0)
+- real-subagent-evidence-conflict-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=6, missing_caps=0)
+- real-subagent-stale-evidence-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=3, missing_caps=0)
+- real-subagent-partial-contradiction-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=4, missing_caps=0)
+- real-subagent-local-reverify-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=4, missing_caps=0)
+- real-provider-midrun-drift-01 [provider-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=4, missing_caps=0)
+- real-provider-midrun-local-fallback-01 [provider-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=4, missing_caps=0)
 
 ## benchmark-proxy-gateway
 
@@ -70,20 +76,20 @@
 - Workflow bias: adapter-dependent
 
 ### Recommended profile frequency
-- balanced: 31
+- balanced: 37
 - cost-first: 4
 - native-first: 2
 
 ### Real-task pass rate
-- passed: 16/16
-- weighted: 52/52
+- passed: 22/22
+- weighted: 76/76
 
 ### Top missing signals
 - none
 
 ### Signal source contribution
 - from policy pack: 18
-- from base policy: 192
+- from base policy: 267
 
 ### Scenario recommendations
 - capability-question-01 [capability-question, type=signal, w=1]: balanced (score=1, weighted=1, gate=true, pack_hits=0, base_hits=2, missing_caps=0)
@@ -123,6 +129,12 @@
 - real-session-long-horizon-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=3, missing_caps=0)
 - real-provider-fallback-finesse-01 [provider-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=3, missing_caps=0)
 - real-subagent-evidence-richness-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=5, missing_caps=0)
+- real-subagent-evidence-conflict-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=6, missing_caps=0)
+- real-subagent-stale-evidence-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=3, missing_caps=0)
+- real-subagent-partial-contradiction-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=4, missing_caps=0)
+- real-subagent-local-reverify-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=4, missing_caps=0)
+- real-provider-midrun-drift-01 [provider-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=4, missing_caps=0)
+- real-provider-midrun-local-fallback-01 [provider-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=4, missing_caps=0)
 
 ## benchmark-dashscope-openai
 
@@ -132,20 +144,20 @@
 - Workflow bias: adapter-dependent
 
 ### Recommended profile frequency
-- balanced: 31
+- balanced: 37
 - cost-first: 4
 - native-first: 2
 
 ### Real-task pass rate
-- passed: 16/16
-- weighted: 52/52
+- passed: 22/22
+- weighted: 76/76
 
 ### Top missing signals
 - none
 
 ### Signal source contribution
 - from policy pack: 18
-- from base policy: 191
+- from base policy: 266
 
 ### Scenario recommendations
 - capability-question-01 [capability-question, type=signal, w=1]: balanced (score=1, weighted=1, gate=true, pack_hits=0, base_hits=2, missing_caps=0)
@@ -185,6 +197,12 @@
 - real-session-long-horizon-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=3, missing_caps=0)
 - real-provider-fallback-finesse-01 [provider-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=3, missing_caps=0)
 - real-subagent-evidence-richness-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=5, missing_caps=0)
+- real-subagent-evidence-conflict-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=6, missing_caps=0)
+- real-subagent-stale-evidence-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=3, missing_caps=0)
+- real-subagent-partial-contradiction-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=4, missing_caps=0)
+- real-subagent-local-reverify-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=4, missing_caps=0)
+- real-provider-midrun-drift-01 [provider-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=4, missing_caps=0)
+- real-provider-midrun-local-fallback-01 [provider-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=4, missing_caps=0)
 
 ## benchmark-anthropic
 
@@ -194,20 +212,20 @@
 - Workflow bias: native-like
 
 ### Recommended profile frequency
-- balanced: 23
+- balanced: 27
 - native-first: 9
 - cost-first: 4
 
 ### Real-task pass rate
-- passed: 15/15
-- weighted: 48/48
+- passed: 19/19
+- weighted: 64/64
 
 ### Top missing signals
 - none
 
 ### Signal source contribution
 - from policy pack: 15
-- from base policy: 157
+- from base policy: 208
 
 ### Scenario recommendations
 - capability-question-01 [capability-question, type=signal, w=1]: balanced (score=1, weighted=1, gate=true, pack_hits=0, base_hits=2, missing_caps=0)
@@ -246,4 +264,8 @@
 - real-task-quality-01 [workflow-sensitive, type=real-task, w=3]: balanced (score=1, weighted=3, gate=true, pack_hits=0, base_hits=4, missing_caps=0)
 - real-session-long-horizon-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=3, missing_caps=0)
 - real-subagent-evidence-richness-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=5, missing_caps=0)
+- real-subagent-evidence-conflict-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=6, missing_caps=0)
+- real-subagent-stale-evidence-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=3, missing_caps=0)
+- real-subagent-partial-contradiction-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=4, missing_caps=0)
+- real-subagent-local-reverify-01 [workflow-sensitive, type=real-task, w=4]: balanced (score=1, weighted=4, gate=true, pack_hits=0, base_hits=4, missing_caps=0)
 

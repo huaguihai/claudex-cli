@@ -868,7 +868,8 @@ async function buildRuntimeNativeContext(providerName, settingsFile, config, aut
     taskSignals,
     sessionContext,
     subagentQualityGate,
-    taskQualityGate
+    taskQualityGate,
+    routeDecision
   });
 
   return buildNativeContext(config, {

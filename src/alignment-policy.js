@@ -12,7 +12,7 @@ function dedupePolicy(policy) {
   return policy;
 }
 
-function applyTaskSignals(policy, taskSignals = null, providerProfile = null, nativeProfile = 'native-first', sessionContext = null, subagentQualityGate = null, taskQualityGate = null) {
+function applyTaskSignals(policy, taskSignals = null, providerProfile = null, nativeProfile = 'native-first', sessionContext = null, subagentQualityGate = null, taskQualityGate = null, routeDecision = null) {
   if (!taskSignals) return;
 
   if (taskSignals.repoResearch) {
@@ -83,6 +83,19 @@ function applyTaskSignals(policy, taskSignals = null, providerProfile = null, na
     if (subagentQualityGate.evidence_richness) {
       policy.routing_hints.push('require-subagent-evidence-richness');
     }
+    if (subagentQualityGate.conflict_resolution) {
+      policy.routing_hints.push('require-subagent-conflict-resolution');
+    }
+    if (subagentQualityGate.prefer_local_reverification) {
+      policy.routing_hints.push('prefer-local-reverification-after-subagent-conflict');
+    }
+  }
+
+  if (routeDecision?.provider_drift_mode) {
+    policy.routing_hints.push('require-provider-midrun-drift-handling');
+    if (routeDecision.provider_drift_mode === 'local-fallback') {
+      policy.routing_hints.push('prefer-local-fallback-after-provider-drift');
+    }
   }
 
   if (taskQualityGate?.enabled) {
@@ -99,7 +112,7 @@ function applyTaskSignals(policy, taskSignals = null, providerProfile = null, na
   }
 }
 
-export function buildAlignmentPolicy({ nativeProfile = 'native-first', providerProfile = null, policyPack = null, taskSignals = null, sessionContext = null, subagentQualityGate = null, taskQualityGate = null } = {}) {
+export function buildAlignmentPolicy({ nativeProfile = 'native-first', providerProfile = null, policyPack = null, taskSignals = null, sessionContext = null, subagentQualityGate = null, taskQualityGate = null, routeDecision = null } = {}) {
   const policy = {
     policy_version: 1,
     response_style_hints: [],
@@ -185,7 +198,7 @@ export function buildAlignmentPolicy({ nativeProfile = 'native-first', providerP
     policy.response_style_hints.push('actively-compress-output');
   }
 
-  applyTaskSignals(policy, taskSignals, providerProfile, nativeProfile, sessionContext, subagentQualityGate, taskQualityGate);
+  applyTaskSignals(policy, taskSignals, providerProfile, nativeProfile, sessionContext, subagentQualityGate, taskQualityGate, routeDecision);
 
   pushUnique(policy.routing_hints, policyPack?.routing_defaults || []);
   pushUnique(policy.delegation_hints, policyPack?.delegation_defaults || []);

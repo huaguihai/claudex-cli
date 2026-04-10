@@ -512,5 +512,99 @@
       "require-subagent-evidence-richness"
     ],
     "requiredCapabilities": ["subagent-quality-gate", "subagent-evidence-richness"]
+  },
+  {
+    "id": "real-subagent-evidence-conflict-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 4,
+    "prompt": "当系统把开放式仓库研究任务交给子代理后，子代理返回了一个 file path、一个 symbol、一个 command，但这三类证据彼此指向不同位置，无法互相印证。若想超过只会要求 evidence richness 的方案，真实行为层还需要什么能力？",
+    "expectedProfiles": ["balanced", "native-first"],
+    "expectedSignals": [
+      "dynamic-subagent-quality-gate",
+      "require-subagent-file-path-evidence",
+      "require-subagent-symbol-evidence",
+      "require-subagent-command-evidence",
+      "require-subagent-evidence-richness",
+      "require-subagent-conflict-resolution"
+    ],
+    "requiredCapabilities": ["subagent-quality-gate", "subagent-evidence-richness", "subagent-evidence-conflict-resolution"]
+  },
+  {
+    "id": "real-subagent-stale-evidence-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 4,
+    "prompt": "子代理给出的 file path、symbol、command 看起来完整，但 command 只能在旧路径或旧实现上复现，说明证据很可能过时。系统如果想更像成熟的原生运行时，真实行为层至少要补什么能力？",
+    "expectedProfiles": ["balanced", "native-first"],
+    "expectedSignals": [
+      "dynamic-subagent-quality-gate",
+      "require-subagent-evidence-richness",
+      "require-subagent-conflict-resolution"
+    ],
+    "requiredCapabilities": ["subagent-evidence-richness", "subagent-evidence-conflict-resolution"]
+  },
+  {
+    "id": "real-subagent-partial-contradiction-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 4,
+    "prompt": "子代理返回的 file path 和 symbol 基本一致，但给出的 command 无法验证对应结论。系统如果不想把这种半对半错的结果直接当成可靠证据，真实行为层至少需要什么补充能力？",
+    "expectedProfiles": ["balanced", "native-first"],
+    "expectedSignals": [
+      "dynamic-subagent-quality-gate",
+      "require-subagent-command-evidence",
+      "require-subagent-evidence-richness",
+      "require-subagent-conflict-resolution"
+    ],
+    "requiredCapabilities": ["subagent-quality-gate", "subagent-evidence-conflict-resolution"]
+  },
+  {
+    "id": "real-subagent-local-reverify-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 4,
+    "prompt": "当子代理给出的证据彼此冲突，且用户马上要据此继续实现时，如果系统想避免把错误上下文带进后续步骤，运行时至少应该具备什么冲突处置能力？",
+    "expectedProfiles": ["balanced", "native-first"],
+    "expectedSignals": [
+      "dynamic-subagent-quality-gate",
+      "require-subagent-evidence-richness",
+      "require-subagent-conflict-resolution",
+      "prefer-local-reverification-after-subagent-conflict"
+    ],
+    "requiredCapabilities": ["subagent-evidence-conflict-resolution"]
+  },
+  {
+    "id": "real-provider-midrun-drift-01",
+    "scenarioType": "real-task",
+    "category": "provider-sensitive",
+    "weight": 4,
+    "providerHints": ["openai-compatible"],
+    "prompt": "在 openai-compatible provider 下，系统起初判断当前任务可以走受控 delegation，但执行中发现 tool contract 漂移、返回质量下降或结果不再稳定。若想超过只会在运行前做 guardrail 的方案，真实运行时还需要什么能力？",
+    "expectedProfiles": ["balanced"],
+    "expectedSignals": [
+      "dynamic-openai-compatible-guardrails",
+      "dynamic-conservative-delegation",
+      "require-provider-fallback-finesse",
+      "require-provider-midrun-drift-handling"
+    ],
+    "requiredCapabilities": ["dynamic-task-routing", "provider-fallback-finesse", "provider-midrun-drift-handling"]
+  },
+  {
+    "id": "real-provider-midrun-local-fallback-01",
+    "scenarioType": "real-task",
+    "category": "provider-sensitive",
+    "weight": 4,
+    "providerHints": ["openai-compatible"],
+    "prompt": "如果兼容层 provider 在执行中暴露出 tool contract 不稳定，而后续步骤又会放大这个风险，系统若想更像成熟的原生运行时，至少要补什么运行中 fallback 能力？",
+    "expectedProfiles": ["balanced"],
+    "expectedSignals": [
+      "dynamic-openai-compatible-guardrails",
+      "require-provider-fallback-finesse",
+      "require-provider-midrun-drift-handling",
+      "prefer-local-fallback-after-provider-drift"
+    ],
+    "requiredCapabilities": ["provider-midrun-drift-handling"],
+    "expectedRouteDecision": {"provider_drift_mode": "local-fallback"}
   }
 ]

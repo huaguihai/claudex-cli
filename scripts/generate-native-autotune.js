@@ -143,8 +143,14 @@ function summarizeProvider(provider) {
   if (topMissingCapabilities.some((item) => item.startsWith('provider-fallback-finesse:'))) {
     decisionNotes.push('provider fallback finesse is now the differentiator beyond basic guardrails');
   }
+  if (topMissingCapabilities.some((item) => item.startsWith('provider-midrun-drift-handling:'))) {
+    decisionNotes.push('pre-run guardrails are solved; mid-run drift handling is now the next frontier');
+  }
   if (topMissingCapabilities.some((item) => item.startsWith('subagent-evidence-richness:'))) {
     decisionNotes.push('baseline evidence presence is solved; evidence richness is now the next frontier');
+  }
+  if (topMissingCapabilities.some((item) => item.startsWith('subagent-evidence-conflict-resolution:'))) {
+    decisionNotes.push('evidence richness is solved; conflict resolution is now the next frontier');
   }
 
   if (topMissingCapabilities.length === 0 && realTaskTotal > 0 && realTaskPassed === realTaskTotal) {
@@ -199,9 +205,15 @@ function summarizeProvider(provider) {
   if (topMissingCapabilities.some((item) => item.startsWith('subagent-evidence-richness:'))) {
     decisionNotes.push('subagent evaluation should move from evidence presence to evidence quality');
   }
+  if (topMissingCapabilities.some((item) => item.startsWith('subagent-evidence-conflict-resolution:'))) {
+    decisionNotes.push('subagent evaluation should move from evidence richness to conflict resolution');
+  }
 
   if (topMissingCapabilities.some((item) => item.startsWith('provider-fallback-finesse:'))) {
     decisionNotes.push('provider evaluation should move from guardrails presence to adaptive fallback finesse');
+  }
+  if (topMissingCapabilities.some((item) => item.startsWith('provider-midrun-drift-handling:'))) {
+    decisionNotes.push('provider evaluation should move from pre-run guardrails to mid-run drift handling');
   }
 
   if (topMissingCapabilities.length === 0) {

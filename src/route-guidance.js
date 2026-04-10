@@ -9,7 +9,8 @@ export function buildRouteDecision({ taskSignals = null, providerProfile = null,
     delegation_mode: '',
     guardrail_mode: '',
     response_mode: '',
-    context_mode: ''
+    context_mode: '',
+    provider_drift_mode: ''
   };
 
   if (signals.repoResearch) {
@@ -28,16 +29,19 @@ export function buildRouteDecision({ taskSignals = null, providerProfile = null,
   if (signals.providerSensitive && providerProfile?.api_surface === 'openai-compatible') {
     decision.guardrail_mode = 'openai-compatible-guarded';
     decision.delegation_mode = 'conservative';
+    decision.provider_drift_mode = signals.safetySensitive ? 'local-fallback' : 'adaptive-fallback';
   }
 
   if (signals.providerSensitive && providerProfile?.provider_variant === 'proxy-openai-gateway') {
     decision.guardrail_mode = 'openai-compatible-guarded';
     decision.delegation_mode = 'conservative';
+    decision.provider_drift_mode = 'local-fallback';
   }
 
   if (signals.providerSensitive && providerProfile?.provider_variant === 'dashscope-openai') {
     decision.guardrail_mode = 'openai-compatible-guarded';
     decision.delegation_mode = 'conservative';
+    decision.provider_drift_mode = 'local-fallback';
   }
 
   if (signals.providerSensitive && providerProfile?.api_surface === 'anthropic' && nativeProfile === 'native-first') {
@@ -113,6 +117,14 @@ export function buildDynamicRouteGuidance({ taskSignals = null, providerProfile 
 
   if (decision.delegation_mode === 'native-first') {
     steps.push('当前任务明显受益于 agent 路径，可采用更强的 native-first delegation。');
+  }
+
+  if (decision.provider_drift_mode === 'adaptive-fallback') {
+    steps.push('如果执行中发现 provider/tool contract 漂移或结果质量下降，应立即收紧 delegation 并切到更稳的 fallback 路径。');
+  }
+
+  if (decision.provider_drift_mode === 'local-fallback') {
+    steps.push('如果兼容层在执行中出现漂移，优先切回本地工具或更保守路径，不要沿不稳定 delegation 硬跑。');
   }
 
   if (decision.response_mode === 'result-first') {

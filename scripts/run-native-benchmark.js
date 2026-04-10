@@ -153,11 +153,20 @@ function scoreRealTask(scenario, evaluation) {
   if (actualSignals.includes('require-subagent-evidence-richness')) {
     capabilities.add('subagent-evidence-richness');
   }
+  if (actualSignals.includes('require-subagent-conflict-resolution')) {
+    capabilities.add('subagent-evidence-conflict-resolution');
+  }
   if (evaluation?.context?.task_quality_gate?.enabled || actualSignals.includes('dynamic-task-quality-gate')) {
     capabilities.add('task-quality-gate');
   }
   if (actualSignals.includes('require-provider-fallback-finesse')) {
     capabilities.add('provider-fallback-finesse');
+  }
+  if (actualSignals.includes('require-provider-midrun-drift-handling')) {
+    capabilities.add('provider-midrun-drift-handling');
+  }
+  if (actualSignals.includes('prefer-local-fallback-after-provider-drift')) {
+    capabilities.add('provider-midrun-drift-handling');
   }
 
   const matchedSignals = expectedSignals.filter((signal) => actualSignals.includes(signal));
@@ -315,7 +324,8 @@ async function main() {
           taskSignals,
           sessionContext,
           subagentQualityGate,
-          taskQualityGate
+          taskQualityGate,
+          routeDecision
         });
         const context = buildNativeContext({ enabled: true, profile: nativeProfile }, {
           providerName: sampleProvider.providerName,
