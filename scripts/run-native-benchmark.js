@@ -141,11 +141,21 @@ function scoreRealTask(scenario, evaluation) {
     || routeDecision.context_mode === 'followup-after-research'
     || routeDecision.context_mode === 'followup-after-plan'
     || routeDecision.context_mode === 'followup-after-implement'
+    || routeDecision.context_mode === 'followup-after-verify'
   ) {
     capabilities.add('session-aware-guidance');
   }
   if (evaluation?.context?.long_horizon_session === true || (evaluation?.context?.session_trajectory || []).length >= 3) {
     capabilities.add('long-horizon-session-stability');
+  }
+  if (actualSignals.includes('require-verify-closeout-transition')) {
+    capabilities.add('verify-closeout-transition');
+  }
+  if (routeDecision.context_mode === 'followup-after-verify') {
+    capabilities.add('verify-closeout-transition');
+  }
+  if (actualSignals.includes('require-verify-reentry-handling')) {
+    capabilities.add('verify-reentry-handling');
   }
   if (evaluation?.context?.subagent_quality_gate?.enabled || actualSignals.includes('dynamic-subagent-quality-gate')) {
     capabilities.add('subagent-quality-gate');

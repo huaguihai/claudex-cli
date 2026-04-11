@@ -483,6 +483,104 @@
     "requiredCapabilities": ["session-aware-guidance", "long-horizon-session-stability"]
   },
   {
+    "id": "real-verify-closeout-transition-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 4,
+    "prompt": "继续，把刚才实现过的改动做 verify，然后收尾。",
+    "previousSessionState": {
+      "last_step_kind": "implement",
+      "last_task_signals": ["boundedFix", "sessionFollowup"],
+      "last_route_decision": {"workflow_mode": "direct-execution", "context_mode": "followup-after-implement"},
+      "source_prompt_excerpt": "继续把刚才改动实现完",
+      "updated_at": "2026-04-10T00:00:00.000Z",
+      "recent_steps": [
+        {
+          "step_kind": "research",
+          "task_signals": ["repoResearch"],
+          "route_decision": {"workflow_mode": "tool-first-research", "response_mode": "result-first"},
+          "prompt_excerpt": "先研究入口",
+          "updated_at": "2026-04-10T00:00:00.000Z"
+        },
+        {
+          "step_kind": "plan",
+          "task_signals": ["multiFileFeature", "workflowSensitive"],
+          "route_decision": {"workflow_mode": "plan-first"},
+          "prompt_excerpt": "先给方案",
+          "updated_at": "2026-04-10T00:00:00.000Z"
+        },
+        {
+          "step_kind": "implement",
+          "task_signals": ["boundedFix", "sessionFollowup"],
+          "route_decision": {"workflow_mode": "direct-execution", "context_mode": "followup-after-plan"},
+          "prompt_excerpt": "继续往下实现",
+          "updated_at": "2026-04-10T00:00:00.000Z"
+        }
+      ]
+    },
+    "expectedProfiles": ["balanced", "native-first"],
+    "expectedSignals": [
+      "dynamic-session-reuse-context",
+      "dynamic-followup-after-implement",
+      "require-long-horizon-session-stability",
+      "require-verify-closeout-transition"
+    ],
+    "requiredCapabilities": ["session-aware-guidance", "long-horizon-session-stability", "verify-closeout-transition"],
+    "expectedRouteDecision": {"context_mode": "followup-after-implement"}
+  },
+  {
+    "id": "real-verify-failure-reentry-01",
+    "scenarioType": "real-task",
+    "category": "workflow-sensitive",
+    "weight": 4,
+    "prompt": "刚才 verify 没过，继续改掉失败点再回来收尾。",
+    "previousSessionState": {
+      "last_step_kind": "verify",
+      "last_task_signals": ["sessionFollowup", "workflowSensitive"],
+      "last_route_decision": {"context_mode": "followup-after-implement"},
+      "source_prompt_excerpt": "先做 verify",
+      "updated_at": "2026-04-10T00:00:00.000Z",
+      "recent_steps": [
+        {
+          "step_kind": "research",
+          "task_signals": ["repoResearch"],
+          "route_decision": {"workflow_mode": "tool-first-research", "response_mode": "result-first"},
+          "prompt_excerpt": "先研究入口",
+          "updated_at": "2026-04-10T00:00:00.000Z"
+        },
+        {
+          "step_kind": "plan",
+          "task_signals": ["multiFileFeature", "workflowSensitive"],
+          "route_decision": {"workflow_mode": "plan-first"},
+          "prompt_excerpt": "先给方案",
+          "updated_at": "2026-04-10T00:00:00.000Z"
+        },
+        {
+          "step_kind": "implement",
+          "task_signals": ["boundedFix", "sessionFollowup"],
+          "route_decision": {"workflow_mode": "direct-execution", "context_mode": "followup-after-plan"},
+          "prompt_excerpt": "继续往下实现",
+          "updated_at": "2026-04-10T00:00:00.000Z"
+        },
+        {
+          "step_kind": "verify",
+          "task_signals": ["sessionFollowup", "workflowSensitive"],
+          "route_decision": {"context_mode": "followup-after-implement"},
+          "prompt_excerpt": "做 verify",
+          "updated_at": "2026-04-10T00:00:00.000Z"
+        }
+      ]
+    },
+    "expectedProfiles": ["balanced", "native-first"],
+    "expectedSignals": [
+      "dynamic-session-reuse-context",
+      "dynamic-followup-after-verify",
+      "require-verify-reentry-handling"
+    ],
+    "requiredCapabilities": ["verify-closeout-transition", "verify-reentry-handling"],
+    "expectedRouteDecision": {"context_mode": "followup-after-verify"}
+  },
+  {
     "id": "real-provider-fallback-finesse-01",
     "scenarioType": "real-task",
     "category": "provider-sensitive",

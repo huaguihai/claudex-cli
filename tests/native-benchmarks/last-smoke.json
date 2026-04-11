@@ -1,0 +1,87 @@
+{
+  "generatedAt": "2026-04-11T09:08:45.198Z",
+  "sourceSmoke": "/root/claudex-cli/tests/native-benchmarks/smoke.json",
+  "cases": [
+    {
+      "id": "smoke-subagent-conflict-01",
+      "summary": "subagent conflict guidance 应要求本地复核",
+      "passed": true,
+      "routeDecision": {
+        "response_mode": "result-first",
+        "context_mode": "followup-after-implement"
+      },
+      "routeGuidance": [
+        "先直接给简洁结论，再按需补充最少必要依据。",
+        "最近一步是 implement，应优先继续执行、验证或收尾，不要无故回退到重型探索或规划。",
+        "当前链路已具备 verify 条件，优先进入验证与收尾阶段，而不是继续把 implement 当默认落点。",
+        "最近一步是 implement，优先继续执行、验证或收尾，不要无故回退到重型探索或规划。",
+        "实现阶段已完成关键链路，下一步应优先进入 verify/closeout，而不是继续把 implement 当默认落点。",
+        "最近几步已经形成 research → plan → implement 链路，当前 follow-up 应优先进入 verify/收尾，而不是回退到 research 或重做 plan。"
+      ],
+      "sessionGuidance": [
+        "最近一步是 implement，优先继续执行、验证或收尾，不要无故回退到重型探索或规划。",
+        "实现阶段已完成关键链路，下一步应优先进入 verify/closeout，而不是继续把 implement 当默认落点。",
+        "最近几步已经形成 research → plan → implement 链路，当前 follow-up 应优先进入 verify/收尾，而不是回退到 research 或重做 plan。"
+      ],
+      "subagentQualityGuidance": [
+        "当任务走 General 子代理路径时，输出至少要给出 file_path、symbol、command_evidence 三类证据，不接受只有模糊总结的结果。",
+        "证据之间必须彼此对齐且可操作：file path 要能直接定位，symbol 要与该路径内对象一致，command 要能复现或验证结论；若三者冲突、过时或无法落地，则视为证据不合格。",
+        "一旦子代理证据彼此冲突，不要直接采信；应先进入冲突处置，按 local-verify 模式复核，必要时降级结论。",
+        "如果冲突证据将直接影响后续实现，优先切回本地工具做复核，再决定是否继续沿用子代理结论。"
+      ],
+      "expectedSignals": [
+        "本地工具做复核",
+        "冲突处置"
+      ]
+    },
+    {
+      "id": "smoke-provider-drift-01",
+      "summary": "provider drift guidance 应表达 fallback",
+      "passed": true,
+      "routeDecision": {
+        "delegation_mode": "conservative",
+        "guardrail_mode": "openai-compatible-guarded",
+        "response_mode": "result-first",
+        "context_mode": "reuse-session-context",
+        "provider_drift_mode": "local-fallback"
+      },
+      "routeGuidance": [
+        "当前 provider 属于 openai-compatible，优先保守 delegation，并显式防范协议或 tool contract 漂移。",
+        "如果兼容层在执行中出现漂移，优先切回本地工具或更保守路径，不要沿不稳定 delegation 硬跑。",
+        "先直接给简洁结论，再按需补充最少必要依据。",
+        "这是 follow-up 任务，应优先复用已获得的研究结论，避免重复探索或不必要的流程升级。",
+        "这是 follow-up 任务，但最近一步类型未知；仅做轻量上下文复用，不要过度假设。"
+      ],
+      "sessionGuidance": [
+        "这是 follow-up 任务，但最近一步类型未知；仅做轻量上下文复用，不要过度假设。"
+      ],
+      "subagentQualityGuidance": [],
+      "expectedSignals": [
+        "local-fallback",
+        "本地工具"
+      ]
+    },
+    {
+      "id": "smoke-verify-reentry-01",
+      "summary": "verify 失败后应进入 after-verify 语义",
+      "passed": true,
+      "routeDecision": {
+        "context_mode": "followup-after-verify"
+      },
+      "routeGuidance": [
+        "最近一步是 verify，应根据验证结果决定收尾还是回到 implement 修正，不要回退到 research 或重做 plan。",
+        "最近一步是 verify，应根据验证结果决定收尾还是回到 implement 修正，而不是回退到 research/plan。",
+        "最近几步已经形成 research → plan → implement → verify 链路，当前 follow-up 应在 verify 结果基础上决定收尾或返工。"
+      ],
+      "sessionGuidance": [
+        "最近一步是 verify，应根据验证结果决定收尾还是回到 implement 修正，而不是回退到 research/plan。",
+        "最近几步已经形成 research → plan → implement → verify 链路，当前 follow-up 应在 verify 结果基础上决定收尾或返工。"
+      ],
+      "subagentQualityGuidance": [],
+      "expectedSignals": [
+        "followup-after-verify",
+        "收尾还是回到 implement"
+      ]
+    }
+  ]
+}

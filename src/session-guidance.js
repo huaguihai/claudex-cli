@@ -56,6 +56,11 @@ export async function writeSessionState(filePath, state, writeText) {
 
 export function inferStepKind({ taskSignals = null, routeDecision = null } = {}) {
   if (taskSignals?.repoResearch) return 'research';
+  if (routeDecision?.context_mode === 'followup-after-verify') return 'verify';
+  if (taskSignals?.sessionFollowup && routeDecision?.context_mode === 'followup-after-plan') return 'implement';
+  if (taskSignals?.sessionFollowup && routeDecision?.context_mode === 'followup-after-implement') {
+    return taskSignals?.verifyIntent ? 'verify' : 'implement';
+  }
   if (routeDecision?.workflow_mode === 'plan-first' || taskSignals?.multiFileFeature) return 'plan';
   if (routeDecision?.workflow_mode === 'direct-execution' || taskSignals?.boundedFix) return 'implement';
   return 'unknown';
@@ -64,26 +69,46 @@ export function inferStepKind({ taskSignals = null, routeDecision = null } = {})
 export function buildLongHorizonSessionContext({ taskSignals = null, previousState = null } = {}) {
   const prior = previousState || defaultSessionState();
   const steps = normalizeRecentSteps(prior.recent_steps || []);
-  const stepKinds = steps.map((step) => step.step_kind).filter(Boolean);
+  const projectedSteps = taskSignals?.sessionFollowup && prior.last_step_kind
+    ? normalizeRecentSteps([
+      ...steps,
+      {
+        step_kind: prior.last_step_kind,
+        task_signals: Array.isArray(prior.last_task_signals) ? prior.last_task_signals : [],
+        route_decision: prior.last_route_decision || null,
+        prompt_excerpt: prior.source_prompt_excerpt || '',
+        updated_at: prior.updated_at || ''
+      }
+    ])
+    : steps;
+  const stepKinds = projectedSteps.map((step) => step.step_kind).filter(Boolean);
   const isFollowup = taskSignals?.sessionFollowup === true;
 
   const researchIndex = stepKinds.indexOf('research');
   const planIndex = stepKinds.indexOf('plan');
   const implementIndex = stepKinds.indexOf('implement');
+  const verifyIndex = stepKinds.indexOf('verify');
   const orderedTrajectory = researchIndex !== -1 && planIndex > researchIndex && implementIndex > planIndex;
+  const verifyTrajectory = orderedTrajectory && verifyIndex > implementIndex;
 
   const longHorizonSession = Boolean(isFollowup && orderedTrajectory);
-  const sessionTrajectory = longHorizonSession ? ['research', 'plan', 'implement'] : [];
+  const sessionTrajectory = verifyTrajectory
+    ? ['research', 'plan', 'implement', 'verify']
+    : (longHorizonSession ? ['research', 'plan', 'implement'] : []);
   const longHorizonGuidance = [];
 
-  if (longHorizonSession) {
+  if (verifyTrajectory) {
+    longHorizonGuidance.push('最近几步已经形成 research → plan → implement → verify 链路，当前 follow-up 应在 verify 结果基础上决定收尾或返工。');
+  } else if (longHorizonSession) {
     longHorizonGuidance.push('最近几步已经形成 research → plan → implement 链路，当前 follow-up 应优先进入 verify/收尾，而不是回退到 research 或重做 plan。');
   }
 
   return {
     longHorizonSession,
     sessionTrajectory,
-    longHorizonGuidance
+    longHorizonGuidance,
+    verifyReady: Boolean(longHorizonSession && !verifyTrajectory),
+    verifyObserved: Boolean(verifyTrajectory)
   };
 }
 
@@ -102,6 +127,12 @@ export function buildSessionContext({ taskSignals = null, routeDecision = null, 
   }
   if (isFollowup && recentStepKind === 'implement') {
     sessionGuidance.push('最近一步是 implement，优先继续执行、验证或收尾，不要无故回退到重型探索或规划。');
+    if (longHorizon.verifyReady) {
+      sessionGuidance.push('实现阶段已完成关键链路，下一步应优先进入 verify/closeout，而不是继续把 implement 当默认落点。');
+    }
+  }
+  if (isFollowup && recentStepKind === 'verify') {
+    sessionGuidance.push('最近一步是 verify，应根据验证结果决定收尾还是回到 implement 修正，而不是回退到 research/plan。');
   }
   if (isFollowup && recentStepKind === 'unknown') {
     sessionGuidance.push('这是 follow-up 任务，但最近一步类型未知；仅做轻量上下文复用，不要过度假设。');
@@ -117,7 +148,9 @@ export function buildSessionContext({ taskSignals = null, routeDecision = null, 
     sessionGuidance,
     longHorizonSession: longHorizon.longHorizonSession,
     sessionTrajectory: longHorizon.sessionTrajectory,
-    longHorizonGuidance: longHorizon.longHorizonGuidance
+    longHorizonGuidance: longHorizon.longHorizonGuidance,
+    verifyReady: longHorizon.verifyReady,
+    verifyObserved: longHorizon.verifyObserved
   };
 }
 

@@ -140,6 +140,9 @@ function summarizeProvider(provider) {
   if (topMissingCapabilities.some((item) => item.startsWith('long-horizon-session-stability:'))) {
     decisionNotes.push('single-step followup is no longer enough; long-horizon session stability is the next gap');
   }
+  if (topMissingCapabilities.some((item) => item.startsWith('verify-closeout-transition:')) || topMissingCapabilities.some((item) => item.startsWith('verify-reentry-handling:'))) {
+    decisionNotes.push('post-implement verification flow is now the next frontier');
+  }
   if (topMissingCapabilities.some((item) => item.startsWith('provider-fallback-finesse:'))) {
     decisionNotes.push('provider fallback finesse is now the differentiator beyond basic guardrails');
   }
@@ -200,6 +203,9 @@ function summarizeProvider(provider) {
 
   if (topMissingCapabilities.some((item) => item.startsWith('long-horizon-session-stability:'))) {
     decisionNotes.push('multi-turn continuity should become the next benchmark frontier');
+  }
+  if (topMissingCapabilities.some((item) => item.startsWith('verify-closeout-transition:')) || topMissingCapabilities.some((item) => item.startsWith('verify-reentry-handling:'))) {
+    decisionNotes.push('session evaluation should move from implement continuity to verify/closeout state transitions');
   }
 
   if (topMissingCapabilities.some((item) => item.startsWith('subagent-evidence-richness:'))) {

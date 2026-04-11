@@ -65,8 +65,18 @@ function applyTaskSignals(policy, taskSignals = null, providerProfile = null, na
     policy.routing_hints.push('dynamic-followup-after-implement');
   }
 
+  if (taskSignals.sessionFollowup && sessionContext?.recentStepKind === 'verify') {
+    policy.routing_hints.push('dynamic-followup-after-verify');
+  }
+
   if (sessionContext?.longHorizonSession) {
     policy.routing_hints.push('require-long-horizon-session-stability');
+    if (sessionContext?.verifyReady) {
+      policy.routing_hints.push('require-verify-closeout-transition');
+    }
+    if (sessionContext?.verifyObserved) {
+      policy.routing_hints.push('require-verify-reentry-handling');
+    }
   }
 
   if (subagentQualityGate?.enabled) {

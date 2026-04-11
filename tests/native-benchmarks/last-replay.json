@@ -1,0 +1,206 @@
+{
+  "generatedAt": "2026-04-11T09:09:33.653Z",
+  "sourceReplay": "/root/claudex-cli/tests/native-benchmarks/replay.json",
+  "cases": [
+    {
+      "id": "verify-closeout-chain-01",
+      "summary": "research -> plan -> implement -> verify 链路应进入 verify/closeout 语义",
+      "passed": 4,
+      "total": 4,
+      "observations": [
+        {
+          "prompt": "先研究这个仓库入口",
+          "actual": {
+            "recentStepKind": "research",
+            "context_mode": "",
+            "trajectory": [],
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "expected": {
+            "recentStepKind": "research",
+            "context_mode": "",
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "passed": true
+        },
+        {
+          "prompt": "先给我方案再做",
+          "actual": {
+            "recentStepKind": "plan",
+            "context_mode": "",
+            "trajectory": [],
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "expected": {
+            "recentStepKind": "plan",
+            "context_mode": "",
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "passed": true
+        },
+        {
+          "prompt": "继续，按刚才方案直接往下实现",
+          "actual": {
+            "recentStepKind": "implement",
+            "context_mode": "followup-after-plan",
+            "trajectory": [],
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "expected": {
+            "recentStepKind": "implement",
+            "context_mode": "followup-after-plan",
+            "trajectory": [],
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "passed": true
+        },
+        {
+          "prompt": "继续，把刚才实现过的改动做 verify，然后收尾。",
+          "actual": {
+            "recentStepKind": "verify",
+            "context_mode": "followup-after-implement",
+            "trajectory": [
+              "research",
+              "plan",
+              "implement"
+            ],
+            "verifyReady": true,
+            "verifyObserved": false
+          },
+          "expected": {
+            "recentStepKind": "verify",
+            "context_mode": "followup-after-implement",
+            "trajectory": [
+              "research",
+              "plan",
+              "implement"
+            ],
+            "verifyReady": true,
+            "verifyObserved": false
+          },
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "verify-reentry-chain-01",
+      "summary": "verify 失败后 follow-up 应进入 after-verify 语义",
+      "passed": 5,
+      "total": 5,
+      "observations": [
+        {
+          "prompt": "先研究这个仓库入口",
+          "actual": {
+            "recentStepKind": "research",
+            "context_mode": "",
+            "trajectory": [],
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "expected": {
+            "recentStepKind": "research",
+            "context_mode": "",
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "passed": true
+        },
+        {
+          "prompt": "先给我方案再做",
+          "actual": {
+            "recentStepKind": "plan",
+            "context_mode": "",
+            "trajectory": [],
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "expected": {
+            "recentStepKind": "plan",
+            "context_mode": "",
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "passed": true
+        },
+        {
+          "prompt": "继续，按刚才方案直接往下实现",
+          "actual": {
+            "recentStepKind": "implement",
+            "context_mode": "followup-after-plan",
+            "trajectory": [],
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "expected": {
+            "recentStepKind": "implement",
+            "context_mode": "followup-after-plan",
+            "trajectory": [],
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "passed": true
+        },
+        {
+          "prompt": "继续，把刚才实现过的改动做 verify，然后收尾。",
+          "actual": {
+            "recentStepKind": "verify",
+            "context_mode": "followup-after-implement",
+            "trajectory": [
+              "research",
+              "plan",
+              "implement"
+            ],
+            "verifyReady": true,
+            "verifyObserved": false
+          },
+          "expected": {
+            "recentStepKind": "verify",
+            "context_mode": "followup-after-implement",
+            "trajectory": [
+              "research",
+              "plan",
+              "implement"
+            ],
+            "verifyReady": true,
+            "verifyObserved": false
+          },
+          "passed": true
+        },
+        {
+          "prompt": "刚才 verify 没过，继续改掉失败点再回来收尾。",
+          "actual": {
+            "recentStepKind": "verify",
+            "context_mode": "followup-after-verify",
+            "trajectory": [
+              "research",
+              "plan",
+              "implement",
+              "verify"
+            ],
+            "verifyReady": false,
+            "verifyObserved": true
+          },
+          "expected": {
+            "recentStepKind": "verify",
+            "context_mode": "followup-after-verify",
+            "trajectory": [
+              "research",
+              "plan",
+              "implement",
+              "verify"
+            ],
+            "verifyReady": false,
+            "verifyObserved": true
+          },
+          "passed": true
+        }
+      ]
+    }
+  ]
+}

@@ -2,6 +2,14 @@ function compactDecision(decision) {
   return Object.fromEntries(Object.entries(decision).filter(([, value]) => value));
 }
 
+function shouldTreatAsVerifyFollowup(signals = {}, sessionContext = {}) {
+  return Boolean(
+    signals.sessionFollowup
+    && signals.verifyIntent
+    && (sessionContext?.recentStepKind === 'implement' || sessionContext?.recentStepKind === 'verify')
+  );
+}
+
 export function buildRouteDecision({ taskSignals = null, providerProfile = null, nativeProfile = 'native-first', sessionContext = null } = {}) {
   const signals = taskSignals || {};
   const decision = {
@@ -73,11 +81,25 @@ export function buildRouteDecision({ taskSignals = null, providerProfile = null,
   }
 
   if (signals.sessionFollowup && sessionContext?.recentStepKind === 'plan') {
-    decision.context_mode = 'followup-after-plan';
+    decision.context_mode = signals.verifyIntent
+      ? 'followup-after-implement'
+      : 'followup-after-plan';
   }
 
   if (signals.sessionFollowup && sessionContext?.recentStepKind === 'implement') {
-    decision.context_mode = 'followup-after-implement';
+    decision.context_mode = shouldTreatAsVerifyFollowup(signals, sessionContext)
+      ? 'followup-after-implement'
+      : 'followup-after-implement';
+  }
+
+  if (signals.sessionFollowup && sessionContext?.recentStepKind === 'verify') {
+    decision.context_mode = 'followup-after-verify';
+  }
+
+  if (shouldTreatAsVerifyFollowup(signals, sessionContext)) {
+    decision.context_mode = sessionContext?.recentStepKind === 'verify'
+      ? 'followup-after-verify'
+      : 'followup-after-implement';
   }
 
   return compactDecision(decision);
@@ -149,6 +171,13 @@ export function buildDynamicRouteGuidance({ taskSignals = null, providerProfile 
 
   if (decision.context_mode === 'followup-after-implement') {
     steps.push('最近一步是 implement，应优先继续执行、验证或收尾，不要无故回退到重型探索或规划。');
+    if (sessionContext?.verifyReady) {
+      steps.push('当前链路已具备 verify 条件，优先进入验证与收尾阶段，而不是继续把 implement 当默认落点。');
+    }
+  }
+
+  if (decision.context_mode === 'followup-after-verify') {
+    steps.push('最近一步是 verify，应根据验证结果决定收尾还是回到 implement 修正，不要回退到 research 或重做 plan。');
   }
 
   if (Array.isArray(sessionContext?.sessionGuidance)) {

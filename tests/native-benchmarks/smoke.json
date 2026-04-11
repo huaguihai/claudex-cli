@@ -1,0 +1,102 @@
+{
+  "cases": [
+    {
+      "id": "smoke-subagent-conflict-01",
+      "summary": "subagent conflict guidance 应要求本地复核",
+      "prompt": "子代理冲突，继续，马上要实现，证据彼此打架，怎么处理？",
+      "previousState": {
+        "last_step_kind": "implement",
+        "last_task_signals": ["sessionFollowup", "workflowSensitive"],
+        "last_route_decision": {"context_mode": "followup-after-plan"},
+        "source_prompt_excerpt": "继续往下实现",
+        "updated_at": "2026-04-10T00:00:00.000Z",
+        "recent_steps": [
+          {
+            "step_kind": "research",
+            "task_signals": ["repoResearch"],
+            "route_decision": {"workflow_mode": "tool-first-research", "response_mode": "result-first"},
+            "prompt_excerpt": "先研究入口",
+            "updated_at": "2026-04-10T00:00:00.000Z"
+          },
+          {
+            "step_kind": "plan",
+            "task_signals": ["multiFileFeature", "workflowSensitive"],
+            "route_decision": {"workflow_mode": "plan-first"},
+            "prompt_excerpt": "先给方案",
+            "updated_at": "2026-04-10T00:00:00.000Z"
+          },
+          {
+            "step_kind": "implement",
+            "task_signals": ["boundedFix", "sessionFollowup"],
+            "route_decision": {"workflow_mode": "direct-execution", "context_mode": "followup-after-plan"},
+            "prompt_excerpt": "继续往下实现",
+            "updated_at": "2026-04-10T00:00:00.000Z"
+          }
+        ]
+      },
+      "expectedSignals": [
+        "本地工具做复核",
+        "冲突处置"
+      ]
+    },
+    {
+      "id": "smoke-provider-drift-01",
+      "summary": "provider drift guidance 应表达 fallback",
+      "prompt": "openai-compatible provider 运行中漂移了，继续，风险很高，怎么 fallback？",
+      "providerProfile": {
+        "api_surface": "openai-compatible",
+        "provider_variant": "proxy-openai-gateway"
+      },
+      "expectedSignals": [
+        "local-fallback",
+        "本地工具"
+      ]
+    },
+    {
+      "id": "smoke-verify-reentry-01",
+      "summary": "verify 失败后应进入 after-verify 语义",
+      "prompt": "刚才 verify 没过，继续改掉失败点再回来收尾。",
+      "previousState": {
+        "last_step_kind": "verify",
+        "last_task_signals": ["sessionFollowup", "workflowSensitive"],
+        "last_route_decision": {"context_mode": "followup-after-implement"},
+        "source_prompt_excerpt": "先做 verify",
+        "updated_at": "2026-04-10T00:00:00.000Z",
+        "recent_steps": [
+          {
+            "step_kind": "research",
+            "task_signals": ["repoResearch"],
+            "route_decision": {"workflow_mode": "tool-first-research", "response_mode": "result-first"},
+            "prompt_excerpt": "先研究入口",
+            "updated_at": "2026-04-10T00:00:00.000Z"
+          },
+          {
+            "step_kind": "plan",
+            "task_signals": ["multiFileFeature", "workflowSensitive"],
+            "route_decision": {"workflow_mode": "plan-first"},
+            "prompt_excerpt": "先给方案",
+            "updated_at": "2026-04-10T00:00:00.000Z"
+          },
+          {
+            "step_kind": "implement",
+            "task_signals": ["boundedFix", "sessionFollowup"],
+            "route_decision": {"workflow_mode": "direct-execution", "context_mode": "followup-after-plan"},
+            "prompt_excerpt": "继续往下实现",
+            "updated_at": "2026-04-10T00:00:00.000Z"
+          },
+          {
+            "step_kind": "verify",
+            "task_signals": ["sessionFollowup", "workflowSensitive"],
+            "route_decision": {"context_mode": "followup-after-implement"},
+            "prompt_excerpt": "做 verify",
+            "updated_at": "2026-04-10T00:00:00.000Z"
+          }
+        ]
+      },
+      "expectedSignals": [
+        "followup-after-verify",
+        "收尾还是回到 implement"
+      ]
+    }
+  ]
+}
