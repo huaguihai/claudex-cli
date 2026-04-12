@@ -92,8 +92,10 @@ claudex --continue
 | `claudex doctor` | Checks Claude Code install, env conflicts, Native state, and provider connectivity |
 | `claudex native ...` | Persistent Native mode: enable/disable, inspect status, choose a profile, and access the same flow from `claudex menu` |
 | `claudex menu` | Guided menu for users who prefer not to memorize commands |
-| Native runtime context | Injects structured runtime context with provider profile, alignment policy, and provider tuning |
+| Native runtime context | Injects structured runtime context with provider profile, alignment policy, dynamic routing, session-aware guidance, and quality gates |
 | Native benchmark harness | Compares `balanced` / `native-first` / `cost-first` across benchmark scenarios |
+| Native replay | Replays multi-step session trajectories to verify research → plan → implement → verify transitions and verify reentry |
+| Native smoke | Runs fast high-value checks for provider drift fallback, subagent conflict handling, and verify follow-up guidance |
 | Native autotune | Generates profile recommendations from benchmark results |
 | Native dashboard | Renders benchmark summary, recommendations, and provider comparison into HTML |
 
@@ -111,6 +113,8 @@ Current runtime layers:
 - `scripts/summarize-native-benchmark.js` — markdown summary generator
 - `scripts/generate-native-autotune.js` — autotune recommendation generator
 - `scripts/render-native-dashboard.js` — HTML dashboard renderer
+- `scripts/run-native-replay.js` — session replay runner for verify-closeout / verify-reentry paths
+- `scripts/run-native-smoke.js` — smoke runner for drift fallback, conflict handling, and follow-up guidance
 
 Profile intent:
 
@@ -203,11 +207,29 @@ If you explicitly pass `--system-prompt` or `--append-system-prompt`, your expli
 
 ### Benchmark and autotune
 
+Recommended main path:
+
+```bash
+npm run benchmark:native:all
+```
+
+This one command runs the main native regression chain in order:
+
+1. `benchmark:native` — full benchmark matrix and report generation
+2. `benchmark:native:summary` — readable markdown summary
+3. `benchmark:native:autotune` — provider-aware profile recommendation
+4. `benchmark:native:dashboard` — HTML visualization
+5. `benchmark:native:smoke` — fast guardrail checks for key runtime behavior
+
+Detailed commands:
+
 ```bash
 npm run benchmark:native
 npm run benchmark:native:summary
 npm run benchmark:native:autotune
 npm run benchmark:native:dashboard
+npm run benchmark:native:smoke
+npm run benchmark:native:replay
 ```
 
 Outputs:
@@ -216,12 +238,46 @@ Outputs:
 - `tests/native-benchmarks/last-summary.md`
 - `tests/native-benchmarks/last-autotune.json`
 - `tests/native-benchmarks/dashboard.html`
+- `tests/native-benchmarks/last-smoke.json`
+- `tests/native-benchmarks/last-replay.json`
+
+How to use them:
+
+- `benchmark:native:all` — preferred release / milestone validation path
+- `benchmark:native:smoke` — quick guardrail check before or after runtime changes
+- `benchmark:native:replay` — targeted session-trajectory diagnosis for verify-closeout and verify-reentry issues
 
 Current benchmark/autotune behavior:
 
 - anthropic / high-reliability surfaces currently converge toward `native-first`
 - openai-compatible / proxy / dashscope surfaces currently converge toward `balanced`
 - `native doctor` now shows de-duplicated policy hints so the effective routing/delegation strategy is easier to inspect
+- current benchmark coverage already exercises the Session / Quality layer, especially session-aware guidance, subagent quality gate, task quality gate, verify closeout, and verify reentry
+
+### Acceptance checklist
+
+Use this as the current native sign-off baseline:
+
+1. `npm run benchmark:native:all` completes successfully.
+2. These artifacts are generated and up to date:
+   - `tests/native-benchmarks/last-report.json`
+   - `tests/native-benchmarks/last-summary.md`
+   - `tests/native-benchmarks/last-autotune.json`
+   - `tests/native-benchmarks/dashboard.html`
+   - `tests/native-benchmarks/last-smoke.json`
+3. `last-summary.md` includes `Real-task pass rate` and scenario recommendations.
+4. `last-autotune.json` recommendations still match the current product story:
+   - anthropic-like providers lean `native-first`
+   - openai-compatible providers lean `balanced`
+5. `last-smoke.json` passes all cases.
+6. `benchmark:native:replay` remains available as a focused diagnostic for session progression, verify-closeout, and verify-reentry behavior.
+7. Manual spot checks still cover real task classes such as:
+   - repo research
+   - bounded fix
+   - multi-file plan-first work
+   - provider-sensitive tasks
+   - verify fail → fix → reverify → closeout
+   - provider drift / subagent conflict scenarios
 
 ### Continue last conversation
 

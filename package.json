@@ -14,7 +14,8 @@
     "benchmark:native:autotune": "node ./scripts/generate-native-autotune.js",
     "benchmark:native:dashboard": "node ./scripts/render-native-dashboard.js",
     "benchmark:native:replay": "node ./scripts/run-native-replay.js",
-    "benchmark:native:smoke": "node ./scripts/run-native-smoke.js"
+    "benchmark:native:smoke": "node ./scripts/run-native-smoke.js",
+    "benchmark:native:all": "npm run benchmark:native && npm run benchmark:native:summary && npm run benchmark:native:autotune && npm run benchmark:native:dashboard && npm run benchmark:native:smoke"
   },
   "engines": {
     "node": ">=18"
