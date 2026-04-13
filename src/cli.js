@@ -179,10 +179,11 @@ const TXT = {
     nativeProfilePrompt: '请选择配置档 (1-3): ',
     nativeProfileInvalid: '输入无效，请输入 1-3。',
     nativeProfileSet: '✅ Native 配置档已设置为: {profile}',
-    nativeProfileHelp: '可选配置档: native-first / balanced / cost-first',
+    nativeProfileHelp: '可选配置档: stable / native / aggressive',
     nativeProfileTitle: '选择 Native 配置档',
-    nativeProfile1: '1. native-first  （最接近原生 Claude Code）',
-    nativeProfile2: '2. balanced      （平衡稳定性与兼容性）',
+    nativeProfile1: '1. stable       （更稳，更保守）',
+    nativeProfile2: '2. native       （默认，贴近原生 Claude Code）',
+    nativeProfile3: '3. aggressive   （更激进，更偏高峰值原生体验与 workflow reuse）',
     nativeProfile4: '4. 返回',
     nativeDoctorTitle: 'Native 检查:',
     nativeDoctorSummary: '- Native 状态: {state} ({profile})',
@@ -303,11 +304,11 @@ const TXT = {
     nativeProfilePrompt: 'Choose profile (1-3): ',
     nativeProfileInvalid: 'Invalid input. Enter 1-3.',
     nativeProfileSet: '✅ Native profile set to: {profile}',
-    nativeProfileHelp: 'Available profiles: native-first / balanced / cost-first',
+    nativeProfileHelp: 'Available profiles: stable / native / aggressive',
     nativeProfileTitle: 'Choose Native profile',
-    nativeProfile1: '1. native-first  (closest to native Claude Code)',
-    nativeProfile2: '2. balanced      (balance stability and compatibility)',
-    nativeProfile3: '3. cost-first    (prioritize lower cost)',
+    nativeProfile1: '1. stable       (prioritize reliability and guardrails)',
+    nativeProfile2: '2. native       (default; prioritize native Claude Code feel)',
+    nativeProfile3: '3. aggressive   (prioritize peak native-like experience)',
     nativeDoctorTitle: 'Native checks:',
     nativeDoctorSummary: '- Native status: {state} ({profile})',
     nativeDoctorInject: '- Injection: append structured runtime context when launching Claude',
@@ -375,7 +376,7 @@ Examples:
   claudex menu
   claudex use gpt
   claudex native on
-  claudex native profile native-first
+  claudex native profile native
   claudex test
   claudex update
   claudex run --continue
@@ -479,7 +480,7 @@ async function getNativeConfig() {
     const data = await readJson(nativeConfigFile);
     return {
       enabled: Boolean(data?.enabled),
-      profile: validateNativeProfile(data?.profile) || 'native-first'
+      profile: validateNativeProfile(data?.profile) || 'native'
     };
   } catch {
     return defaultNativeConfig();
@@ -490,7 +491,7 @@ async function writeNativeConfig(config) {
   await ensureDir(appDir);
   const next = {
     enabled: Boolean(config?.enabled),
-    profile: validateNativeProfile(config?.profile) || 'native-first'
+    profile: validateNativeProfile(config?.profile) || 'native'
   };
   await writeJson(nativeConfigFile, next);
   return next;
@@ -538,7 +539,7 @@ async function cmdNativeDoctor(lang) {
   }
   const tuning = context.provider_tuning;
   if (tuning) {
-    const currentProfile = context.native_profile || 'native-first';
+    const currentProfile = context.native_profile || 'native';
     const matchesRecommendation = currentProfile === tuning.recommended_profile;
     if (lang === 'zh') {
       console.log(`- 推荐 profile: ${tuning.recommended_profile} (${tuning.tuned_policy_pack})`);
@@ -574,9 +575,9 @@ async function pickNativeProfile(lang) {
     console.log(t(lang, 'nativeProfile3'));
     console.log(t(lang, 'nativeProfile4'));
     const choice = await ask(t(lang, 'nativeProfilePrompt'));
-    if (choice === '1') return 'native-first';
-    if (choice === '2') return 'balanced';
-    if (choice === '3') return 'cost-first';
+    if (choice === '1') return 'stable';
+    if (choice === '2') return 'native';
+    if (choice === '3') return 'aggressive';
     if (choice === '4' || isBackInput(choice)) throw new BackSignal();
     console.log(t(lang, 'nativeProfileInvalid'));
   }
@@ -826,7 +827,7 @@ async function buildRuntimeNativeContext(providerName, settingsFile, config, aut
   const providerTuning = buildProviderTuning({ providerProfile: profile });
   const taskSignals = classifyPromptSignals(promptText);
   const previousSessionState = await readSessionStateFile();
-  const resolvedProfile = config?.profile || providerTuning.recommended_profile || 'native-first';
+  const resolvedProfile = config?.profile || providerTuning.recommended_profile || 'native';
   const preliminaryRouteDecision = buildRouteDecision({
     taskSignals,
     providerProfile: profile,
@@ -1061,7 +1062,7 @@ function sanitizedEnv(nativeConfig = defaultNativeConfig()) {
   delete next.ANTHROPIC_API_KEY;
   delete next.ANTHROPIC_BASE_URL;
   next.CLAUDEX_NATIVE_ENABLED = nativeConfig.enabled ? '1' : '0';
-  next.CLAUDEX_NATIVE_PROFILE = nativeConfig.profile || 'native-first';
+  next.CLAUDEX_NATIVE_PROFILE = nativeConfig.profile || 'native';
   return next;
 }
 

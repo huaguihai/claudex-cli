@@ -90,13 +90,13 @@ claudex --continue
 | `claudex add` | Interactive wizard: name → base URL → API key → models |
 | `claudex test [name]` | Provider connectivity test with protocol-aware probing and Claude smoke fallback |
 | `claudex doctor` | Checks Claude Code install, env conflicts, Native state, and provider connectivity |
-| `claudex native ...` | Persistent Native mode: enable/disable, inspect status, choose a profile, and access the same flow from `claudex menu` |
+| `claudex native ...` | Persistent Native mode: enable/disable, inspect status, choose a mode, and access the same flow from `claudex menu` |
 | `claudex menu` | Guided menu for users who prefer not to memorize commands |
 | Native runtime context | Injects structured runtime context with provider profile, alignment policy, dynamic routing, session-aware guidance, and quality gates |
-| Native benchmark harness | Compares `balanced` / `native-first` / `cost-first` across benchmark scenarios |
+| Native benchmark harness | Compares `stable` / `native` / `aggressive` across benchmark scenarios |
 | Native replay | Replays multi-step session trajectories to verify research → plan → implement → verify transitions and verify reentry |
 | Native smoke | Runs fast high-value checks for provider drift fallback, subagent conflict handling, and verify follow-up guidance |
-| Native autotune | Generates profile recommendations from benchmark results |
+| Native autotune | Generates mode recommendations from benchmark results |
 | Native dashboard | Renders benchmark summary, recommendations, and provider comparison into HTML |
 
 ## Native Runtime System
@@ -108,7 +108,7 @@ Current runtime layers:
 - `src/native-context.js` — structured Native runtime context builder
 - `src/provider-profile.js` — provider behavior profile inference
 - `src/alignment-policy.js` — routing / delegation / response-style policy hints
-- `src/provider-tuning.js` — provider-aware default profile selection and autotune integration
+- `src/provider-tuning.js` — provider-aware default mode selection and autotune integration
 - `scripts/run-native-benchmark.js` — benchmark runner
 - `scripts/summarize-native-benchmark.js` — markdown summary generator
 - `scripts/generate-native-autotune.js` — autotune recommendation generator
@@ -116,18 +116,23 @@ Current runtime layers:
 - `scripts/run-native-replay.js` — session replay runner for verify-closeout / verify-reentry paths
 - `scripts/run-native-smoke.js` — smoke runner for drift fallback, conflict handling, and follow-up guidance
 
-Profile intent:
+Mode intent:
 
-- `native-first` — prioritize native Claude Code-like routing and workflow choices
-- `balanced` — prefer Native behavior while staying conservative on compatibility-sensitive providers
-- `cost-first` — reduce heavyweight workflow escalation and delegation
+- `stable` — prioritize reliability, conservative delegation, and predictable guardrails
+- `native` — default; prioritize Claude Code-like workflow continuation and output feel
+- `aggressive` — prioritize peak native-like experience and stronger workflow reuse, accepting more variance
+
+These modes are not cost tiers. They are experience promises:
+- stable = predictability first
+- native = default native-feel mode
+- aggressive = peak experience mode for users willing to trade some stability
 
 Provider-aware defaults:
 
-- Anthropic-like / high-reliability providers tend toward `native-first`
-- OpenAI-compatible providers default more conservatively toward `balanced`
+- Anthropic-like / high-reliability providers tend toward `native`
+- OpenAI-compatible providers default more conservatively toward `stable`
 - If autotune output exists, provider tuning prefers benchmark-driven recommendations over static defaults
-- Current benchmark set can already distinguish anthropic/native-first from openai-compatible, proxy, and dashscope/balanced defaults without adding extra product surface
+- Current benchmark set can already distinguish anthropic/native from openai-compatible, proxy, and dashscope/stable defaults without adding extra product surface
 
 ## How It Works
 
@@ -191,7 +196,7 @@ claudex
 
 ```bash
 claudex native on
-claudex native profile native-first
+claudex native profile native
 # persists across provider switches until you change it
 ```
 
@@ -217,7 +222,7 @@ This one command runs the main native regression chain in order:
 
 1. `benchmark:native` — full benchmark matrix and report generation
 2. `benchmark:native:summary` — readable markdown summary
-3. `benchmark:native:autotune` — provider-aware profile recommendation
+3. `benchmark:native:autotune` — provider-aware mode recommendation
 4. `benchmark:native:dashboard` — HTML visualization
 5. `benchmark:native:smoke` — fast guardrail checks for key runtime behavior
 
@@ -249,8 +254,8 @@ How to use them:
 
 Current benchmark/autotune behavior:
 
-- anthropic / high-reliability surfaces currently converge toward `native-first`
-- openai-compatible / proxy / dashscope surfaces currently converge toward `balanced`
+- anthropic / high-reliability surfaces currently converge toward `native`
+- openai-compatible / proxy / dashscope surfaces currently converge toward `stable`
 - `native doctor` now shows de-duplicated policy hints so the effective routing/delegation strategy is easier to inspect
 - current benchmark coverage already exercises the Session / Quality layer, especially session-aware guidance, subagent quality gate, task quality gate, verify closeout, and verify reentry
 
@@ -267,8 +272,8 @@ Use this as the current native sign-off baseline:
    - `tests/native-benchmarks/last-smoke.json`
 3. `last-summary.md` includes `Real-task pass rate` and scenario recommendations.
 4. `last-autotune.json` recommendations still match the current product story:
-   - anthropic-like providers lean `native-first`
-   - openai-compatible providers lean `balanced`
+   - anthropic-like providers lean `native`
+   - openai-compatible providers lean `stable`
 5. `last-smoke.json` passes all cases.
 6. `benchmark:native:replay` remains available as a focused diagnostic for session progression, verify-closeout, and verify-reentry behavior.
 7. Manual spot checks still cover real task classes such as:
@@ -292,7 +297,7 @@ claudex doctor
 # => 🩺 Doctor checks:
 # => - Claude Code: installed (2.1.86)
 # => - Env conflicts: none
-# => - Native status: on (native-first)
+# => - Native status: on (native)
 # => - Provider test: OK (gpt, HTTP 200, openai-chat-completions)
 ```
 
@@ -313,7 +318,7 @@ claudex status                   # show current config
 claudex native on                # enable persistent Native mode
 claudex native off               # disable persistent Native mode
 claudex native status            # show Native status
-claudex native profile [name]    # set or interactively choose a profile
+claudex native profile [name]    # set or interactively choose a mode
 claudex native doctor            # show Native checks
 claudex update [--from-local <path>] [--from-npm]
 claudex doctor [--provider <name>]
@@ -360,7 +365,7 @@ All fields live under the `env` key:
 | Item | Value |
 |------|-------|
 | File | `~/.config/claudex-cli/native.json` |
-| Content | `{ "enabled": boolean, "profile": "native-first|balanced|cost-first" }` |
+| Content | `{ "enabled": boolean, "profile": "stable|native|aggressive" }` |
 
 ### Backups
 

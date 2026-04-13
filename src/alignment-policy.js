@@ -4,6 +4,24 @@ function pushUnique(target, values = []) {
   }
 }
 
+function addWorkflowReuseHints(policy) {
+  pushUnique(policy.routing_hints, ['prefer-existing-workflow-continuation']);
+  pushUnique(policy.delegation_hints, ['favor-workflow-reuse-over-replanning']);
+}
+
+function addSharedDefaults(policy) {
+  pushUnique(policy.response_style_hints, ['keep-concise', 'prefer-result-first']);
+  pushUnique(policy.routing_hints, ['prefer-native-tooling']);
+  pushUnique(policy.safety_hints, ['preserve-explicit-user-intent']);
+}
+
+function normalizeNativeProfile(nativeProfile = 'native') {
+  if (nativeProfile === 'balanced') return 'stable';
+  if (nativeProfile === 'native-first') return 'native';
+  if (nativeProfile === 'cost-first') return 'stable';
+  return nativeProfile;
+}
+
 function dedupePolicy(policy) {
   policy.response_style_hints = [...new Set(policy.response_style_hints || [])];
   policy.routing_hints = [...new Set(policy.routing_hints || [])];
@@ -12,7 +30,7 @@ function dedupePolicy(policy) {
   return policy;
 }
 
-function applyTaskSignals(policy, taskSignals = null, providerProfile = null, nativeProfile = 'native-first', sessionContext = null, subagentQualityGate = null, taskQualityGate = null, routeDecision = null) {
+function applyTaskSignals(policy, taskSignals = null, providerProfile = null, nativeProfile = 'native', sessionContext = null, subagentQualityGate = null, taskQualityGate = null, routeDecision = null) {
   if (!taskSignals) return;
 
   if (taskSignals.repoResearch) {
@@ -33,16 +51,24 @@ function applyTaskSignals(policy, taskSignals = null, providerProfile = null, na
     policy.delegation_hints.push('dynamic-conservative-delegation');
   }
 
-  if (taskSignals.workflowSensitive && nativeProfile === 'balanced') {
-    policy.routing_hints.push('dynamic-balanced-workflow-threshold');
+  if (taskSignals.workflowSensitive && nativeProfile === 'stable') {
+    policy.routing_hints.push('dynamic-stable-workflow-threshold');
   }
 
-  if (taskSignals.workflowSensitive && nativeProfile === 'native-first' && providerProfile?.api_surface === 'anthropic') {
+  if (taskSignals.workflowSensitive && nativeProfile === 'native' && providerProfile?.api_surface === 'anthropic') {
     policy.delegation_hints.push('dynamic-anthropic-native-delegation');
+  }
+
+  if (taskSignals.workflowSensitive && nativeProfile === 'aggressive') {
+    policy.routing_hints.push('dynamic-aggressive-workflow-escalation');
+    policy.delegation_hints.push('dynamic-aggressive-delegation-bias');
   }
 
   if (taskSignals.capabilityQuestion) {
     policy.response_style_hints.push('dynamic-capability-question-result-first');
+    if (nativeProfile === 'native' || nativeProfile === 'aggressive') {
+      policy.routing_hints.push('prefer-session-exposed-tools-and-skills');
+    }
   }
 
   if (taskSignals.safetySensitive) {
@@ -51,6 +77,9 @@ function applyTaskSignals(policy, taskSignals = null, providerProfile = null, na
 
   if (taskSignals.sessionFollowup) {
     policy.routing_hints.push('dynamic-session-reuse-context');
+    if (nativeProfile === 'native' || nativeProfile === 'aggressive') {
+      addWorkflowReuseHints(policy);
+    }
   }
 
   if (taskSignals.sessionFollowup && sessionContext?.recentStepKind === 'research') {
@@ -71,6 +100,9 @@ function applyTaskSignals(policy, taskSignals = null, providerProfile = null, na
 
   if (sessionContext?.longHorizonSession) {
     policy.routing_hints.push('require-long-horizon-session-stability');
+    if (nativeProfile === 'native' || nativeProfile === 'aggressive') {
+      addWorkflowReuseHints(policy);
+    }
     if (sessionContext?.verifyReady) {
       policy.routing_hints.push('require-verify-closeout-transition');
     }
@@ -122,7 +154,8 @@ function applyTaskSignals(policy, taskSignals = null, providerProfile = null, na
   }
 }
 
-export function buildAlignmentPolicy({ nativeProfile = 'native-first', providerProfile = null, policyPack = null, taskSignals = null, sessionContext = null, subagentQualityGate = null, taskQualityGate = null, routeDecision = null } = {}) {
+export function buildAlignmentPolicy({ nativeProfile = 'native', providerProfile = null, policyPack = null, taskSignals = null, sessionContext = null, subagentQualityGate = null, taskQualityGate = null, routeDecision = null } = {}) {
+  const normalizedProfile = normalizeNativeProfile(nativeProfile);
   const policy = {
     policy_version: 1,
     response_style_hints: [],
@@ -131,21 +164,35 @@ export function buildAlignmentPolicy({ nativeProfile = 'native-first', providerP
     safety_hints: []
   };
 
-  if (nativeProfile === 'cost-first') {
-    policy.response_style_hints.push('keep-concise', 'avoid-verbose-meta', 'prefer-result-first');
-    policy.routing_hints.push('prefer-native-tooling', 'prefer-direct-execution', 'avoid-heavyweight-workflow-escalation');
-    policy.delegation_hints.push('delegate-only-when-clearly-valuable');
-    policy.safety_hints.push('preserve-explicit-user-intent');
-  } else if (nativeProfile === 'balanced') {
-    policy.response_style_hints.push('keep-concise', 'prefer-result-first');
-    policy.routing_hints.push('prefer-native-tooling', 'escalate-workflow-only-when-task-clearly-benefits', 'avoid-heavyweight-workflow-escalation');
-    policy.delegation_hints.push('prefer-conservative-delegation');
-    policy.safety_hints.push('preserve-explicit-user-intent');
+  addSharedDefaults(policy);
+
+  if (normalizedProfile === 'stable') {
+    pushUnique(policy.response_style_hints, ['avoid-verbose-meta']);
+    pushUnique(policy.routing_hints, [
+      'prefer-direct-execution',
+      'escalate-workflow-only-when-task-clearly-benefits',
+      'avoid-heavyweight-workflow-escalation'
+    ]);
+    pushUnique(policy.delegation_hints, ['prefer-conservative-delegation', 'delegate-only-when-clearly-valuable']);
+  } else if (normalizedProfile === 'aggressive') {
+    pushUnique(policy.response_style_hints, ['minimize-meta-narration', 'act-before-explaining-when-safe']);
+    pushUnique(policy.routing_hints, [
+      'prefer-native-claude-code-workflows',
+      'favor-peak-native-workflow-experience',
+      'prefer-session-exposed-tools-and-skills'
+    ]);
+    pushUnique(policy.delegation_hints, [
+      'use-native-agent-paths-when-task-benefits'
+    ]);
+    addWorkflowReuseHints(policy);
   } else {
-    policy.response_style_hints.push('keep-concise', 'prefer-result-first', 'minimize-meta-narration');
-    policy.routing_hints.push('prefer-native-tooling', 'prefer-native-claude-code-workflows');
-    policy.delegation_hints.push('use-native-agent-paths-when-task-benefits');
-    policy.safety_hints.push('preserve-explicit-user-intent');
+    pushUnique(policy.response_style_hints, ['minimize-meta-narration']);
+    pushUnique(policy.routing_hints, [
+      'prefer-native-claude-code-workflows',
+      'prefer-session-exposed-tools-and-skills',
+      'escalate-workflow-only-when-task-clearly-benefits'
+    ]);
+    pushUnique(policy.delegation_hints, ['use-native-agent-paths-when-task-benefits']);
   }
 
   if (providerProfile?.api_surface === 'openai-compatible') {
@@ -153,8 +200,8 @@ export function buildAlignmentPolicy({ nativeProfile = 'native-first', providerP
     policy.delegation_hints.push('be-conservative-with-complex-agent-orchestration');
     policy.safety_hints.push('avoid-assuming-perfect-native-tool-contract');
     policy.routing_hints.push('require-provider-fallback-finesse');
-    if (nativeProfile === 'balanced') {
-      policy.routing_hints.push('balanced-default-for-openai-compatible');
+    if (normalizedProfile === 'stable') {
+      policy.routing_hints.push('stable-default-for-openai-compatible');
     }
   }
 
@@ -162,45 +209,59 @@ export function buildAlignmentPolicy({ nativeProfile = 'native-first', providerP
     policy.routing_hints.push('proxy-layer-requires-extra-routing-guardrails');
     policy.delegation_hints.push('prefer-conservative-delegation-on-proxy');
     policy.safety_hints.push('proxy-layer-prefers-stable-workflow-over-aggressive-native-parity');
-    if (nativeProfile === 'balanced') {
-      policy.routing_hints.push('proxy-balanced-default-bias');
+    if (normalizedProfile === 'stable') {
+      policy.routing_hints.push('proxy-stable-default-bias');
     }
   }
 
   if (providerProfile?.provider_variant === 'dashscope-openai') {
     policy.safety_hints.push('dashscope-compatible-tooling-needs-guardrails');
     policy.routing_hints.push('dashscope-prefers-guarded-tool-contract');
-    if (nativeProfile === 'balanced') {
-      policy.routing_hints.push('dashscope-balanced-default-bias');
+    if (normalizedProfile === 'stable') {
+      policy.routing_hints.push('dashscope-stable-default-bias');
     }
   }
 
-  if (providerProfile?.provider_variant === 'anthropic-official' && nativeProfile === 'native-first') {
+  if (providerProfile?.provider_variant === 'anthropic-official' && normalizedProfile === 'native') {
     policy.routing_hints.push('official-anthropic-native-workflow-advantage');
     policy.routing_hints.push('official-anthropic-supports-strong-native-tooling');
     policy.delegation_hints.push('official-anthropic-allows-confident-native-delegation');
   }
 
+  if (providerProfile?.provider_variant === 'anthropic-official' && normalizedProfile === 'aggressive') {
+    policy.routing_hints.push('official-anthropic-supports-peak-native-experience');
+    policy.delegation_hints.push('official-anthropic-allows-peak-native-delegation');
+  }
+
   if (providerProfile?.api_surface === 'anthropic') {
     policy.routing_hints.push('closer-to-native-routing-is-safe');
-    if (nativeProfile === 'balanced') {
-      policy.routing_hints.push('balanced-still-tool-first-on-anthropic');
+    if (normalizedProfile === 'stable') {
+      policy.routing_hints.push('stable-still-tool-first-on-anthropic');
     }
-    if (nativeProfile === 'native-first') {
-      policy.routing_hints.push('anthropic-native-first-advantage');
+    if (normalizedProfile === 'native') {
+      policy.routing_hints.push('anthropic-native-advantage');
       policy.routing_hints.push('anthropic-prefers-native-tooling');
       policy.routing_hints.push('anthropic-prefers-native-workflows');
-      policy.delegation_hints.push('native-first-is-safe-for-anthropic-surface');
+      policy.delegation_hints.push('native-is-safe-for-anthropic-surface');
       policy.delegation_hints.push('anthropic-allows-stronger-native-delegation');
-      policy.response_style_hints.push('anthropic-native-first-result-bias');
+      policy.response_style_hints.push('anthropic-native-result-bias');
+    }
+    if (normalizedProfile === 'aggressive') {
+      policy.routing_hints.push('anthropic-peak-native-workflow-advantage');
+      policy.routing_hints.push('anthropic-prefers-native-workflow-escalation');
+      policy.delegation_hints.push('anthropic-allows-aggressive-native-delegation');
+      policy.response_style_hints.push('anthropic-peak-result-bias');
     }
   }
 
   if (providerProfile?.native_reliability === 'high') {
     policy.routing_hints.push('closer-to-native-routing-is-safe');
-    if (nativeProfile === 'native-first') {
-      policy.routing_hints.push('high-reliability-prefers-native-first');
+    if (normalizedProfile === 'native') {
+      policy.routing_hints.push('high-reliability-prefers-native');
       policy.routing_hints.push('high-reliability-allows-native-workflow-escalation');
+    }
+    if (normalizedProfile === 'aggressive') {
+      policy.routing_hints.push('high-reliability-supports-aggressive-native-escalation');
     }
   }
 
@@ -208,7 +269,7 @@ export function buildAlignmentPolicy({ nativeProfile = 'native-first', providerP
     policy.response_style_hints.push('actively-compress-output');
   }
 
-  applyTaskSignals(policy, taskSignals, providerProfile, nativeProfile, sessionContext, subagentQualityGate, taskQualityGate, routeDecision);
+  applyTaskSignals(policy, taskSignals, providerProfile, normalizedProfile, sessionContext, subagentQualityGate, taskQualityGate, routeDecision);
 
   pushUnique(policy.routing_hints, policyPack?.routing_defaults || []);
   pushUnique(policy.delegation_hints, policyPack?.delegation_defaults || []);

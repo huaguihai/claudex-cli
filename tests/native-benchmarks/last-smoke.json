@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-11T16:29:16.443Z",
+  "generatedAt": "2026-04-12T23:42:45.548Z",
   "sourceSmoke": "/root/claudex-cli/tests/native-benchmarks/smoke.json",
   "cases": [
     {
@@ -23,6 +23,33 @@
         "实现阶段已完成关键链路，下一步应优先进入 verify/closeout，而不是继续把 implement 当默认落点。",
         "最近几步已经形成 research → plan → implement 链路，当前 follow-up 应优先进入 verify/收尾，而不是回退到 research 或重做 plan。"
       ],
+      "alignmentPolicy": {
+        "policy_version": 1,
+        "response_style_hints": [
+          "keep-concise",
+          "prefer-result-first",
+          "minimize-meta-narration",
+          "dynamic-capability-question-result-first"
+        ],
+        "routing_hints": [
+          "prefer-native-tooling",
+          "prefer-native-claude-code-workflows",
+          "prefer-session-exposed-tools-and-skills",
+          "escalate-workflow-only-when-task-clearly-benefits",
+          "dynamic-session-reuse-context",
+          "prefer-existing-workflow-continuation",
+          "dynamic-followup-after-implement",
+          "require-long-horizon-session-stability",
+          "require-verify-closeout-transition"
+        ],
+        "delegation_hints": [
+          "use-native-agent-paths-when-task-benefits",
+          "favor-workflow-reuse-over-replanning"
+        ],
+        "safety_hints": [
+          "preserve-explicit-user-intent"
+        ]
+      },
       "subagentQualityGuidance": [
         "当任务走 General 子代理路径时，输出至少要给出 file_path、symbol、command_evidence 三类证据，不接受只有模糊总结的结果。",
         "证据之间必须彼此对齐且可操作：file path 要能直接定位，symbol 要与该路径内对象一致，command 要能复现或验证结论；若三者冲突、过时或无法落地，则视为证据不合格。",
@@ -55,10 +82,156 @@
       "sessionGuidance": [
         "这是 follow-up 任务，但最近一步类型未知；仅做轻量上下文复用，不要过度假设。"
       ],
+      "alignmentPolicy": {
+        "policy_version": 1,
+        "response_style_hints": [
+          "keep-concise",
+          "prefer-result-first",
+          "minimize-meta-narration",
+          "dynamic-capability-question-result-first"
+        ],
+        "routing_hints": [
+          "prefer-native-tooling",
+          "prefer-native-claude-code-workflows",
+          "prefer-session-exposed-tools-and-skills",
+          "escalate-workflow-only-when-task-clearly-benefits",
+          "use-structured-context-to-reduce-protocol-drift",
+          "require-provider-fallback-finesse",
+          "proxy-layer-requires-extra-routing-guardrails",
+          "dynamic-openai-compatible-guardrails",
+          "dynamic-session-reuse-context",
+          "prefer-existing-workflow-continuation",
+          "require-provider-midrun-drift-handling",
+          "prefer-local-fallback-after-provider-drift"
+        ],
+        "delegation_hints": [
+          "use-native-agent-paths-when-task-benefits",
+          "be-conservative-with-complex-agent-orchestration",
+          "prefer-conservative-delegation-on-proxy",
+          "dynamic-conservative-delegation",
+          "favor-workflow-reuse-over-replanning"
+        ],
+        "safety_hints": [
+          "preserve-explicit-user-intent",
+          "avoid-assuming-perfect-native-tool-contract",
+          "proxy-layer-prefers-stable-workflow-over-aggressive-native-parity",
+          "dynamic-preserve-safety-boundary"
+        ]
+      },
       "subagentQualityGuidance": [],
       "expectedSignals": [
         "local-fallback",
         "本地工具"
+      ]
+    },
+    {
+      "id": "smoke-exposed-capability-reuse-01",
+      "summary": "已暴露能力场景应优先复用已有工具和 workflow",
+      "passed": true,
+      "routeDecision": {
+        "context_mode": "followup-after-implement"
+      },
+      "routeGuidance": [
+        "最近一步是 implement，应优先继续执行、验证或收尾，不要无故回退到重型探索或规划。",
+        "当前链路已具备 verify 条件，优先进入验证与收尾阶段，而不是继续把 implement 当默认落点。",
+        "最近一步是 implement，优先继续执行、验证或收尾，不要无故回退到重型探索或规划。",
+        "实现阶段已完成关键链路，下一步应优先进入 verify/closeout，而不是继续把 implement 当默认落点。",
+        "最近几步已经形成 research → plan → implement 链路，当前 follow-up 应优先进入 verify/收尾，而不是回退到 research 或重做 plan。"
+      ],
+      "sessionGuidance": [
+        "最近一步是 implement，优先继续执行、验证或收尾，不要无故回退到重型探索或规划。",
+        "实现阶段已完成关键链路，下一步应优先进入 verify/closeout，而不是继续把 implement 当默认落点。",
+        "最近几步已经形成 research → plan → implement 链路，当前 follow-up 应优先进入 verify/收尾，而不是回退到 research 或重做 plan。"
+      ],
+      "alignmentPolicy": {
+        "policy_version": 1,
+        "response_style_hints": [
+          "keep-concise",
+          "prefer-result-first",
+          "minimize-meta-narration"
+        ],
+        "routing_hints": [
+          "prefer-native-tooling",
+          "prefer-native-claude-code-workflows",
+          "prefer-session-exposed-tools-and-skills",
+          "escalate-workflow-only-when-task-clearly-benefits",
+          "dynamic-session-reuse-context",
+          "prefer-existing-workflow-continuation",
+          "dynamic-followup-after-implement",
+          "require-long-horizon-session-stability",
+          "require-verify-closeout-transition"
+        ],
+        "delegation_hints": [
+          "use-native-agent-paths-when-task-benefits",
+          "favor-workflow-reuse-over-replanning"
+        ],
+        "safety_hints": [
+          "preserve-explicit-user-intent"
+        ]
+      },
+      "subagentQualityGuidance": [],
+      "expectedSignals": [
+        "prefer-existing-workflow-continuation",
+        "prefer-session-exposed-tools-and-skills"
+      ]
+    },
+    {
+      "id": "smoke-aggressive-followup-01",
+      "summary": "aggressive 模式应更偏继续已有 workflow",
+      "passed": true,
+      "routeDecision": {
+        "context_mode": "followup-after-implement"
+      },
+      "routeGuidance": [
+        "最近一步是 implement，应优先继续执行、验证或收尾，不要无故回退到重型探索或规划。",
+        "当前链路已具备 verify 条件，优先进入验证与收尾阶段，而不是继续把 implement 当默认落点。",
+        "最近一步是 implement，优先继续执行、验证或收尾，不要无故回退到重型探索或规划。",
+        "实现阶段已完成关键链路，下一步应优先进入 verify/closeout，而不是继续把 implement 当默认落点。",
+        "最近几步已经形成 research → plan → implement 链路，当前 follow-up 应优先进入 verify/收尾，而不是回退到 research 或重做 plan。"
+      ],
+      "sessionGuidance": [
+        "最近一步是 implement，优先继续执行、验证或收尾，不要无故回退到重型探索或规划。",
+        "实现阶段已完成关键链路，下一步应优先进入 verify/closeout，而不是继续把 implement 当默认落点。",
+        "最近几步已经形成 research → plan → implement 链路，当前 follow-up 应优先进入 verify/收尾，而不是回退到 research 或重做 plan。"
+      ],
+      "alignmentPolicy": {
+        "policy_version": 1,
+        "response_style_hints": [
+          "keep-concise",
+          "prefer-result-first",
+          "minimize-meta-narration",
+          "act-before-explaining-when-safe"
+        ],
+        "routing_hints": [
+          "prefer-native-tooling",
+          "prefer-native-claude-code-workflows",
+          "favor-peak-native-workflow-experience",
+          "prefer-session-exposed-tools-and-skills",
+          "prefer-existing-workflow-continuation",
+          "dynamic-aggressive-workflow-escalation",
+          "dynamic-session-reuse-context",
+          "dynamic-followup-after-implement",
+          "require-long-horizon-session-stability",
+          "require-verify-closeout-transition"
+        ],
+        "delegation_hints": [
+          "use-native-agent-paths-when-task-benefits",
+          "favor-workflow-reuse-over-replanning",
+          "dynamic-aggressive-delegation-bias"
+        ],
+        "safety_hints": [
+          "preserve-explicit-user-intent"
+        ]
+      },
+      "subagentQualityGuidance": [
+        "当任务走 General 子代理路径时，输出至少要给出 file_path、symbol、command_evidence 三类证据，不接受只有模糊总结的结果。",
+        "证据之间必须彼此对齐且可操作：file path 要能直接定位，symbol 要与该路径内对象一致，command 要能复现或验证结论；若三者冲突、过时或无法落地，则视为证据不合格。",
+        "一旦子代理证据彼此冲突，不要直接采信；应先进入冲突处置，按 local-verify 模式复核，必要时降级结论。",
+        "如果冲突证据将直接影响后续实现，优先切回本地工具做复核，再决定是否继续沿用子代理结论。"
+      ],
+      "expectedSignals": [
+        "prefer-existing-workflow-continuation",
+        "favor-workflow-reuse-over-replanning"
       ]
     },
     {
@@ -77,6 +250,32 @@
         "最近一步是 verify，应根据验证结果决定收尾还是回到 implement 修正，而不是回退到 research/plan。",
         "最近几步已经形成 research → plan → implement → verify 链路，当前 follow-up 应在 verify 结果基础上决定收尾或返工。"
       ],
+      "alignmentPolicy": {
+        "policy_version": 1,
+        "response_style_hints": [
+          "keep-concise",
+          "prefer-result-first",
+          "minimize-meta-narration"
+        ],
+        "routing_hints": [
+          "prefer-native-tooling",
+          "prefer-native-claude-code-workflows",
+          "prefer-session-exposed-tools-and-skills",
+          "escalate-workflow-only-when-task-clearly-benefits",
+          "dynamic-session-reuse-context",
+          "prefer-existing-workflow-continuation",
+          "dynamic-followup-after-verify",
+          "require-long-horizon-session-stability",
+          "require-verify-reentry-handling"
+        ],
+        "delegation_hints": [
+          "use-native-agent-paths-when-task-benefits",
+          "favor-workflow-reuse-over-replanning"
+        ],
+        "safety_hints": [
+          "preserve-explicit-user-intent"
+        ]
+      },
       "subagentQualityGuidance": [],
       "expectedSignals": [
         "followup-after-verify",
