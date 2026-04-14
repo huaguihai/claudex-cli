@@ -1,6 +1,6 @@
 # Native Benchmark Summary
 
-- Generated: 2026-04-12T23:42:43.206Z
+- Generated: 2026-04-13T15:28:53.232Z
 - Source: /root/claudex-cli/tests/native-benchmarks/last-report.json
 
 ## benchmark-openai-compat
