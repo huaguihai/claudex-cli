@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-11T16:29:34.085Z",
+  "generatedAt": "2026-04-13T15:28:54.320Z",
   "sourceReplay": "/root/claudex-cli/tests/native-benchmarks/replay.json",
   "cases": [
     {
@@ -82,6 +82,66 @@
               "implement"
             ],
             "verifyReady": true,
+            "verifyObserved": false
+          },
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "workflow-continuation-chain-01",
+      "summary": "follow-up 应优先继续已有 workflow，而不是重新 research/plan",
+      "passed": 3,
+      "total": 3,
+      "observations": [
+        {
+          "prompt": "先研究这个仓库的入口和 skill 暴露点",
+          "actual": {
+            "recentStepKind": "research",
+            "context_mode": "",
+            "trajectory": [],
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "expected": {
+            "recentStepKind": "research",
+            "context_mode": "",
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "passed": true
+        },
+        {
+          "prompt": "先给我方案再做",
+          "actual": {
+            "recentStepKind": "plan",
+            "context_mode": "",
+            "trajectory": [],
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "expected": {
+            "recentStepKind": "plan",
+            "context_mode": "",
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "passed": true
+        },
+        {
+          "prompt": "继续，沿用刚才的 workflow 往下做，不要重讲",
+          "actual": {
+            "recentStepKind": "implement",
+            "context_mode": "followup-after-plan",
+            "trajectory": [],
+            "verifyReady": false,
+            "verifyObserved": false
+          },
+          "expected": {
+            "recentStepKind": "implement",
+            "context_mode": "followup-after-plan",
+            "trajectory": [],
+            "verifyReady": false,
             "verifyObserved": false
           },
           "passed": true

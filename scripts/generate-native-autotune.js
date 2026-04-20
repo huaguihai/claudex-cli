@@ -7,6 +7,9 @@ const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '
 const reportPath = process.argv[2] || path.join(repoRoot, 'tests', 'native-benchmarks', 'last-report.json');
 const outputPath = process.argv[3] || path.join(repoRoot, 'tests', 'native-benchmarks', 'last-autotune.json');
 const criticalCategories = new Set(['routing-sensitive', 'provider-sensitive', 'workflow-sensitive']);
+const DEFAULT_PROFILE = 'stable';
+const PROFILE_NATIVE = 'native';
+const PROFILE_AGGRESSIVE = 'aggressive';
 const variantScenarioMap = {
   'proxy-openai-gateway': ['provider-proxy-gateway-01', 'provider-proxy-gateway-02'],
   'dashscope-openai': ['provider-dashscope-01', 'provider-dashscope-02'],
@@ -21,7 +24,7 @@ function variantScenarioSummary(provider, variant) {
   let variantGateFailures = 0;
 
   for (const scenario of variantResults) {
-    const profile = scenario.recommendation?.recommendedProfile || 'balanced';
+    const profile = scenario.recommendation?.recommendedProfile || DEFAULT_PROFILE;
     const weighted = scenario.recommendation?.weightedScore || 0;
     recommendedCounts.set(profile, (recommendedCounts.get(profile) || 0) + 1);
     weightedByProfile.set(profile, (weightedByProfile.get(profile) || 0) + weighted);
@@ -50,7 +53,7 @@ function summarizeProvider(provider) {
   let realTaskTotal = 0;
 
   for (const scenario of provider.results || []) {
-    const profile = scenario.recommendation?.recommendedProfile || 'balanced';
+    const profile = scenario.recommendation?.recommendedProfile || DEFAULT_PROFILE;
     const score = scenario.recommendation?.weightedScore || 0;
     weighted.set(profile, (weighted.get(profile) || 0) + score);
     profileWins.set(profile, (profileWins.get(profile) || 0) + 1);
@@ -78,44 +81,44 @@ function summarizeProvider(provider) {
     .map(([capability, count]) => `${capability}:${count}`);
 
   const sorted = [...weighted.entries()].sort((a, b) => b[1] - a[1]);
-  let [recommendedProfile, weightedScore] = sorted[0] || ['balanced', 0];
+  let [recommendedProfile, weightedScore] = sorted[0] || [DEFAULT_PROFILE, 0];
   const failures = gateFailures.get(recommendedProfile) || 0;
   decisionNotes.push(`global weighted leader=${recommendedProfile}`);
 
   if (provider.providerProfile?.api_surface === 'anthropic') {
-    const nativeFirstWins = profileWins.get('native-first') || 0;
-    const balancedWins = profileWins.get('balanced') || 0;
-    if (nativeFirstWins >= balancedWins / 2 && failures === 0) {
-      recommendedProfile = 'native-first';
-      decisionNotes.push('global anthropic override=native-first');
+    const nativeWins = profileWins.get(PROFILE_NATIVE) || 0;
+    const stableWins = profileWins.get(DEFAULT_PROFILE) || 0;
+    if (nativeWins >= stableWins / 2 && failures === 0) {
+      recommendedProfile = PROFILE_NATIVE;
+      decisionNotes.push(`global anthropic override=${PROFILE_NATIVE}`);
     }
   }
 
   if ((variant === 'proxy-openai-gateway' || variant === 'dashscope-openai') && variantSummary.scenarioCount > 0) {
     recommendedProfile = variantSummary.dominantVariantProfile || recommendedProfile;
     decisionNotes.push(`variant-local override=${variantSummary.dominantVariantProfile || 'none'}`);
-    if (recommendedProfile === 'cost-first') {
-      recommendedProfile = 'balanced';
-      decisionNotes.push('variant guardrail override=balanced');
+    if (recommendedProfile === PROFILE_AGGRESSIVE) {
+      recommendedProfile = DEFAULT_PROFILE;
+      decisionNotes.push(`variant guardrail override=${DEFAULT_PROFILE}`);
     }
   }
 
   if (variant === 'anthropic-official' && variantSummary.scenarioCount > 0 && variantSummary.variantGateFailures === 0) {
-    if (variantSummary.dominantVariantProfile === 'native-first') {
-      recommendedProfile = 'native-first';
-      decisionNotes.push('variant-local anthropic-official confirms native-first');
+    if (variantSummary.dominantVariantProfile === PROFILE_NATIVE) {
+      recommendedProfile = PROFILE_NATIVE;
+      decisionNotes.push(`variant-local anthropic-official confirms ${PROFILE_NATIVE}`);
     } else {
       decisionNotes.push(`variant-local signal=${variantSummary.dominantVariantProfile || 'none'}`);
       if (provider.providerProfile?.api_surface === 'anthropic' && failures === 0) {
-        recommendedProfile = 'native-first';
-        decisionNotes.push('global anthropic reliability override keeps native-first');
+        recommendedProfile = PROFILE_NATIVE;
+        decisionNotes.push(`global anthropic reliability override keeps ${PROFILE_NATIVE}`);
       }
     }
   }
 
   if (failures > 0 || variantSummary.variantGateFailures > 0) {
-    recommendedProfile = 'balanced';
-    decisionNotes.push('gate-failure fallback=balanced');
+    recommendedProfile = DEFAULT_PROFILE;
+    decisionNotes.push(`gate-failure fallback=${DEFAULT_PROFILE}`);
   }
 
   if (realTaskTotal > 0) {
@@ -242,19 +245,19 @@ function summarizeProvider(provider) {
     decisionNotes.push('current real-task set no longer differentiates parity from leadership');
   }
 
-  if (realTaskTotal > 0 && recommendedProfile === 'balanced' && provider.providerProfile?.api_surface === 'openai-compatible') {
-    decisionNotes.push('openai-compatible keeps balanced while real-task gaps are measured separately');
+  if (realTaskTotal > 0 && recommendedProfile === DEFAULT_PROFILE && provider.providerProfile?.api_surface === 'openai-compatible') {
+    decisionNotes.push(`openai-compatible keeps ${DEFAULT_PROFILE} while real-task gaps are measured separately`);
   }
 
   if (realTaskTotal > 0 && realTaskPassed < realTaskTotal) {
     decisionNotes.push('real-task underfit suggests static policy is not enough yet');
   }
 
-  if (realTaskTotal > 0 && recommendedProfile === 'balanced' && provider.providerProfile?.api_surface === 'openai-compatible') {
-    decisionNotes.push('openai-compatible keeps balanced while real-task gaps are measured separately');
+  if (realTaskTotal > 0 && recommendedProfile === DEFAULT_PROFILE && provider.providerProfile?.api_surface === 'openai-compatible') {
+    decisionNotes.push(`openai-compatible keeps ${DEFAULT_PROFILE} while real-task gaps are measured separately`);
   }
-  if (realTaskTotal > 0 && recommendedProfile === 'native-first' && provider.providerProfile?.api_surface === 'anthropic') {
-    decisionNotes.push('anthropic keeps native-first while real-task gaps are measured separately');
+  if (realTaskTotal > 0 && recommendedProfile === PROFILE_NATIVE && provider.providerProfile?.api_surface === 'anthropic') {
+    decisionNotes.push(`anthropic keeps ${PROFILE_NATIVE} while real-task gaps are measured separately`);
   }
 
   return {
