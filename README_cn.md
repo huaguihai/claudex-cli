@@ -34,7 +34,7 @@ node -v
 # 2) 安装
 npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 
-# 3) 初始化（写入 shell helper + 本地状态目录）
+# 3) 初始化（写入 shell helper + 创建全局 Claude 配置）
 claudex init
 
 # 4) 新增服务商（交互录入）
@@ -55,6 +55,10 @@ claudex test
 
 # 7) 启动 Claude
 claudex
+
+# 首次运行且还没有 provider 时，claudex 会进入引导菜单。
+# 如果 ~/.claude/settings.json 不存在，claudex 会首次创建一份
+# 只包含 provider 无关默认项的全局配置。
 
 # 可选：继续最近一次会话
 claudex --continue
@@ -117,6 +121,8 @@ cd claudex-cli
 node ./bin/claudex.js --help
 ```
 
+如果系统中还没有安装 Claude Code，`claudex` 会优先展示当前平台的官方推荐安装命令，而不再依赖已 deprecated 的 npm 全局安装路径。
+
 ## 命令列表
 
 ```text
@@ -142,6 +148,23 @@ claudex run [claude args...]
 - `claudex update --from-npm` 才会走 npm registry。
 
 ## 配置参考
+
+### 全局 Claude 配置文件：`~/.claude/settings.json`
+
+这个文件只保存与 provider 无关的默认项。`claudex` 只会在文件不存在时创建它，不会覆盖已有用户配置。
+
+示例：
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1",
+    "ENABLE_TOOL_SEARCH": "false"
+  }
+}
+```
 
 ### 服务商配置文件：`~/.claude/settings.<name>.json`
 

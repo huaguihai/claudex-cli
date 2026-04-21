@@ -34,7 +34,7 @@ node -v
 # 2) Install
 npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 
-# 3) Initialize shell helper and local state
+# 3) Initialize shell helper and bootstrap global Claude settings
 claudex init
 
 # 4) Add a provider (interactive)
@@ -55,6 +55,10 @@ claudex test
 
 # 7) Run Claude with current provider
 claudex
+
+# On first run without any provider, claudex opens the guided menu.
+# If ~/.claude/settings.json does not exist yet, claudex bootstraps it once
+# with provider-agnostic Claude Code defaults.
 
 # Optional: continue latest conversation
 claudex --continue
@@ -117,6 +121,8 @@ cd claudex-cli
 node ./bin/claudex.js --help
 ```
 
+If Claude Code is not installed, `claudex` shows the official recommended install command for your platform first. It does not rely on the deprecated npm-global Claude Code install path.
+
 ## Commands
 
 ```text
@@ -142,6 +148,23 @@ Update source behavior:
 - `claudex update --from-npm` explicitly uses npm registry.
 
 ## Configuration Reference
+
+### Global Claude Code file: `~/.claude/settings.json`
+
+This file stores provider-agnostic defaults. `claudex` creates it only when the file does not already exist.
+
+Example:
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1",
+    "ENABLE_TOOL_SEARCH": "false"
+  }
+}
+```
 
 ### Provider file: `~/.claude/settings.<name>.json`
 
