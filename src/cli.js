@@ -656,21 +656,30 @@ async function setLanguage(lang) {
   return v;
 }
 
-function isClaudeInstalled() {
-  try {
-    execFileSync('claude', ['--version'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
+function detectClaudeCommand(options = {}) {
+  const platform = options.platform || process.platform;
+  const runner = options.runner || ((command, args, execOptions = {}) => execFileSync(command, args, execOptions));
+  const candidates = platform === 'win32' ? ['claude', 'claude.cmd'] : ['claude'];
+
+  for (const command of candidates) {
+    try {
+      const version = String(runner(command, ['--version'], { encoding: 'utf8' })).trim();
+      return { command, version };
+    } catch {
+      continue;
+    }
   }
+
+  return null;
+}
+
+function isClaudeInstalled() {
+  return detectClaudeCommand() !== null;
 }
 
 function getClaudeVersion() {
-  try {
-    return execFileSync('claude', ['--version'], { encoding: 'utf8' }).trim();
-  } catch {
-    return null;
-  }
+  const detected = detectClaudeCommand();
+  return detected?.version || null;
 }
 
 async function ensureClaudeInstalled(lang) {
@@ -1689,6 +1698,8 @@ export async function main(argv = process.argv.slice(2)) {
 
   throw new Error(`unknown command: ${cmd}`);
 }
+
+export { detectClaudeCommand };
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch((err) => {
