@@ -1071,15 +1071,6 @@ async function runProcess(command, args, env = process.env) {
   });
 }
 
-function isClaudeInstalled() {
-  try {
-    execFileSync('claude', ['--version'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function recommendedClaudeInstallCommand() {
   if (process.platform === 'darwin') {
     return {
@@ -1753,7 +1744,7 @@ export async function main(argv = process.argv.slice(2)) {
   throw new Error(`unknown command: ${cmd}`);
 }
 
-export { detectClaudeCommand };
+export { detectClaudeCommand, recommendedClaudeInstallCommand };
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch((err) => {
