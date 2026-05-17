@@ -1,7 +1,7 @@
 {
   "name": "claudex-cli",
   "version": "0.1.0",
-  "description": "Interactive multi-provider manager for Claude Code settings",
+  "description": "Interactive multi-provider manager for Claude Code and OpenAI Codex settings",
   "type": "module",
   "bin": {
     "claudex": "./bin/claudex.js"
@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node ./bin/claudex.js",
     "lint": "node ./bin/claudex.js --help",
+    "test": "node --test --test-reporter=spec tests/**/*.test.js",
     "benchmark:native": "node ./scripts/run-native-benchmark.js",
     "benchmark:native:summary": "node ./scripts/summarize-native-benchmark.js",
     "benchmark:native:autotune": "node ./scripts/generate-native-autotune.js",
@@ -16,6 +17,10 @@
     "benchmark:native:replay": "node ./scripts/run-native-replay.js",
     "benchmark:native:smoke": "node ./scripts/run-native-smoke.js",
     "benchmark:native:all": "npm run benchmark:native && npm run benchmark:native:summary && npm run benchmark:native:autotune && npm run benchmark:native:dashboard && npm run benchmark:native:smoke"
+  },
+  "dependencies": {
+    "proper-lockfile": "^4.1.2",
+    "smol-toml": "^1.4.2"
   },
   "engines": {
     "node": ">=18"
