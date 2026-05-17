@@ -45,6 +45,9 @@ import {
 } from './snapshot.js';
 import { tailAuditLog } from './audit.js';
 import { readAuthJson, inspectAuthJson } from './auth-json.js';
+import { runDoctor, formatDoctorReport, summariseStatus } from './doctor.js';
+import { inspectDrift, acceptExternalChanges } from './reconcile.js';
+import { restoreChatGptTokens, findLatestChatGptBackup } from './restore-chatgpt.js';
 import {
   detectCodex,
   detectCodexAppRunning,
@@ -615,7 +618,19 @@ async function cmdAudit(args, lang) {
 // ----- stubs (M4/M5) -----
 
 async function cmdDoctor(args, lang) {
-  process.stdout.write(t(lang, 'notImplemented') + ' (codexx doctor — M4)\n');
+  const flags = parseFlags(args);
+  const checks = await runDoctor({
+    cwd: process.cwd(),
+    provider: flags.provider
+  });
+  if (flags.json) {
+    process.stdout.write(JSON.stringify({ checks, summary: summariseStatus(checks) }, null, 2) + '\n');
+  } else {
+    process.stdout.write(formatDoctorReport(checks));
+    process.stdout.write(`Summary: ${summariseStatus(checks).toUpperCase()}\n`);
+  }
+  const summary = summariseStatus(checks);
+  if (summary === 'fail') return 1;
   return 0;
 }
 
@@ -630,12 +645,65 @@ async function cmdMenu(args, lang) {
 }
 
 async function cmdReconcile(args, lang) {
-  process.stdout.write(t(lang, 'notImplemented') + ' (codexx reconcile — M4)\n');
+  const flags = parseFlags(args);
+  const inspection = await inspectDrift();
+  if (!inspection.baseline) {
+    process.stdout.write('No codexx baseline yet — nothing to reconcile.\n');
+    return 0;
+  }
+  const driftedFiles = [];
+  if (inspection.drift.config) driftedFiles.push('config.toml');
+  if (inspection.drift.auth) driftedFiles.push('auth.json');
+  if (driftedFiles.length === 0) {
+    process.stdout.write('No drift detected. State matches last codexx baseline.\n');
+    return 0;
+  }
+  process.stdout.write(`Drift detected in: ${driftedFiles.join(', ')}\n`);
+  for (const file of driftedFiles) {
+    const d = file === 'config.toml' ? inspection.drift.config : inspection.drift.auth;
+    process.stdout.write(`  ${file}: ${d.before?.slice(0, 12) || 'null'} → ${d.after?.slice(0, 12) || 'null'}\n`);
+  }
+  if (!flags.yes) {
+    const rl = readline.createInterface({ input, output });
+    let ans;
+    try {
+      ans = (await rl.question('Accept external changes as new baseline? [y/N]: ')).trim().toLowerCase();
+    } finally {
+      rl.close();
+    }
+    if (ans !== 'y' && ans !== 'yes') {
+      process.stdout.write(t(lang, 'canceled') + '\n');
+      return 0;
+    }
+  }
+  await acceptExternalChanges();
+  process.stdout.write('✅ Baseline updated to current state.\n');
   return 0;
 }
 
 async function cmdRestoreChatGpt(args, lang) {
-  process.stdout.write(t(lang, 'notImplemented') + ' (codexx restore-chatgpt — M4)\n');
+  const found = await findLatestChatGptBackup();
+  if (!found) {
+    process.stderr.write('⚠️ No ChatGPT tokens backup found in codex-backups/.\n');
+    return 1;
+  }
+  process.stdout.write(`Found ChatGPT tokens backup: ${found.backupId}\n`);
+  const flags = parseFlags(args);
+  if (!flags.yes) {
+    const rl = readline.createInterface({ input, output });
+    let ans;
+    try {
+      ans = (await rl.question('Restore ChatGPT OAuth tokens to ~/.codex/auth.json (overwriting current)? [y/N]: ')).trim().toLowerCase();
+    } finally {
+      rl.close();
+    }
+    if (ans !== 'y' && ans !== 'yes') {
+      process.stdout.write(t(lang, 'canceled') + '\n');
+      return 0;
+    }
+  }
+  const result = await restoreChatGptTokens();
+  process.stdout.write(`✅ ChatGPT OAuth tokens restored from backup ${result.backupId}\n`);
   return 0;
 }
 
