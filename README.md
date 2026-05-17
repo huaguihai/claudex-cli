@@ -8,7 +8,10 @@
  \____|_____/_/   \_\___/|____/|_____/_/\_\
 ```
 
-Why does switching a Claude provider require editing 3 environment variables? `claudex use gpt` — done.
+Switch AI coding CLI providers without touching env vars or TOML files — one command.
+
+- `claudex use <name>` — switches **Claude Code** provider (available today)
+- `codexx use <name>` — switches **OpenAI Codex** provider (in development, see [spec](./docs/codexx-spec.md))
 
 [![English](https://img.shields.io/badge/English-111827?style=flat-square)](./README.md)
 [![简体中文](https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-DC2626?style=flat-square)](./README_cn.md)
@@ -17,20 +20,21 @@ Why does switching a Claude provider require editing 3 environment variables? `c
 [![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](./package.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-**Best for**: people who want `claudex` to feel like native `claude`, while still being able to switch provider configs quickly and keep a persistent Native mode for third-party models.
+**Best for**: people who want `claudex` / `codexx` to feel like native `claude` / `codex`, while still being able to switch provider configs quickly and keep a persistent Native mode for third-party models.
 
 **Not for**: users who only use a single static provider and never switch.
 
 <!-- AI-CONTEXT
 project: claudex-cli
-one-liner: Switch Claude providers without touching env vars — one command
+one-liner: Switch Claude Code and OpenAI Codex providers without touching env vars or TOML — one command
 language: Node.js
 min_runtime: node >= 18.0.0
 package_manager: npm
 install: npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 verify: claudex --help
-config_file: ~/.claude/settings.<name>.json; ~/.config/claudex-cli/current-provider
-entry: bin/claudex.js
+config_file: ~/.claude/settings.<name>.json; ~/.config/claudex-cli/current-provider; ~/.codex/config.toml (codexx, planned)
+entry: bin/claudex.js (claudex); bin/codexx.js (codexx, planned)
+binaries: claudex (Claude Code), codexx (OpenAI Codex, planned — see docs/codexx-spec.md)
 -->
 
 ## Agent Quick Start

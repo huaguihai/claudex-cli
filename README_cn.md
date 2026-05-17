@@ -8,7 +8,10 @@
  \____|_____/_/   \_\___/|____/|_____/_/\_\
 ```
 
-切个 Claude 服务商要改 3 个环境变量？`claudex use gpt` 一条命令搞定。
+一条命令切换 AI 编码 CLI 的服务商，不用碰环境变量也不用手改 TOML。
+
+- `claudex use <name>` —— 切换 **Claude Code** 服务商（已发布）
+- `codexx use <name>` —— 切换 **OpenAI Codex** 服务商（开发中，详见 [spec](./docs/codexx-spec.md)）
 
 [![English](https://img.shields.io/badge/English-111827?style=flat-square)](./README.md)
 [![简体中文](https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-DC2626?style=flat-square)](./README_cn.md)
@@ -17,20 +20,21 @@
 [![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](./package.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-**适合**：希望保留原生 `claude` 使用手感，同时需要快速切换不同服务商配置，并为第三方模型长期保持 Native 模式的用户。
+**适合**：希望保留原生 `claude` / `codex` 使用手感，同时需要快速切换不同服务商配置，并为第三方模型长期保持 Native 模式的用户。
 
 **不适合**：只用单一固定服务商、几乎不需要切换的场景。
 
 <!-- AI-CONTEXT
 project: claudex-cli
-one-liner: 一条命令切换 Claude 服务商，不用碰环境变量
+one-liner: 一条命令切换 Claude Code 与 OpenAI Codex 的服务商，不用碰环境变量也不用手改 TOML
 language: Node.js
 min_runtime: node >= 18.0.0
 package_manager: npm
 install: npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 verify: claudex --help
-config_file: ~/.claude/settings.<name>.json; ~/.config/claudex-cli/current-provider
-entry: bin/claudex.js
+config_file: ~/.claude/settings.<name>.json; ~/.config/claudex-cli/current-provider; ~/.codex/config.toml (codexx, 规划中)
+entry: bin/claudex.js (claudex); bin/codexx.js (codexx, 规划中)
+binaries: claudex (Claude Code), codexx (OpenAI Codex, 规划中 — 详见 docs/codexx-spec.md)
 -->
 
 ## Agent Quick Start
