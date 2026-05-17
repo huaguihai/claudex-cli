@@ -38,7 +38,7 @@ export function codexAgentsMdPath() {
 }
 
 export function claudexAppDir() {
-  return path.join(os.homedir(), '.config', 'claudex-cli');
+  return process.env.CLAUDEX_CONFIG_DIR || path.join(os.homedir(), '.config', 'claudex-cli');
 }
 
 export function codexProvidersDir() {
