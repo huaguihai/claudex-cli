@@ -70,7 +70,7 @@ export function codexNativeStatePath() {
 }
 
 export function codexLockPath() {
-  return path.join(codexHome(), '.codexx-lock');
+  return path.join(claudexAppDir(), 'codex.lock');
 }
 
 export function isReservedProviderId(name) {

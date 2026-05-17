@@ -121,7 +121,6 @@ test('config-derived paths anchor to codexHome()', () => {
     assert.equal(codexConfigTomlPath(), '/tmp/codex-home-test/config.toml');
     assert.equal(codexAuthJsonPath(), '/tmp/codex-home-test/auth.json');
     assert.equal(codexAgentsMdPath(), '/tmp/codex-home-test/AGENTS.md');
-    assert.equal(codexLockPath(), '/tmp/codex-home-test/.codexx-lock');
   } finally {
     if (prev === undefined) delete process.env.CODEX_HOME;
     else process.env.CODEX_HOME = prev;
@@ -139,6 +138,7 @@ test('claudex-app paths anchor under ~/.config/claudex-cli', () => {
   assert.equal(codexAuditLogPath(), path.join(app, 'codex-audit.log'));
   assert.equal(codexLastKnownHashesPath(), path.join(app, 'codex-last-known-hashes.json'));
   assert.equal(codexNativeStatePath(), path.join(app, 'codex-native.json'));
+  assert.equal(codexLockPath(), path.join(app, 'codex.lock'));
 });
 
 test('SCHEMA_VERSION matches spec', () => {
