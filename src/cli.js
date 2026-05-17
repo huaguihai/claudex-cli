@@ -13,30 +13,30 @@ import {
   defaultNativeConfig,
   nativeStateLabel,
   validateNativeProfile
-} from './native-context.js';
+} from './shared/native-context.js';
 import {
   buildProviderBehaviorProfile,
   preferredProtocolOrder
-} from './provider-profile.js';
-import { buildAlignmentPolicy } from './alignment-policy.js';
-import { buildProviderTuning } from './provider-tuning.js';
-import { classifyPromptSignals } from './prompt-signals.js';
-import { buildDynamicRouteGuidance, buildRouteDecision } from './route-guidance.js';
+} from './shared/provider-profile.js';
+import { buildAlignmentPolicy } from './shared/alignment-policy.js';
+import { buildProviderTuning } from './shared/provider-tuning.js';
+import { classifyPromptSignals } from './shared/prompt-signals.js';
+import { buildDynamicRouteGuidance, buildRouteDecision } from './shared/route-guidance.js';
 import {
   appendSessionStep,
   buildSessionContext,
   inferStepKind,
   readSessionState,
   writeSessionState
-} from './session-guidance.js';
+} from './shared/session-guidance.js';
 import {
   buildSubagentQualityGate,
   buildSubagentQualityGuidance
-} from './subagent-quality.js';
+} from './shared/subagent-quality.js';
 import {
   buildTaskQualityGate,
   buildTaskQualityGuidance
-} from './task-quality.js';
+} from './shared/task-quality.js';
 
 
 const home = os.homedir();

@@ -2,9 +2,9 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { buildRouteDecision } from '../src/route-guidance.js';
-import { buildSessionContext, inferStepKind, appendSessionStep } from '../src/session-guidance.js';
-import { classifyPromptSignals } from '../src/prompt-signals.js';
+import { buildRouteDecision } from '../src/shared/route-guidance.js';
+import { buildSessionContext, inferStepKind, appendSessionStep } from '../src/shared/session-guidance.js';
+import { classifyPromptSignals } from '../src/shared/prompt-signals.js';
 
 const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const replayPath = process.argv[2] || path.join(repoRoot, 'tests', 'native-benchmarks', 'replay.json');

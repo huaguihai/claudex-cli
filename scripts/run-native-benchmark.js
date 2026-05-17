@@ -2,15 +2,15 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { buildProviderBehaviorProfile } from '../src/provider-profile.js';
-import { buildAlignmentPolicy } from '../src/alignment-policy.js';
-import { buildNativeContext } from '../src/native-context.js';
-import { buildProviderTuning } from '../src/provider-tuning.js';
-import { classifyPromptSignals } from '../src/prompt-signals.js';
-import { buildDynamicRouteGuidance, buildRouteDecision } from '../src/route-guidance.js';
-import { buildSessionContext } from '../src/session-guidance.js';
-import { buildSubagentQualityGate, buildSubagentQualityGuidance } from '../src/subagent-quality.js';
-import { buildTaskQualityGate, buildTaskQualityGuidance } from '../src/task-quality.js';
+import { buildProviderBehaviorProfile } from '../src/shared/provider-profile.js';
+import { buildAlignmentPolicy } from '../src/shared/alignment-policy.js';
+import { buildNativeContext } from '../src/shared/native-context.js';
+import { buildProviderTuning } from '../src/shared/provider-tuning.js';
+import { classifyPromptSignals } from '../src/shared/prompt-signals.js';
+import { buildDynamicRouteGuidance, buildRouteDecision } from '../src/shared/route-guidance.js';
+import { buildSessionContext } from '../src/shared/session-guidance.js';
+import { buildSubagentQualityGate, buildSubagentQualityGuidance } from '../src/shared/subagent-quality.js';
+import { buildTaskQualityGate, buildTaskQualityGuidance } from '../src/shared/task-quality.js';
 
 const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const benchmarkPath = process.argv[2] || path.join(repoRoot, 'tests', 'native-benchmarks', 'core.json');
