@@ -4,7 +4,8 @@
   "description": "Interactive multi-provider manager for Claude Code and OpenAI Codex settings",
   "type": "module",
   "bin": {
-    "claudex": "./bin/claudex.js"
+    "claudex": "./bin/claudex.js",
+    "codexx": "./bin/codexx.js"
   },
   "scripts": {
     "start": "node ./bin/claudex.js",

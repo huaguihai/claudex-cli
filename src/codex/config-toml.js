@@ -131,25 +131,28 @@ export function buildClaudexBlock(provider, opts = {}) {
 export function applyClaudexProvider(raw, provider, opts = {}) {
   parseConfigToml(raw); // guard
   const block = buildClaudexBlock(provider, opts);
-  const existing = findClaudexSections(raw).find(
-    (s) => s.providerName === provider.name
-  );
 
-  let next;
-  let action;
-  if (existing) {
-    next = replaceLineRange(raw, existing.beginLine, existing.endLine, block);
-    action = 'update';
-  } else {
-    next = insertAtAnchor(raw, block);
-    action = 'insert';
-  }
-
+  // Set top-level keys FIRST, while no claudex section is in the file yet.
+  // This avoids `setTopLevelKeyResult` placing them inside our marker block
+  // when it scans for the "first section header" boundary.
   const topLevelChanges = {};
   const claudexId = toClaudexProviderId(provider.name);
-  next = setTopLevelKeyResult(next, 'model_provider', claudexId, topLevelChanges);
+  let next = setTopLevelKeyResult(raw, 'model_provider', claudexId, topLevelChanges);
   if (provider.model) {
     next = setTopLevelKeyResult(next, 'model', provider.model, topLevelChanges);
+  }
+
+  // Then insert or replace the claudex section.
+  const existing = findClaudexSections(next).find(
+    (s) => s.providerName === provider.name
+  );
+  let action;
+  if (existing) {
+    next = replaceLineRange(next, existing.beginLine, existing.endLine, block);
+    action = 'update';
+  } else {
+    next = insertAtAnchor(next, block);
+    action = 'insert';
   }
 
   parseConfigToml(next); // post-validate parses
@@ -247,6 +250,7 @@ export function verifyNonClaudexUntouched(beforeRaw, afterRaw) {
 // ===== internal helpers =====
 
 function splitLines(raw) {
+  if (raw === '') return [];
   return raw.split('\n');
 }
 
