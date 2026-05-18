@@ -418,12 +418,197 @@ claudex run [claude args...]     # 透传给 claude
 **`Could not resolve host` 或请求超时**
 → 检查 DNS、代理、网络链路。用 `curl` 直连服务地址验证。运行 `claudex doctor` 快速定位。
 
+---
+
+## codexx —— OpenAI Codex 服务商切换
+
+`codexx` 是 `claudex` 的对称姊妹命令：同样的命令面、同样的肌肉记忆，但目标是 **OpenAI Codex**（CLI + 桌面 App + VS Code 扩展都读同一份 `~/.codex/` 配置，一次切换全覆盖）。
+
+完整实现规范见 [`docs/codexx-spec.md`](./docs/codexx-spec.md)。
+
+### 快速开始
+
+```bash
+# 1) 和 claudex 同一个安装
+npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
+
+# 2) 初始化 state 目录 + 检测 codex
+codexx init
+
+# 3) 添加一个 Codex 服务商（交互式）
+codexx add
+# > 服务商名称 (例如 openrouter): openrouter
+# > Base URL: https://openrouter.ai/api/v1
+# > API Key: sk-or-v1-...
+# > Model: anthropic/claude-sonnet-4.5
+# > Wire API (chat/responses) [chat]: chat
+
+# 或非交互：
+codexx add --name openrouter \
+  --base-url https://openrouter.ai/api/v1 \
+  --api-key sk-or-v1-... \
+  --model anthropic/claude-sonnet-4.5 \
+  --wire-api chat
+
+# 4) 切换
+codexx use openrouter
+# ✅ 已切换到服务商: openrouter
+#    接入点: https://openrouter.ai/api/v1
+#    模型: anthropic/claude-sonnet-4.5
+#    备份: ~/.config/claudex-cli/codex-backups/2026-05-17T.../
+
+# 5) 像平时一样用 codex
+codexx
+# (透传；Codex 桌面 App + IDE 扩展也都用这个 provider 了)
+
+# 6) 诊断
+codexx doctor
+
+# 7) 想回到原生：
+codexx revert
+```
+
+### 核心能力
+
+| 能力 | 作用 |
+|---|---|
+| `codexx` | 用当前 provider 启动 `codex`；所有 codex 原生子命令透传 |
+| `codexx use <name>` | 切换 provider；持久化到 `~/.codex/config.toml` + `~/.codex/auth.json` |
+| `codexx add / list / remove` | provider 增删改查 + 校验 |
+| `codexx test [name]` | 按 `wire_api` 选 chat / responses 做 HTTP 探测 |
+| `codexx status` | 当前 provider + Codex 版本 + 桌面 App 状态 + drift |
+| `codexx doctor [--json]` | 13 项健康检查（CLI 版本、drift、env 冲突、项目级 config、credentials store、native context 完整性…）|
+| `codexx native on/off/profile` | 用定界符把运行时上下文注入 `~/.codex/AGENTS.md`；可干净移除 |
+| `codexx menu` | 交互菜单——与 `claudex menu` UX 形态相同 |
+| `codexx snapshot / restore / revert` | 首次快照 + 每次切换前备份 + 原子还原 |
+| `codexx reconcile` | `codex login` / `codex mcp add` 等外部修改后，接受为新基线 |
+| `codexx restore-chatgpt` | 还原被 codexx 覆盖过的 ChatGPT OAuth tokens |
+| `codexx login / logout / app` | claudex-aware 包装——覆盖前先警告，再透传 |
+| `codexx -- <args>` | 强制纯透传（任何未来 codex 子命令的逃生门）|
+
+### 工作原理
+
+```mermaid
+graph LR
+    A[codexx use openrouter] --> B[ensurePreClaudexSnapshot]
+    B --> C[读取 before 状态 + hash]
+    C --> D[drift 检测 vs last-known]
+    D --> E[计算目标: TOML 外科手术 + auth payload]
+    E --> F[备份 config.toml + auth.json]
+    F --> G[原子写 auth.json]
+    G --> H[原子写 config.toml]
+    H --> I[写后验证非 claudex 部分未动]
+    I --> J[更新 last-known hash + 审计日志]
+```
+
+关键设计决策：
+
+- **字符串级外科手术，不做 round-trip**。Node 生态没有保留注释/格式的 TOML writer。`codexx` 只改自己 marker 定界的 section，文件里其它字节（你的注释、MCP servers、project trusts、plugins、marketplaces）**保持字节级一致**。
+- **每个 claudex section 写 `requires_openai_auth = true` + `env_key = "OPENAI_API_KEY"`**，让 Codex 的 AuthManager 不论从哪种方式启动都能从 `auth.json` 拿到 key（terminal、桌面 App、VS Code 扩展）。
+- **双文件原子写 + 回滚**。先写 `auth.json`，`config.toml` 写失败时回滚 auth 写入。
+- **首次快照 + 每次切换备份**。`codexx revert` 永远能字节级回到 pre-codexx 状态。
+
+### 命令
+
+```text
+codexx                              # 用当前 provider 启动 codex
+codexx [<codex args>...]            # 透传（例：codexx resume --last）
+codexx -- <args>                    # 强制透传
+codexx init                         # 创建 state 目录 + 检测 codex 安装
+codexx menu                         # 交互菜单
+codexx add [flags]                  # 添加 provider（向导或 flags）
+codexx list                         # 列出所有 provider
+codexx use <name|index>             # 切换 provider
+codexx remove <name|index> [--yes]
+codexx test [name|index]            # 连通性探测
+codexx status                       # 当前 provider + Codex/App 状态
+codexx doctor [--json] [--provider <name>]
+codexx snapshot                     # 创建 pre-codexx 快照
+codexx restore <id|latest>          # 还原某次备份
+codexx revert [--yes]               # 还原到 pre-codexx 状态
+codexx audit [--tail N]             # 查看审计日志（JSONL）
+codexx reconcile [--yes]            # 把外部修改接受为新基线
+codexx restore-chatgpt [--yes]      # 从备份还原 ChatGPT OAuth tokens
+codexx native on|off|status|profile [name]|doctor
+codexx lang <zh|en>                 # 切语言
+codexx update                       # 自更新
+codexx login / logout / app         # claudex-aware codex 包装
+```
+
+### 配置文件总览
+
+| 文件 | 所有者 | 用途 |
+|---|---|---|
+| `~/.codex/config.toml` | 与 codex 共享 | codexx 只写 `[model_providers.claudex-<name>]` section 和顶层 `model` / `model_provider`，定界符包裹 |
+| `~/.codex/auth.json` | 与 codex 共享 | codexx 写当前 provider 的 API key（apikey 模式）；ChatGPT OAuth tokens 覆盖前自动备份 |
+| `~/.codex/AGENTS.md` | 与 codex 共享（用户） | 仅 Native on 时在定界符内写入 |
+| `~/.config/claudex-cli/codex-providers/<name>.json` | codexx | provider 元数据（api_key, base_url, model 等）；chmod 600 |
+| `~/.config/claudex-cli/codex-current-provider` | codexx | 单行 = 当前 provider 名 |
+| `~/.config/claudex-cli/codex-snapshot/pre-claudex/` | codexx | 第一次 `codexx use` 时拷的 `~/.codex/` 字节级副本 |
+| `~/.config/claudex-cli/codex-backups/<ts>/` | codexx | 每次切换前备份（config.toml + auth.json + reason + hashes）|
+| `~/.config/claudex-cli/codex-audit.log` | codexx | JSONL 审计日志（use / revert / drift / chatgpt-backup 事件）|
+| `~/.config/claudex-cli/codex-last-known-hashes.json` | codexx | drift 检测基线 |
+| `~/.config/claudex-cli/codex-native.json` | codexx | `{ enabled, profile, last_injected_hash }` |
+
+Provider 元数据 schema：
+
+```json
+{
+  "schema_version": 1,
+  "name": "openrouter",
+  "base_url": "https://openrouter.ai/api/v1",
+  "api_key": "sk-or-v1-...",
+  "model": "anthropic/claude-sonnet-4.5",
+  "wire_api": "chat",
+  "model_reasoning_effort": "medium",
+  "http_headers": { "X-Title": "claudex" }
+}
+```
+
+### 兼容性
+
+| 组件 | 状态 |
+|---|---|
+| codex CLI | 各版本均支持；**v0.130+** 支持 config 热重载（更老版本切换后需重启 codex）|
+| Codex 桌面 App | 与 CLI 同样读 `config.toml` + `auth.json`；自定义 provider 的 UI 模型选择器可能显示 "Custom"（上游 cosmetic 问题 [#19694](https://github.com/openai/codex/issues/19694)，请求路由正常）|
+| Codex VS Code 扩展 | 同样读这些文件；新会话默认 model 在某些情况下有 bug（上游 [#4558](https://github.com/openai/codex/issues/4558)）|
+| ChatGPT 订阅 | 可共存——`codexx` 在覆盖前自动备份 OAuth tokens；`codexx restore-chatgpt` 一键还原 |
+| macOS | 一等公民 |
+| Linux / Windows | MVP 阶段尽力而为；keyring 后端规划在 v2 |
+| `cli_auth_credentials_store = "keyring"` | 暂不支持——`codexx doctor` 会警告 |
+
+### 常见问题
+
+**`codexx use` 提示 drift detected**
+→ 有外部改动（多半是 `codex login`、`codex mcp add`、或手动编辑）改了 `~/.codex/config.toml` 或 `auth.json`。`codexx doctor` 看详情；`codexx reconcile` 把外部状态接受为新基线，或 `use` 加 `--force` 直接覆盖。
+
+**`codexx use` 之后桌面 App 还用着旧 provider**
+→ codex < v0.130 不支持热重载 config。重启桌面 App（Cmd+Q 后重开）。v0.130+ 会自动生效。
+
+**`codexx test` 返回 401**
+→ 要么 API key 错，要么你 shell 里设了 `OPENAI_API_KEY` 等于另一个值（terminal 启动的 codex 会优先用 shell env 而不是 auth.json）。`codexx doctor` 会把这个标为 `shell_env_conflict`。
+
+**用了 codexx 之后 ChatGPT 订阅没了**
+→ OAuth tokens 已经被自动备份到 `~/.config/claudex-cli/codex-backups/<最新>/chatgpt-tokens.json`。运行 `codexx restore-chatgpt` 还原；如果之后想重新登录，再跑 `codex login`。
+
+### 卸载之前
+
+`npm uninstall -g claudex-cli` **不会**自动清理 `~/.codex/`。要彻底回到原生 Codex 状态：
+
+```bash
+codexx revert            # 还原 config.toml + auth.json 到 pre-codexx
+npm uninstall -g claudex-cli
+```
+
+如果忘了先 revert，残留的 `[model_providers.claudex-*]` section 和 `auth.json` 里的 `_claudex_managed` 字段对原生 codex 无害，但建议手动清掉以避免混淆。
+
 ## 许可证
 
 MIT
 
 ## 文档
 
-- `docs/product-plan.md`
-- `docs/native-roadmap.md`
-- `tests/native-benchmarks/`
+- [`docs/codexx-spec.md`](./docs/codexx-spec.md) —— codexx 实现规范
+- [`docs/product-plan.md`](./docs/product-plan.md) —— claudex 产品方向
+- [`docs/native-roadmap.md`](./docs/native-roadmap.md) —— Native 子系统路线图
+- [`tests/native-benchmarks/`](./tests/native-benchmarks/) —— benchmark 产物

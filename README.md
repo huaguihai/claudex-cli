@@ -404,12 +404,197 @@ Every time a provider file is overwritten, the previous version is saved to `~/.
 **`Could not resolve host` / timeout**
 → Check DNS/proxy/network path. Verify endpoint with `curl`. Run `claudex doctor` for quick diagnostics.
 
+---
+
+## codexx — OpenAI Codex provider switching
+
+`codexx` is the symmetric counterpart to `claudex`: same command surface, same muscle memory, but it targets **OpenAI Codex** (CLI + Desktop App + VS Code extension all read the same `~/.codex/` files, so one switch covers them all).
+
+For the full implementation contract see [`docs/codexx-spec.md`](./docs/codexx-spec.md).
+
+### Quick Start
+
+```bash
+# 1) Same install as claudex
+npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
+
+# 2) Initialise state dir + check codex install
+codexx init
+
+# 3) Add a Codex provider (interactive)
+codexx add
+# > Name: openrouter
+# > Base URL: https://openrouter.ai/api/v1
+# > API Key: sk-or-v1-...
+# > Model: anthropic/claude-sonnet-4.5
+# > Wire API (chat/responses) [chat]: chat
+
+# Or non-interactive:
+codexx add --name openrouter \
+  --base-url https://openrouter.ai/api/v1 \
+  --api-key sk-or-v1-... \
+  --model anthropic/claude-sonnet-4.5 \
+  --wire-api chat
+
+# 4) Switch to it
+codexx use openrouter
+# ✅ Switched to provider: openrouter
+#    Endpoint: https://openrouter.ai/api/v1
+#    Model: anthropic/claude-sonnet-4.5
+#    Backup: ~/.config/claudex-cli/codex-backups/2026-05-17T.../
+
+# 5) Run codex as usual
+codexx
+# (passthrough; Codex Desktop App + IDE extension also use this provider now)
+
+# 6) Diagnose
+codexx doctor
+
+# 7) When done: revert to pre-codexx state
+codexx revert
+```
+
+### Core Capabilities
+
+| Capability | What it does |
+|---|---|
+| `codexx` | Spawns `codex` with the active provider; passes through all native subcommands |
+| `codexx use <name>` | Switches active provider; persists in `~/.codex/config.toml` + `~/.codex/auth.json` |
+| `codexx add / list / remove` | Provider CRUD with validation |
+| `codexx test [name]` | HTTP probe respecting `wire_api` (chat / responses) |
+| `codexx status` | Active provider + Codex version + Desktop App state + drift |
+| `codexx doctor [--json]` | 13-check health report (CLI version, drift, env conflicts, project-local config, credentials store, native context integrity, …) |
+| `codexx native on/off/profile` | Inject runtime context block into `~/.codex/AGENTS.md` with delimiters; fully removable |
+| `codexx menu` | Interactive menu — same UX shape as `claudex menu` |
+| `codexx snapshot / restore / revert` | First-run snapshot + per-switch backups + atomic restore |
+| `codexx reconcile` | After `codex login` / `codex mcp add` / external edits, accept current state as new baseline |
+| `codexx restore-chatgpt` | Restore ChatGPT OAuth tokens from backup if codexx overwrote them |
+| `codexx login / logout / app` | Claudex-aware wrappers — warn before clobbering managed state, then passthrough |
+| `codexx -- <args>` | Force pure passthrough (escape hatch for any future codex subcommand) |
+
+### How It Works
+
+```mermaid
+graph LR
+    A[codexx use openrouter] --> B[ensurePreClaudexSnapshot]
+    B --> C[Read before-state + hashes]
+    C --> D[Drift check vs last-known]
+    D --> E[Build target: TOML surgery + auth payload]
+    E --> F[Backup config.toml + auth.json]
+    F --> G[Write auth.json atomically]
+    G --> H[Write config.toml atomically]
+    H --> I[Post-verify non-claudex untouched]
+    I --> J[Update last-known hashes + audit log]
+```
+
+Key design choices:
+
+- **String-level surgical TOML edit, not round-trip.** No Node TOML library preserves comments/format on re-serialise. `codexx` finds its own marker-delimited sections and rewrites only those, leaving every other byte (your comments, MCP servers, project trusts, plugins, marketplaces) bit-identical.
+- **`requires_openai_auth = true` + `env_key = "OPENAI_API_KEY"`** in every managed section, so Codex's AuthManager picks up the API key from `auth.json` regardless of how the binary is launched (CLI from terminal, Desktop App from Dock, VS Code extension).
+- **Double-file atomic write with rollback.** Writes `auth.json` first; if `config.toml` write fails, the auth write is rolled back.
+- **First-use snapshot + per-switch backups.** `codexx revert` always knows how to restore the pre-codexx state byte-for-byte.
+
+### Commands
+
+```text
+codexx                              # spawn codex with current provider
+codexx [<codex args>...]            # passthrough (e.g. codexx resume --last)
+codexx -- <args>                    # force passthrough
+codexx init                         # state dir + check codex install
+codexx menu                         # interactive menu
+codexx add [flags]                  # add provider (wizard or flags)
+codexx list                         # list providers
+codexx use <name|index>             # switch active provider
+codexx remove <name|index> [--yes]
+codexx test [name|index]            # connectivity probe
+codexx status                       # active provider + Codex/App state
+codexx doctor [--json] [--provider <name>]
+codexx snapshot                     # ensure pre-codexx snapshot
+codexx restore <id|latest>          # restore a previous backup
+codexx revert [--yes]               # restore pre-codexx state
+codexx audit [--tail N]             # view audit log (JSONL)
+codexx reconcile [--yes]            # accept external edits as new baseline
+codexx restore-chatgpt [--yes]      # restore ChatGPT OAuth tokens from backup
+codexx native on|off|status|profile [name]|doctor
+codexx lang <zh|en>                 # CLI language
+codexx update                       # self-update
+codexx login / logout / app         # claudex-aware codex wrappers
+```
+
+### Configuration Reference
+
+| File | Owner | Purpose |
+|---|---|---|
+| `~/.codex/config.toml` | shared with codex | codexx writes only `[model_providers.claudex-<name>]` sections + top-level `model` / `model_provider`, marker-delimited |
+| `~/.codex/auth.json` | shared with codex | codexx writes the active provider's API key (apikey mode); ChatGPT OAuth tokens are backed up before being overwritten |
+| `~/.codex/AGENTS.md` | shared with codex (user) | only touched when Native is on, inside delimited section |
+| `~/.config/claudex-cli/codex-providers/<name>.json` | codexx | provider metadata (api_key, base_url, model, …); chmod 600 |
+| `~/.config/claudex-cli/codex-current-provider` | codexx | single line = active provider name |
+| `~/.config/claudex-cli/codex-snapshot/pre-claudex/` | codexx | byte-identical copy of `~/.codex/` from first `codexx use` |
+| `~/.config/claudex-cli/codex-backups/<ts>/` | codexx | per-switch backups (config.toml + auth.json + reason + hashes) |
+| `~/.config/claudex-cli/codex-audit.log` | codexx | JSONL audit trail (use / revert / drift / chatgpt-backup events) |
+| `~/.config/claudex-cli/codex-last-known-hashes.json` | codexx | drift detection baseline |
+| `~/.config/claudex-cli/codex-native.json` | codexx | `{ enabled, profile, last_injected_hash }` |
+
+Provider metadata schema:
+
+```json
+{
+  "schema_version": 1,
+  "name": "openrouter",
+  "base_url": "https://openrouter.ai/api/v1",
+  "api_key": "sk-or-v1-...",
+  "model": "anthropic/claude-sonnet-4.5",
+  "wire_api": "chat",
+  "model_reasoning_effort": "medium",
+  "http_headers": { "X-Title": "claudex" }
+}
+```
+
+### Compatibility
+
+| Component | Status |
+|---|---|
+| codex CLI | works on all versions; **upgrade to v0.130+** for config hot-reload (otherwise restart codex after switching) |
+| Codex Desktop App | reads `config.toml` + `auth.json` like the CLI; UI model picker may show "Custom" for non-OpenAI providers (upstream cosmetic issue [#19694](https://github.com/openai/codex/issues/19694), routing works correctly) |
+| Codex VS Code extension | reads the same files; some new-conversation model defaults are upstream bugs ([#4558](https://github.com/openai/codex/issues/4558)) |
+| ChatGPT subscription | coexists — `codexx` backs up your OAuth tokens before overwriting; `codexx restore-chatgpt` brings them back |
+| macOS | first-class |
+| Linux / Windows | best-effort in MVP; keyring backend planned for v2 |
+| `cli_auth_credentials_store = "keyring"` | not yet supported — `codexx doctor` will warn |
+
+### Troubleshooting
+
+**`codexx use` says drift detected**
+→ Something (likely `codex login`, `codex mcp add`, or a manual edit) changed `~/.codex/config.toml` or `auth.json` since the last switch. Run `codexx doctor` to see specifics; `codexx reconcile` to accept the external state as the new baseline, or `--force` on `use` to overwrite.
+
+**Desktop App still using the old provider after `codexx use`**
+→ Codex < v0.130 doesn't hot-reload config. Restart the Desktop App (Cmd+Q then re-launch). On v0.130+, the App picks up changes automatically.
+
+**`codexx test` returns 401**
+→ Either the API key is wrong, or your shell has `OPENAI_API_KEY` set to a different value (terminal codex would use the shell env over `auth.json`). `codexx doctor` flags this as `shell_env_conflict`.
+
+**Lost ChatGPT subscription after using codexx**
+→ Your OAuth tokens are backed up to `~/.config/claudex-cli/codex-backups/<latest>/chatgpt-tokens.json`. Run `codexx restore-chatgpt` to put them back; then run `codex login` if you want to re-establish the session.
+
+### Before Uninstalling
+
+`npm uninstall -g claudex-cli` does **not** auto-clean `~/.codex/`. To return to a fully native Codex state:
+
+```bash
+codexx revert            # restores config.toml + auth.json to pre-codexx state
+npm uninstall -g claudex-cli
+```
+
+If you forget the revert, the leftover `[model_providers.claudex-*]` sections and the `_claudex_managed` keys in `auth.json` are harmless to native codex but you may want to clean them by hand.
+
 ## License
 
 MIT
 
 ## Docs
 
-- `docs/product-plan.md`
-- `docs/native-roadmap.md`
-- `tests/native-benchmarks/`
+- [`docs/codexx-spec.md`](./docs/codexx-spec.md) — codexx implementation contract
+- [`docs/product-plan.md`](./docs/product-plan.md) — claudex product direction
+- [`docs/native-roadmap.md`](./docs/native-roadmap.md) — Native subsystem roadmap
+- [`tests/native-benchmarks/`](./tests/native-benchmarks/) — benchmark artifacts
