@@ -168,6 +168,36 @@ name = "openrouter"
   assert.equal(sections[0].sectionHeader, 'model_providers.claudex-openrouter');
 });
 
+test('findClaudexSections: provider name with underscore parsed in full', () => {
+  const raw = `# claudex-cli managed BEGIN — provider=any_baiwan schema=v1 ts=2026
+[model_providers.claudex-any_baiwan]
+name = "any_baiwan"
+# claudex-cli managed END
+`;
+  const sections = findClaudexSections(raw);
+  assert.equal(sections.length, 1);
+  assert.equal(sections[0].providerName, 'any_baiwan');
+});
+
+test('applyClaudexProvider: re-applying provider with underscore updates in place (no duplicate)', () => {
+  const provider = {
+    name: 'any_baiwan',
+    base_url: 'https://anyrouter.top/v1',
+    api_key: 'sk-fake',
+    model: 'gpt-5.5',
+    wire_api: 'responses'
+  };
+  let raw = '';
+  raw = applyClaudexProvider(raw, provider, buildOpts).next;
+  const r2 = applyClaudexProvider(raw, { ...provider, model: 'gpt-6' }, buildOpts);
+  assert.equal(r2.diff.action, 'update');
+  const parsed = parseConfigToml(r2.next);
+  // Exactly one section, and its base_url is the new one (well, same here)
+  assert.ok(parsed.model_providers['claudex-any_baiwan']);
+  const sections = findClaudexSections(r2.next);
+  assert.equal(sections.length, 1);
+});
+
 test('findClaudexSections: detects multiple claudex pairs', () => {
   const raw = `# claudex-cli managed BEGIN — provider=a schema=v1
 [model_providers.claudex-a]

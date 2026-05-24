@@ -9,7 +9,7 @@ import {
 
 const MARKER_BEGIN_PATTERN = /^#\s*claudex-cli managed BEGIN(?:\s*[—-]\s*(.*))?$/;
 const MARKER_END_PATTERN = /^#\s*claudex-cli managed END\s*$/;
-const PROVIDER_FIELD_PATTERN = /provider=([a-z0-9][a-z0-9-]*)/;
+const PROVIDER_FIELD_PATTERN = /provider=([a-z0-9][a-z0-9_-]*)/;
 const SECTION_HEADER_PATTERN = /^\s*\[([^\]]+)\]\s*(?:#.*)?$/;
 
 /**
