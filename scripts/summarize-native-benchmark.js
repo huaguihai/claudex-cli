@@ -78,7 +78,7 @@ async function main() {
     lines.push('');
 
     const recs = recommendationSummary(provider.results || []);
-    lines.push('### Recommended profile frequency');
+    lines.push('### Recommended mode frequency');
     for (const [profile, count] of recs) {
       lines.push(`- ${profile}: ${count}`);
     }

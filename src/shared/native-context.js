@@ -1,13 +1,13 @@
 export function defaultNativeConfig() {
   return {
     enabled: false,
-    profile: 'native-first'
+    profile: 'native'
   };
 }
 
 export function validateNativeProfile(profile) {
   const value = String(profile || '').trim();
-  if (value === 'native-first' || value === 'balanced' || value === 'cost-first') return value;
+  if (value === 'stable' || value === 'native' || value === 'aggressive') return value;
   return '';
 }
 
@@ -23,7 +23,7 @@ function dedupe(values = []) {
 export function buildNativeContext(config = defaultNativeConfig(), runtime = {}) {
   const normalized = {
     enabled: Boolean(config?.enabled),
-    profile: validateNativeProfile(config?.profile) || 'native-first'
+    profile: validateNativeProfile(config?.profile) || 'native'
   };
 
   return {
@@ -136,7 +136,7 @@ export function buildNativeDoctorLines(context, lang = 'zh') {
 
   if (lang === 'zh') {
     const lines = [
-      `- Native 状态: ${state} (${context?.native_profile || 'native-first'})`,
+      `- Native 状态: ${state} (${context?.native_profile || 'native'})`,
       '- 注入方式: 启动 Claude 时追加结构化 runtime context',
       '- 优先级: 若显式传入 --system-prompt/--append-system-prompt，则以显式输入为准',
       `- Provider: ${context?.provider_name || 'unknown'}`,
@@ -212,7 +212,7 @@ export function buildNativeDoctorLines(context, lang = 'zh') {
   }
 
   const lines = [
-    `- Native status: ${state} (${context?.native_profile || 'native-first'})`,
+    `- Native status: ${state} (${context?.native_profile || 'native'})`,
     '- Injection: append structured runtime context when launching Claude',
     '- Priority: explicit --system-prompt/--append-system-prompt always wins',
     `- Provider: ${context?.provider_name || 'unknown'}`,

@@ -2,6 +2,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+function normalizeRecommendedProfile(profile) {
+  const value = String(profile || '').trim();
+  if (value === 'stable' || value === 'native' || value === 'aggressive') return value;
+  if (value === 'balanced') return 'stable';
+  if (value === 'native-first') return 'native';
+  if (value === 'cost-first') return 'stable';
+  return 'stable';
+}
+
 function buildTunedPolicyPack(providerProfile) {
   const variant = providerProfile?.provider_variant || 'unknown';
   const apiSurface = providerProfile?.api_surface || 'unknown';
@@ -17,8 +26,8 @@ function buildTunedPolicyPack(providerProfile) {
 
   if (variant === 'proxy-openai-gateway') {
     return {
-      pack_name: 'proxy-openai-gateway-balanced-pack',
-      routing_defaults: ['proxy-layer-requires-extra-routing-guardrails', 'proxy-balanced-default-bias'],
+      pack_name: 'proxy-openai-gateway-stable-pack',
+      routing_defaults: ['proxy-layer-requires-extra-routing-guardrails', 'proxy-stable-default-bias'],
       delegation_defaults: ['prefer-conservative-delegation-on-proxy'],
       safety_defaults: ['proxy-layer-prefers-stable-workflow-over-aggressive-native-parity']
     };
@@ -26,8 +35,8 @@ function buildTunedPolicyPack(providerProfile) {
 
   if (variant === 'dashscope-openai') {
     return {
-      pack_name: 'dashscope-openai-guarded-pack',
-      routing_defaults: ['dashscope-prefers-guarded-tool-contract', 'dashscope-balanced-default-bias'],
+      pack_name: 'dashscope-openai-stable-pack',
+      routing_defaults: ['dashscope-prefers-guarded-tool-contract', 'dashscope-stable-default-bias'],
       delegation_defaults: ['prefer-conservative-delegation'],
       safety_defaults: ['dashscope-compatible-tooling-needs-guardrails']
     };
@@ -37,22 +46,22 @@ function buildTunedPolicyPack(providerProfile) {
     return {
       pack_name: 'anthropic-native-pack',
       routing_defaults: ['closer-to-native-routing-is-safe'],
-      delegation_defaults: ['native-first-is-safe-for-anthropic-surface'],
+      delegation_defaults: ['native-is-safe-for-anthropic-surface'],
       safety_defaults: ['preserve-explicit-user-intent']
     };
   }
 
   if (apiSurface === 'openai-compatible') {
     return {
-      pack_name: 'openai-compatible-balanced-pack',
-      routing_defaults: ['use-structured-context-to-reduce-protocol-drift', 'balanced-default-for-openai-compatible'],
+      pack_name: 'openai-compatible-stable-pack',
+      routing_defaults: ['use-structured-context-to-reduce-protocol-drift', 'stable-default-for-openai-compatible'],
       delegation_defaults: ['be-conservative-with-complex-agent-orchestration'],
       safety_defaults: ['avoid-assuming-perfect-native-tool-contract']
     };
   }
 
   return {
-    pack_name: 'default-balanced-pack',
+    pack_name: 'default-stable-pack',
     routing_defaults: [],
     delegation_defaults: [],
     safety_defaults: ['preserve-explicit-user-intent']
@@ -90,17 +99,18 @@ export function buildProviderTuning({ providerProfile = null } = {}) {
   const autoTune = readAutoTuneRecommendations();
   const match = findAutoTuneMatch(providerProfile, autoTune);
   if (match) {
+    const recommendedProfile = normalizeRecommendedProfile(match.recommendedProfile);
     return {
       tuning_version: 2,
       recommendation_source: 'benchmark-autotune',
       confidence: match.gateFailures === 0 ? 'high' : 'medium',
-      recommended_profile: match.recommendedProfile,
-      tuned_policy_pack: `autotuned-${providerProfile?.provider_variant || match.providerFamily}`,
+      recommended_profile: recommendedProfile,
+      tuned_policy_pack: `autotuned-${providerProfile?.provider_variant || match.providerFamily}-${recommendedProfile}`,
       policy_pack: buildTunedPolicyPack(providerProfile),
       rationale: [
-        `provider variant=${providerProfile?.provider_variant || 'unknown'}`,
-        'benchmark-driven recommendation',
-        ...match.rationale
+        'This provider should keep a predictable Claudex Native experience.',
+        'Routing and delegation stay aligned with the latest benchmark evidence.',
+        ...match.rationale.filter((entry) => !/\bbalanced\b|\bnative-first\b|\bcost-first\b/.test(String(entry || '')))
       ]
     };
   }
@@ -116,13 +126,13 @@ export function buildProviderTuning({ providerProfile = null } = {}) {
       tuning_version: 2,
       recommendation_source: 'static-provider-variant-rule',
       confidence: 'high',
-      recommended_profile: 'native-first',
+      recommended_profile: 'native',
       tuned_policy_pack: 'anthropic-official-native-pack',
       policy_pack: buildTunedPolicyPack(providerProfile),
       rationale: [
-        'official anthropic surface',
-        'native reliability is high',
-        'native workflow and delegation are safer here'
+        'This provider should deliver the strongest Claudex Native experience.',
+        'Native workflows can stay fast and direct here.',
+        'Delegation can remain confident without adding extra friction.'
       ]
     };
   }
@@ -132,14 +142,14 @@ export function buildProviderTuning({ providerProfile = null } = {}) {
       tuning_version: 2,
       recommendation_source: 'static-provider-variant-rule',
       confidence: 'high',
-      recommended_profile: 'balanced',
-      tuned_policy_pack: 'proxy-openai-gateway-balanced-pack',
+      recommended_profile: 'stable',
+      tuned_policy_pack: 'proxy-openai-gateway-stable-pack',
       policy_pack: buildTunedPolicyPack(providerProfile),
       rationale: [
-        'provider sits behind a proxy/gateway layer',
-        `agent routing stability=${agentRouting}`,
-        'prefer conservative delegation and stronger protocol guardrails',
-        'avoid aggressive native-first defaults on proxy-style surfaces'
+        'This provider should favor consistent results over aggressive behavior.',
+        `Agent routing stability is currently ${agentRouting}.`,
+        'The default promise is safer execution with stronger compatibility guardrails.',
+        'Users should expect conservative delegation on proxy-style surfaces.'
       ]
     };
   }
@@ -149,14 +159,14 @@ export function buildProviderTuning({ providerProfile = null } = {}) {
       tuning_version: 2,
       recommendation_source: 'static-provider-variant-rule',
       confidence: 'medium',
-      recommended_profile: 'balanced',
-      tuned_policy_pack: 'dashscope-openai-guarded-pack',
+      recommended_profile: 'stable',
+      tuned_policy_pack: 'dashscope-openai-stable-pack',
       policy_pack: buildTunedPolicyPack(providerProfile),
       rationale: [
-        'dashscope-compatible surface detected',
-        `tool use stability=${toolUse}`,
-        'keep native intent but add stronger compatibility guardrails',
-        'avoid overcommitting to native-first until tooling stability improves'
+        'This provider should prioritize reliable compatibility by default.',
+        `Tool use stability is currently ${toolUse}.`,
+        'The user-facing promise is steady execution with extra guardrails where needed.',
+        'Claudex Native should stay careful until tooling stability is stronger.'
       ]
     };
   }
@@ -166,13 +176,13 @@ export function buildProviderTuning({ providerProfile = null } = {}) {
       tuning_version: 1,
       recommendation_source: 'static-provider-rule',
       confidence: 'medium',
-      recommended_profile: 'native-first',
+      recommended_profile: 'native',
       tuned_policy_pack: 'anthropic-native-pack',
       policy_pack: buildTunedPolicyPack(providerProfile),
       rationale: [
-        'provider exposes anthropic-style surface',
-        'native reliability is high',
-        'closer-to-native routing is usually safe'
+        'This provider should feel close to the default Claudex Native path.',
+        'Users should get direct routing with minimal compatibility drag.',
+        'Native workflows are expected to stay dependable here.'
       ]
     };
   }
@@ -182,13 +192,13 @@ export function buildProviderTuning({ providerProfile = null } = {}) {
       tuning_version: 1,
       recommendation_source: 'static-provider-rule',
       confidence: 'medium',
-      recommended_profile: 'balanced',
-      tuned_policy_pack: 'openai-compatible-balanced-pack',
+      recommended_profile: 'stable',
+      tuned_policy_pack: 'openai-compatible-stable-pack',
       policy_pack: buildTunedPolicyPack(providerProfile),
       rationale: [
-        'provider uses openai-compatible surface',
-        'protocol drift risk is higher',
-        'balanced profile is safer as default'
+        'This provider should default to predictable compatibility behavior.',
+        'Users should get safer routing when protocol differences might show up.',
+        'The baseline promise is stability before aggressiveness.'
       ]
     };
   }
@@ -197,12 +207,12 @@ export function buildProviderTuning({ providerProfile = null } = {}) {
     tuning_version: 1,
     recommendation_source: 'static-safe-default',
     confidence: 'low',
-    recommended_profile: 'balanced',
-    tuned_policy_pack: 'default-balanced-pack',
+    recommended_profile: 'stable',
+    tuned_policy_pack: 'default-stable-pack',
     policy_pack: buildTunedPolicyPack(providerProfile),
     rationale: [
-      'provider family is unknown',
-      'balanced is the safest default until more data is available'
+      'This provider should start from the safest Claudex Native default.',
+      'Users should get predictable behavior until more benchmark data is available.'
     ]
   };
 }

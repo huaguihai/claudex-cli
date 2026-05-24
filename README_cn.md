@@ -75,7 +75,7 @@ claudex use gpt
 
 # 6) 开启 Native 模式（持久生效）
 claudex native on
-claudex native profile native-first
+claudex native profile native
 
 # 7) 测试连接
 claudex test
@@ -102,13 +102,13 @@ claudex --continue
 | `claudex add` | 交互向导：名称 → 服务地址 → API key → 模型 |
 | `claudex test [name]` | 按 provider 协议特征做连通性探测，必要时回退到 Claude smoke test |
 | `claudex doctor` | 检查 Claude Code 安装、环境变量冲突、Native 状态和服务商连通性 |
-| `claudex native ...` | 持久 Native 模式：开启/关闭、查看状态、选择配置档，也可从 `claudex menu` 进入同样流程 |
+| `claudex native ...` | 持久 Native 模式：开启/关闭、查看状态、选择模式，也可从 `claudex menu` 进入同样流程 |
 | `claudex menu` | 引导菜单，适合不想记命令的用户 |
 | Native runtime context | 启动时注入结构化运行时上下文，除 provider 画像、策略提示、调优结果外，还可表达 dynamic routing、session-aware guidance 与 quality gates |
-| Native benchmark harness | 用固定场景比较 `balanced` / `native-first` / `cost-first` |
+| Native benchmark harness | 用固定场景比较 `stable` / `native` / `aggressive` |
 | Native replay | 回放多步 session 轨迹，验证 research → plan → implement → verify 的状态推进以及 verify reentry |
 | Native smoke | 用高价值快速用例检查 provider drift fallback、subagent conflict handling 与 verify follow-up guidance |
-| Native autotune | 根据 benchmark 结果生成 profile 推荐 |
+| Native autotune | 根据 benchmark 结果生成模式推荐 |
 | Native dashboard | 把 benchmark 摘要、推荐结果和 provider 对比渲染成 HTML |
 
 ## Native 运行时系统
@@ -125,7 +125,7 @@ Claudex Native 不是单纯的开关，而是让第三方模型在 Claude Code �
 - `src/task-quality.js` — 任务定义最低质量门
 - `src/provider-profile.js` — provider 行为画像推断
 - `src/alignment-policy.js` — routing / delegation / response-style 策略提示
-- `src/provider-tuning.js` — provider-aware 默认 profile 与 autotune 接入
+- `src/provider-tuning.js` — provider-aware 默认模式与 autotune 接入
 - `scripts/run-native-benchmark.js` — benchmark 执行器
 - `scripts/summarize-native-benchmark.js` — markdown 摘要生成器
 - `scripts/generate-native-autotune.js` — 自动调优推荐生成器
@@ -133,18 +133,23 @@ Claudex Native 不是单纯的开关，而是让第三方模型在 Claude Code �
 - `scripts/run-native-replay.js` — verify-closeout / verify-reentry 链路的 session 回放执行器
 - `scripts/run-native-smoke.js` — drift fallback、冲突处理与 follow-up guidance 的 smoke 执行器
 
-三种 profile 的意图：
+三种模式的意图：
 
-- `native-first` — 更强调接近原生 Claude Code 的路由和工作流
-- `balanced` — 优先保持 Native 体验，同时对兼容性敏感 provider 更保守
-- `cost-first` — 压低重型工作流升级与 delegation 倾向
+- `stable` — 优先可靠性、保守 delegation 与可预期护栏
+- `native` — 默认模式；优先更像 Claude Code 的 workflow continuation 与输出体感
+- `aggressive` — 优先追求高峰值原生体验与更强 workflow reuse，但接受更高波动
+
+这三档不是成本档，而是体验承诺：
+- stable = 先稳
+- native = 默认更像原生
+- aggressive = 追求高峰值体验，接受一定波动
 
 provider-aware 默认策略：
 
-- anthropic / 高可靠 provider 更偏 `native-first`
-- openai-compatible provider 默认更偏 `balanced`
+- anthropic / 高可靠 provider 更偏 `native`
+- openai-compatible provider 默认更偏 `stable`
 - 如果存在 autotune 结果，则优先采用 benchmark 驱动的推荐而不是静态默认值
-- 当前 benchmark 已能在不扩产品面的前提下区分 anthropic/native-first 与 openai-compatible、proxy、dashscope/balanced 的默认走向
+- 当前 benchmark 已能在不扩产品面的前提下区分 anthropic/native 与 openai-compatible、proxy、dashscope/stable 的默认走向
 
 ## 工作原理
 
@@ -210,7 +215,7 @@ claudex
 
 ```bash
 claudex native on
-claudex native profile native-first
+claudex native profile native
 # 之后切换服务商会自动继承，直到你手动修改
 ```
 
@@ -241,7 +246,7 @@ npm run benchmark:native:all
 
 1. `benchmark:native` — 完整 benchmark matrix 与 report 生成
 2. `benchmark:native:summary` — 可读 markdown 摘要
-3. `benchmark:native:autotune` — provider-aware profile 推荐
+3. `benchmark:native:autotune` — provider-aware 模式推荐
 4. `benchmark:native:dashboard` — HTML 可视化结果
 5. `benchmark:native:smoke` — 关键运行时行为的快速护栏检查
 
@@ -273,8 +278,8 @@ npm run benchmark:native:replay
 
 当前 benchmark/autotune 结论：
 
-- anthropic / 高可靠 surface 当前稳定收敛到 `native-first`
-- openai-compatible / proxy / dashscope surface 当前稳定收敛到 `balanced`
+- anthropic / 高可靠 surface 当前稳定收敛到 `native`
+- openai-compatible / proxy / dashscope surface 当前稳定收敛到 `stable`
 - `native doctor` 现在会输出去重后的 policy hints，更容易检查实际 routing / delegation 策略
 - 当前 benchmark 已能稳定覆盖 Session / Quality layer，尤其是 session-aware guidance、subagent quality gate、task quality gate、verify closeout 与 verify reentry
 
@@ -291,8 +296,8 @@ npm run benchmark:native:replay
    - `tests/native-benchmarks/last-smoke.json`
 3. `last-summary.md` 中能看到 `Real-task pass rate` 与 scenario recommendations。
 4. `last-autotune.json` 的推荐仍符合当前产品叙事：
-   - anthropic-like provider 更偏 `native-first`
-   - openai-compatible provider 更偏 `balanced`
+   - anthropic-like provider 更偏 `native`
+   - openai-compatible provider 更偏 `stable`
 5. `last-smoke.json` 全部 case 通过。
 6. `benchmark:native:replay` 仍可作为 session progression、verify-closeout、verify-reentry 的聚焦诊断入口。
 7. 人工抽查的真实任务类别至少覆盖：
@@ -316,7 +321,7 @@ claudex doctor
 # => 🩺 诊断检查:
 # => - Claude Code: 已安装 (2.1.86)
 # => - 环境变量冲突: 无
-# => - Native 状态: 已开启 (native-first)
+# => - Native 状态: 已开启 (native)
 # => - 服务商测试: 通过 (gpt, HTTP 200, openai-chat-completions)
 ```
 
@@ -337,7 +342,7 @@ claudex status                   # 查看当前配置
 claudex native on                # 开启持久 Native 模式
 claudex native off               # 关闭持久 Native 模式
 claudex native status            # 查看 Native 状态
-claudex native profile [name]    # 设置或交互选择配置档
+claudex native profile [name]    # 设置或交互选择模式
 claudex native doctor            # 查看 Native 检查结果
 claudex update [--from-local <path>] [--from-npm]
 claudex doctor [--provider <name>]
@@ -401,7 +406,7 @@ claudex run [claude args...]     # 透传给 claude
 | 项目 | 值 |
 |------|-----|
 | 文件 | `~/.config/claudex-cli/native.json` |
-| 内容 | `{ "enabled": boolean, "profile": "native-first|balanced|cost-first" }` |
+| 内容 | `{ "enabled": boolean, "profile": "stable|native|aggressive" }` |
 
 ### 备份
 

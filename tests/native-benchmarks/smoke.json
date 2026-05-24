@@ -53,6 +53,85 @@
       ]
     },
     {
+      "id": "smoke-exposed-capability-reuse-01",
+      "summary": "已暴露能力场景应优先复用已有工具和 workflow",
+      "prompt": "当前 skill、tool、MCP 都已经在会话里暴露出来了，继续把刚才那条链路做完，不要重新发明流程。",
+      "previousState": {
+        "last_step_kind": "implement",
+        "last_task_signals": ["sessionFollowup", "workflowSensitive"],
+        "last_route_decision": {"context_mode": "followup-after-plan"},
+        "source_prompt_excerpt": "继续往下实现",
+        "updated_at": "2026-04-12T00:00:00.000Z",
+        "recent_steps": [
+          {
+            "step_kind": "research",
+            "task_signals": ["repoResearch"],
+            "route_decision": {"workflow_mode": "tool-first-research", "response_mode": "result-first"},
+            "prompt_excerpt": "先研究入口",
+            "updated_at": "2026-04-12T00:00:00.000Z"
+          },
+          {
+            "step_kind": "plan",
+            "task_signals": ["multiFileFeature", "workflowSensitive"],
+            "route_decision": {"workflow_mode": "plan-first"},
+            "prompt_excerpt": "先给方案",
+            "updated_at": "2026-04-12T00:00:00.000Z"
+          },
+          {
+            "step_kind": "implement",
+            "task_signals": ["sessionFollowup"],
+            "route_decision": {"context_mode": "followup-after-plan"},
+            "prompt_excerpt": "继续往下实现",
+            "updated_at": "2026-04-12T00:00:00.000Z"
+          }
+        ]
+      },
+      "expectedSignals": [
+        "prefer-existing-workflow-continuation",
+        "prefer-session-exposed-tools-and-skills"
+      ]
+    },
+    {
+      "id": "smoke-aggressive-followup-01",
+      "summary": "aggressive 模式应更偏继续已有 workflow",
+      "prompt": "当前模式是 aggressive，继续沿刚才的 workflow 做，不要重新规划，直接把剩下的收尾。",
+      "previousState": {
+        "last_step_kind": "implement",
+        "last_task_signals": ["sessionFollowup", "workflowSensitive"],
+        "last_route_decision": {"context_mode": "followup-after-plan"},
+        "source_prompt_excerpt": "继续往下实现",
+        "updated_at": "2026-04-12T00:00:00.000Z",
+        "recent_steps": [
+          {
+            "step_kind": "research",
+            "task_signals": ["repoResearch"],
+            "route_decision": {"workflow_mode": "tool-first-research", "response_mode": "result-first"},
+            "prompt_excerpt": "先研究入口",
+            "updated_at": "2026-04-12T00:00:00.000Z"
+          },
+          {
+            "step_kind": "plan",
+            "task_signals": ["multiFileFeature", "workflowSensitive"],
+            "route_decision": {"workflow_mode": "plan-first"},
+            "prompt_excerpt": "先给方案",
+            "updated_at": "2026-04-12T00:00:00.000Z"
+          },
+          {
+            "step_kind": "implement",
+            "task_signals": ["sessionFollowup"],
+            "route_decision": {"context_mode": "followup-after-plan"},
+            "prompt_excerpt": "继续往下实现",
+            "updated_at": "2026-04-12T00:00:00.000Z"
+          }
+        ]
+      },
+      "nativeProfile": "aggressive",
+      "expectedSignals": [
+        "prefer-existing-workflow-continuation",
+        "favor-workflow-reuse-over-replanning"
+      ]
+    },
+    {
       "id": "smoke-verify-reentry-01",
       "summary": "verify 失败后应进入 after-verify 语义",
       "prompt": "刚才 verify 没过，继续改掉失败点再回来收尾。",

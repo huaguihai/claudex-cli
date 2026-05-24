@@ -59,7 +59,7 @@ const sampleProviders = [
   }
 ];
 
-const profiles = ['balanced', 'native-first', 'cost-first'];
+const profiles = ['stable', 'native', 'aggressive'];
 const criticalCategories = new Set(['routing-sensitive', 'provider-sensitive', 'workflow-sensitive']);
 
 function flattenPolicySignals(policy) {
