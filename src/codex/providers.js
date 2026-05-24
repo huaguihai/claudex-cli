@@ -131,6 +131,32 @@ export async function providerExists(name, opts = {}) {
   return exists(path.join(dir, `${name}.json`));
 }
 
+/**
+ * Normalise a user-entered base_url.
+ *  - Strips trailing slashes.
+ *  - If the URL has no path beyond `/`, appends `/v1` (the OpenAI-compatible
+ *    default that 95% of providers expect). Most user input mistakes are
+ *    "I forgot the /v1 suffix" — auto-fix it but be transparent.
+ *  - If the URL already has a path (e.g. `/v1`, `/v2`, `/openai/v1`,
+ *    `/api/anthropic`), leave it alone — the user clearly knows.
+ *  - Returns the input unchanged if it doesn't parse as a URL (validator
+ *    will surface the error downstream).
+ */
+export function normalizeBaseUrl(input) {
+  if (typeof input !== 'string') return input;
+  const trimmed = input.trim().replace(/\/+$/, '');
+  let u;
+  try {
+    u = new URL(trimmed);
+  } catch {
+    return input;
+  }
+  if (u.pathname === '' || u.pathname === '/') {
+    return `${u.origin}/v1`;
+  }
+  return trimmed;
+}
+
 function validateProviderShape(p) {
   if (!p || typeof p !== 'object') throw new Error('provider must be an object');
   if (!isValidProviderName(p.name)) {

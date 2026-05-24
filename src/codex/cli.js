@@ -34,7 +34,8 @@ import {
   getCurrentProvider,
   setCurrentProvider,
   resolveProviderArg,
-  providerExists
+  providerExists,
+  normalizeBaseUrl
 } from './providers.js';
 import { applyProviderSwitch } from './apply-switch.js';
 import { revertToPreClaudex, restoreBackup } from './revert.js';
@@ -391,6 +392,16 @@ async function cmdAdd(args, lang) {
 
   // Drop empty optional fields
   if (!provider.model_reasoning_effort) delete provider.model_reasoning_effort;
+
+  // Normalise base_url: append /v1 if user gave just a bare domain.
+  // Tell the user what we changed so the normalisation isn't silent.
+  if (provider.base_url) {
+    const original = provider.base_url;
+    provider.base_url = normalizeBaseUrl(provider.base_url);
+    if (original !== provider.base_url) {
+      process.stdout.write(`ℹ️ base_url normalised: ${original} → ${provider.base_url}\n`);
+    }
+  }
 
   try {
     await writeProvider(provider);
