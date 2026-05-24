@@ -108,11 +108,23 @@ async function checkCodexAppRunning() {
     return { name: 'codex_app_running', status: 'info', message: 'Desktop App detection not supported on this platform' };
   }
   if (app.running) {
+    // On codex >= v0.130 the app-server supports live config reload, so
+    // switching providers no longer requires an App restart.
+    const c = detectCodex();
+    const parts = (c.version || '0.0.0').split('.').map((n) => parseInt(n, 10));
+    const minor = parts[1] || 0;
+    if (minor >= 130) {
+      return {
+        name: 'codex_app_running',
+        status: 'pass',
+        message: `Codex Desktop App is running (PID ${app.pid}); ${c.version} supports config hot-reload — no restart needed`
+      };
+    }
     return {
       name: 'codex_app_running',
       status: 'warn',
       message: `Codex Desktop App is running (PID ${app.pid})`,
-      fix: 'Restart the Desktop App to apply provider changes (until codex >= v0.130 with hot reload)'
+      fix: 'Restart the Desktop App to apply provider changes (codex < v0.130 has no hot reload)'
     };
   }
   return { name: 'codex_app_running', status: 'pass', message: 'Codex Desktop App not running' };

@@ -626,7 +626,16 @@ async function cmdTest(args, lang) {
     );
     return 0;
   }
-  process.stderr.write(t(lang, 'testFail', { v: name, reason: result.reason }) + '\n');
+  // Build a useful failure reason. If the provider returned a body, include the
+  // first 200 chars; if it returned nothing, surface at least the HTTP status
+  // (or network error) so the user has something to act on.
+  let reason = (result.reason && result.reason.trim().length > 0) ? result.reason.trim() : null;
+  if (!reason) {
+    reason = result.status > 0
+      ? `HTTP ${result.status} (empty body)`
+      : 'network error / unreachable';
+  }
+  process.stderr.write(t(lang, 'testFail', { v: name, reason }) + '\n');
   return 1;
 }
 
@@ -982,7 +991,7 @@ async function nativeMenu(lang) {
       const rl2 = readline.createInterface({ input, output });
       let pick;
       try {
-        pick = (await rl2.question('profile: ')).trim();
+        pick = (await rl2.question(t(lang, 'nativeProfilePrompt'))).trim();
       } finally {
         rl2.close();
       }
@@ -1010,7 +1019,7 @@ async function moreSettingsMenu(lang) {
       const rl2 = readline.createInterface({ input, output });
       let pick;
       try {
-        pick = (await rl2.question('language (zh/en): ')).trim();
+        pick = (await rl2.question(t(lang, 'langPrompt'))).trim();
       } finally {
         rl2.close();
       }

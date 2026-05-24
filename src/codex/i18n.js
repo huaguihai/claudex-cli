@@ -120,6 +120,8 @@ const TXT = {
     editPickPrompt: '请输入要编辑的服务商序号或名称: ',
     removePickPrompt: '请输入要删除的服务商序号或名称: ',
     askSwitchTo: '请输入要切换到的服务商序号或名称: ',
+    nativeProfilePrompt: '请输入 profile 名 (native-first/balanced/cost-first): ',
+    langPrompt: '请输入语言 (zh/en): ',
 
     // common
     notImplemented: '⚠️ 该命令尚未实现 (将在后续里程碑提供)。',
@@ -246,6 +248,8 @@ const TXT = {
     editPickPrompt: 'Enter provider index or name to edit: ',
     removePickPrompt: 'Enter provider index or name to remove: ',
     askSwitchTo: 'Enter provider index or name to switch to: ',
+    nativeProfilePrompt: 'Enter profile name (native-first/balanced/cost-first): ',
+    langPrompt: 'Enter language (zh/en): ',
 
     notImplemented: '⚠️ Not yet implemented (coming in a later milestone).',
     missingArg: '⚠️ Missing argument: {v}',
