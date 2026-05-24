@@ -104,7 +104,7 @@ const TXT = {
     providerNotFound: '未找到服务商: {v}',
     manageTitle: '管理模型服务商',
     mg1: '1. 新增服务商',
-    mg2: '2. 编辑服务商（覆盖保存）',
+    mg2: '2. 编辑服务商（逐字段，回车保留原值）',
     mg3: '3. 删除服务商',
     mg4: '4. 列出服务商',
     mg5: '5. 返回主菜单',
@@ -130,6 +130,11 @@ const TXT = {
     updated: '✏️ 已更新: {v}',
     deleted: '🗑️ 已删除: {v}',
     cancelled: '已取消',
+    editIntro: '正在编辑 {v}（每项回车保留原值，输入新值则替换）:',
+    editCurrent: '当前',
+    editUnset: '(未设)',
+    editNewOrKeep: '新值 (回车保留{hint})',
+    editedOk: '✅ 已更新 {v}: {file}',
     testOK: '✅ 测试通过: {name} ({status}) via {protocol}',
     doctorTitle: '🩺 诊断检查:',
     envConflicts: '- 环境变量冲突:',
@@ -226,7 +231,7 @@ const TXT = {
     providerNotFound: 'Provider not found: {v}',
     manageTitle: 'Manage Model Providers',
     mg1: '1. Add provider',
-    mg2: '2. Edit provider (overwrite)',
+    mg2: '2. Edit provider (field-by-field, Enter to keep current)',
     mg3: '3. Delete provider',
     mg4: '4. List providers',
     mg5: '5. Back to main menu',
@@ -252,6 +257,11 @@ const TXT = {
     updated: '✏️ Updated: {v}',
     deleted: '🗑️ Deleted: {v}',
     cancelled: 'Cancelled',
+    editIntro: 'Editing {v} (press Enter to keep current value, type new value to replace):',
+    editCurrent: 'current',
+    editUnset: '(unset)',
+    editNewOrKeep: 'new value (Enter to keep{hint})',
+    editedOk: '✅ Updated {v}: {file}',
     testOK: '✅ Test OK: {name} ({status}) via {protocol}',
     doctorTitle: '🩺 Doctor checks:',
     envConflicts: '- Env conflicts:',
@@ -357,6 +367,7 @@ Usage:
   claudex menu                # 进入交互菜单
   claudex init
   claudex add
+  claudex edit <name|index> [--base-url U --api-key K --haiku-model H --sonnet-model S --opus-model O]
   claudex list
   claudex use <name|index>
   claudex remove <name|index> [--yes]
@@ -775,6 +786,78 @@ async function writeProviderSettings({ name, baseUrl, apiKey, haikuModel, sonnet
   };
   await writeJson(file, data);
   return file;
+}
+
+function maskApiKey(key) {
+  if (typeof key !== 'string' || key.length === 0) return '(not set)';
+  if (key.length <= 10) return key.slice(0, 3) + '***';
+  return key.slice(0, 7) + '...' + key.slice(-4);
+}
+
+async function readProviderSettings(name) {
+  const file = providerSettingsPath(name);
+  if (!(await exists(file))) throw new Error(`provider settings not found: ${file}`);
+  const data = await readJson(file);
+  const env = (data && data.env) || {};
+  return {
+    name,
+    baseUrl: env.ANTHROPIC_BASE_URL || '',
+    apiKey: env.ANTHROPIC_API_KEY || '',
+    haikuModel: env.ANTHROPIC_DEFAULT_HAIKU_MODEL || '',
+    sonnetModel: env.ANTHROPIC_DEFAULT_SONNET_MODEL || '',
+    opusModel: env.ANTHROPIC_DEFAULT_OPUS_MODEL || ''
+  };
+}
+
+/**
+ * Wizard that lets the user EDIT a provider by walking through every
+ * field with the current value displayed, accepting Enter to keep or a
+ * new value to replace. CLI flags pre-populate (and bypass prompting
+ * for that field). Returns the merged provider info ready for write.
+ *
+ * In non-interactive mode (stdin is not a TTY): only apply field
+ * updates from flags; leave every unflagged field at its current value.
+ * Does not block on prompts. This is the codexx-style behaviour and
+ * makes `claudex edit X --haiku-model Y` work in shell scripts.
+ */
+async function promptProviderEdit(name, flags, lang) {
+  const current = await readProviderSettings(name);
+  const interactive = process.stdin.isTTY === true;
+
+  if (!interactive) {
+    return {
+      name,
+      baseUrl: typeof flags['base-url'] === 'string' ? flags['base-url'] : current.baseUrl,
+      apiKey: typeof flags['api-key'] === 'string' ? flags['api-key'] : current.apiKey,
+      haikuModel: typeof flags['haiku-model'] === 'string' ? flags['haiku-model'] : current.haikuModel,
+      sonnetModel: typeof flags['sonnet-model'] === 'string' ? flags['sonnet-model'] : current.sonnetModel,
+      opusModel: typeof flags['opus-model'] === 'string' ? flags['opus-model'] : current.opusModel
+    };
+  }
+
+  const rl = readline.createInterface({ input, output });
+  try {
+    console.log(t(lang, 'editIntro', { v: name }));
+
+    const askField = async (flagValue, currentValue, label, hint = '') => {
+      if (typeof flagValue === 'string') return flagValue;
+      const shown = label === 'api_key' ? maskApiKey(currentValue) : (currentValue || t(lang, 'editUnset'));
+      console.log(`  ${label} ${t(lang, 'editCurrent')}: ${shown}`);
+      const next = (await rl.question(`  ${t(lang, 'editNewOrKeep', { hint: hint ? ', ' + hint : '' })}: `)).trim();
+      if (isBackInput(next)) throw new BackSignal();
+      return next.length > 0 ? next : currentValue;
+    };
+
+    const baseUrl = await askField(flags['base-url'], current.baseUrl, 'base_url');
+    const apiKey = await askField(flags['api-key'], current.apiKey, 'api_key');
+    const haikuModel = await askField(flags['haiku-model'], current.haikuModel, 'haiku_model');
+    const sonnetModel = await askField(flags['sonnet-model'], current.sonnetModel, 'sonnet_model');
+    const opusModel = await askField(flags['opus-model'], current.opusModel, 'opus_model');
+
+    return { name, baseUrl, apiKey, haikuModel, sonnetModel, opusModel };
+  } finally {
+    rl.close();
+  }
 }
 
 function readProviderAuth(settings) {
@@ -1275,6 +1358,24 @@ async function cmdProvider(subArgs, lang) {
     return;
   }
 
+  if (action === 'edit') {
+    const target = await resolveProviderArg(positional[0] || flags.name, lang);
+    if (!target) throw new Error(t(lang, 'providerUsage'));
+    let info;
+    try {
+      info = await promptProviderEdit(target, flags, lang);
+    } catch (err) {
+      if (err instanceof BackSignal) {
+        console.log(t(lang, 'backDone'));
+        return;
+      }
+      throw err;
+    }
+    const file = await writeProviderSettings(info);
+    console.log(t(lang, 'editedOk', { v: target, file }));
+    return;
+  }
+
   if (action === 'list') {
     const providers = await listProviders();
     const current = await getCurrentProvider();
@@ -1450,10 +1551,16 @@ async function manageProvidersMenu(lang) {
       }
       if (choice === '2') {
         const name = await pickProvider(lang, t(lang, 'askEdit'));
-        const info = await promptProviderAdd({ name }, lang);
-        const file = await writeProviderSettings(info);
-        console.log(t(lang, 'updated', { v: file }));
-        await askAndRunProviderTest(info.name, lang);
+        try {
+          const info = await promptProviderEdit(name, {}, lang);
+          const file = await writeProviderSettings(info);
+          console.log(t(lang, 'editedOk', { v: name, file }));
+          await askAndRunProviderTest(info.name, lang);
+        } catch (err) {
+          if (err instanceof BackSignal) {
+            console.log(t(lang, 'backDone'));
+          } else throw err;
+        }
         continue;
       }
       if (choice === '3') {
@@ -1659,6 +1766,11 @@ export async function main(argv = process.argv.slice(2)) {
 
   if (cmd === 'add') {
     await cmdProvider(['add', ...rest], lang);
+    return;
+  }
+
+  if (cmd === 'edit') {
+    await cmdProvider(['edit', ...rest], lang);
     return;
   }
 
