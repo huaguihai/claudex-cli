@@ -30,6 +30,7 @@ import {
   listProviders,
   readProvider,
   writeProvider,
+  editProvider,
   removeProviderFile,
   getCurrentProvider,
   setCurrentProvider,
@@ -73,6 +74,7 @@ const CLAUDEX_OWNED = new Set([
   'add',
   'list',
   'use',
+  'edit',
   'remove',
   'test',
   'status',
@@ -135,6 +137,8 @@ export async function main(argv = process.argv.slice(2)) {
         return await cmdMenu(rest, lang);
       case 'add':
         return await cmdAdd(rest, lang);
+      case 'edit':
+        return await cmdEdit(rest, lang);
       case 'list':
         return await cmdList(rest, lang);
       case 'use':
@@ -197,6 +201,7 @@ function usage(lang) {
   out.push('  codexx init                     # initialise state dir + check codex install');
   out.push('  codexx menu                     # interactive menu');
   out.push('  codexx add                      # add provider via wizard');
+  out.push('  codexx edit <name> [--model X --base-url U --api-key K --wire-api chat|responses --reasoning-effort low|medium|high]');
   out.push('  codexx list                     # list providers');
   out.push('  codexx use <name|index>         # switch active provider');
   out.push('  codexx remove <name|index> [--yes]');
@@ -410,6 +415,109 @@ async function cmdAdd(args, lang) {
     return 2;
   }
   process.stdout.write(t(lang, 'addedOk', { v: provider.name }) + '\n');
+  return 0;
+}
+
+// ----- edit -----
+
+function maskApiKey(key) {
+  if (typeof key !== 'string' || key.length === 0) return '(not set)';
+  if (key.length <= 10) return key.slice(0, 3) + '***';
+  return key.slice(0, 7) + '...' + key.slice(-4);
+}
+
+async function cmdEdit(args, lang) {
+  const flags = parseFlags(args);
+  if (flags._.length === 0) {
+    process.stderr.write(t(lang, 'missingArg', { v: 'name' }) + '\n');
+    return 2;
+  }
+  const name = await resolveProviderArg(flags._[0]);
+  const current = await readProvider(name);
+
+  const fieldMap = {
+    'base-url': 'base_url',
+    'baseUrl': 'base_url',
+    'api-key': 'api_key',
+    'apiKey': 'api_key',
+    'model': 'model',
+    'wire-api': 'wire_api',
+    'wireApi': 'wire_api',
+    'reasoning-effort': 'model_reasoning_effort',
+    'reasoningEffort': 'model_reasoning_effort'
+  };
+  const updates = {};
+  for (const [flagKey, field] of Object.entries(fieldMap)) {
+    if (flagKey in flags && typeof flags[flagKey] === 'string') {
+      updates[field] = flags[flagKey];
+    }
+  }
+
+  const interactive = process.stdin.isTTY === true;
+  if (Object.keys(updates).length === 0) {
+    if (!interactive) {
+      process.stderr.write(
+        t(lang, 'missingArg', { v: '--base-url / --api-key / --model / --wire-api / --reasoning-effort 至少一个' }) + '\n'
+      );
+      return 2;
+    }
+    process.stdout.write(t(lang, 'editIntro', { v: name }) + '\n');
+    const rl = readline.createInterface({ input, output });
+    try {
+      const askField = async (field, currentValue, label, hint) => {
+        const shown = field === 'api_key' ? maskApiKey(currentValue) : (currentValue || t(lang, 'editUnset'));
+        process.stdout.write(`  ${label} ${t(lang, 'editCurrent')}: ${shown}\n`);
+        const next = (await rl.question(`  ${t(lang, 'editNewOrKeep', { hint: hint ? ', ' + hint : '' })}: `)).trim();
+        if (next.length > 0) updates[field] = next;
+      };
+      await askField('base_url', current.base_url, 'base_url', '');
+      await askField('api_key', current.api_key, 'api_key', '');
+      await askField('model', current.model, 'model', '');
+      await askField('wire_api', current.wire_api, 'wire_api', 'chat / responses');
+      await askField('model_reasoning_effort', current.model_reasoning_effort, 'reasoning_effort', 'low / medium / high');
+    } finally {
+      rl.close();
+    }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    process.stdout.write(t(lang, 'editNoChanges') + '\n');
+    return 0;
+  }
+
+  if (typeof updates.base_url === 'string') {
+    const normed = normalizeBaseUrl(updates.base_url);
+    if (normed !== updates.base_url) {
+      process.stdout.write(`ℹ️ base_url normalised: ${updates.base_url} → ${normed}\n`);
+      updates.base_url = normed;
+    }
+  }
+
+  let merged;
+  try {
+    merged = await editProvider(name, updates);
+  } catch (err) {
+    process.stderr.write(t(lang, 'opFailed', { v: err.message }) + '\n');
+    return 2;
+  }
+  process.stdout.write(t(lang, 'editedOk', { v: name, fields: Object.keys(updates).join(', ') }) + '\n');
+
+  const active = await getCurrentProvider();
+  if (active === name) {
+    process.stdout.write(t(lang, 'editReapplying') + '\n');
+    try {
+      await applyProviderSwitch(merged, {
+        previousProvider: name,
+        onDrift: () => true
+      });
+      process.stdout.write(t(lang, 'editReapplied') + '\n');
+    } catch (err) {
+      process.stderr.write(t(lang, 'opFailed', { v: err.message }) + '\n');
+      return 1;
+    }
+  } else {
+    process.stdout.write(t(lang, 'editNotActiveHint', { v: name }) + '\n');
+  }
   return 0;
 }
 
@@ -790,7 +898,7 @@ async function cmdMenu(args, lang) {
 async function manageProvidersMenu(lang) {
   while (true) {
     process.stdout.write('\n');
-    for (const k of ['mmg1', 'mmg2', 'mmg3']) {
+    for (const k of ['mmg1', 'mmg2', 'mmg3', 'mmg4']) {
       process.stdout.write(t(lang, k) + '\n');
     }
     const rl = readline.createInterface({ input, output });
@@ -815,14 +923,32 @@ async function manageProvidersMenu(lang) {
       const rl2 = readline.createInterface({ input, output });
       let pick;
       try {
-        pick = (await rl2.question('name or index to remove: ')).trim();
+        pick = (await rl2.question(t(lang, 'editPickPrompt'))).trim();
+      } finally {
+        rl2.close();
+      }
+      if (pick) await cmdEdit([pick], lang);
+      continue;
+    }
+    if (choice === '3') {
+      const names = await listProviders();
+      if (names.length === 0) {
+        process.stdout.write(t(lang, 'providersEmpty') + '\n');
+        continue;
+      }
+      process.stdout.write(t(lang, 'providersHeader') + '\n');
+      names.forEach((n, i) => process.stdout.write(`  ${i + 1}. ${n}\n`));
+      const rl2 = readline.createInterface({ input, output });
+      let pick;
+      try {
+        pick = (await rl2.question(t(lang, 'removePickPrompt'))).trim();
       } finally {
         rl2.close();
       }
       if (pick) await cmdRemove([pick], lang);
       continue;
     }
-    if (choice === '3') return;
+    if (choice === '4') return;
   }
 }
 

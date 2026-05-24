@@ -157,6 +157,48 @@ export function normalizeBaseUrl(input) {
   return trimmed;
 }
 
+/**
+ * Patch an existing provider's metadata.
+ * Updates can include any user-editable field: base_url, api_key, model,
+ * wire_api, model_reasoning_effort, http_headers, disable_response_storage.
+ *
+ * Immutable fields (name, schema_version, created_at) are silently ignored
+ * if passed in updates.
+ *
+ * Returns the merged provider object as written.
+ */
+export async function editProvider(name, updates, opts = {}) {
+  const dir = opts.dir || codexProvidersDir();
+  const current = await readProvider(name, { dir });
+
+  const IMMUTABLE = new Set(['name', 'schema_version', 'created_at']);
+  const patch = {};
+  for (const [k, v] of Object.entries(updates || {})) {
+    if (IMMUTABLE.has(k)) continue;
+    if (v === undefined) continue;
+    patch[k] = v;
+  }
+
+  if (typeof patch.base_url === 'string') {
+    patch.base_url = normalizeBaseUrl(patch.base_url);
+  }
+
+  const merged = {
+    ...current,
+    ...patch,
+    name: current.name,
+    schema_version: current.schema_version || SCHEMA_VERSION,
+    created_at: current.created_at,
+    updated_at: new Date().toISOString()
+  };
+
+  validateProviderShape(merged);
+
+  const file = path.join(dir, `${name}.json`);
+  await writeJson(file, merged, { mode: 0o600 });
+  return merged;
+}
+
 function validateProviderShape(p) {
   if (!p || typeof p !== 'object') throw new Error('provider must be an object');
   if (!isValidProviderName(p.name)) {
