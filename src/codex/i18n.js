@@ -119,6 +119,7 @@ const TXT = {
     editNotActiveHint: 'ℹ️ {v} 不是当前激活的服务商，改动已存到 provider 文件；下次 codexx use {v} 时生效。',
     editPickPrompt: '请输入要编辑的服务商序号或名称: ',
     removePickPrompt: '请输入要删除的服务商序号或名称: ',
+    askSwitchTo: '请输入要切换到的服务商序号或名称: ',
 
     // common
     notImplemented: '⚠️ 该命令尚未实现 (将在后续里程碑提供)。',
@@ -244,6 +245,7 @@ const TXT = {
     editNotActiveHint: 'ℹ️ {v} is not the active provider; changes saved to provider file and will take effect on next codexx use {v}.',
     editPickPrompt: 'Enter provider index or name to edit: ',
     removePickPrompt: 'Enter provider index or name to remove: ',
+    askSwitchTo: 'Enter provider index or name to switch to: ',
 
     notImplemented: '⚠️ Not yet implemented (coming in a later milestone).',
     missingArg: '⚠️ Missing argument: {v}',
@@ -259,8 +261,15 @@ const TXT = {
 
 export function t(lang, key, vars = {}) {
   const bundle = TXT[lang] || TXT.en;
-  let s = bundle[key] !== undefined ? bundle[key] : (TXT.en[key] !== undefined ? TXT.en[key] : key);
-  if (typeof s !== 'string') return key;
+  let s;
+  if (bundle[key] !== undefined) s = bundle[key];
+  else if (TXT.en[key] !== undefined) s = TXT.en[key];
+  else {
+    // Key missing in every bundle — show an unambiguous placeholder
+    // (don't return the raw key, which can look like a stray code to users).
+    s = `[?${key}?]`;
+  }
+  if (typeof s !== 'string') return `[?${key}?]`;
   for (const [k, v] of Object.entries(vars)) {
     s = s.replaceAll(`{${k}}`, String(v));
   }
