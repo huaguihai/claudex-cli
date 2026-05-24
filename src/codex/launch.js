@@ -8,17 +8,49 @@ import {
   codexHome
 } from './constants.js';
 import { exists } from '../shared/fs-utils.js';
+import { getCurrentProvider, readProvider } from './providers.js';
 
 /**
- * Strip Codex-related env vars from a process env, so that spawned codex
- * doesn't pick up stray shell-level credentials that bypass our managed
- * auth.json. Returns a new env object (does not mutate input).
+ * Strip Codex-related env vars that would otherwise let a stray shell value
+ * shadow the active codexx provider. Returns a new env object.
+ *
+ * This is the LOW-level primitive — most callers want `buildCodexEnv` which
+ * also injects the active provider's API key.
  */
 export function sanitizedCodexEnv(baseEnv = process.env) {
   const next = { ...baseEnv };
   delete next.OPENAI_API_KEY;
   delete next.OPENAI_BASE_URL;
   delete next.CODEX_API_KEY;
+  return next;
+}
+
+/**
+ * Compose the environment we hand to a spawned `codex` process:
+ *   1. Strip stray OPENAI_API_KEY / OPENAI_BASE_URL / CODEX_API_KEY from
+ *      the parent env so shell-level state doesn't shadow codexx state.
+ *   2. Inject the ACTIVE provider's api_key as OPENAI_API_KEY so codex's
+ *      env_key resolution path finds it. Codex's auth flow does NOT fall
+ *      back to auth.json's OPENAI_API_KEY field for custom providers with
+ *      env_key set, so the env must carry the credential explicitly.
+ *
+ * If no codexx provider is active (e.g. user hasn't run `codexx use` yet)
+ * we still strip the stray env vars but inject nothing — codex will then
+ * surface its own "missing env var" / login prompt as normal.
+ */
+export async function buildCodexEnv(baseEnv = process.env) {
+  const next = sanitizedCodexEnv(baseEnv);
+  const active = await getCurrentProvider();
+  if (active) {
+    try {
+      const p = await readProvider(active);
+      if (p && typeof p.api_key === 'string' && p.api_key.length > 0) {
+        next.OPENAI_API_KEY = p.api_key;
+      }
+    } catch {
+      // Provider metadata missing — surface via codex's own error
+    }
+  }
   return next;
 }
 
@@ -65,15 +97,12 @@ export function detectCodexAppRunning() {
 
 /**
  * Spawn `codex` with the given args, inheriting stdio.
- * Returns a promise that resolves with the exit code.
+ * Resolves with the exit code.
  */
-export function spawnCodex(args, opts = {}) {
+export async function spawnCodex(args, opts = {}) {
+  const env = opts.env || (await buildCodexEnv());
   return new Promise((resolve, reject) => {
-    const env = opts.env || sanitizedCodexEnv();
-    const child = spawn('codex', args, {
-      stdio: 'inherit',
-      env
-    });
+    const child = spawn('codex', args, { stdio: 'inherit', env });
     child.on('error', reject);
     child.on('exit', (code) => resolve(code ?? 0));
   });
