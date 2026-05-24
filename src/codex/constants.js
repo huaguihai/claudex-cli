@@ -80,7 +80,10 @@ export function isReservedProviderId(name) {
 export function isValidProviderName(name) {
   if (typeof name !== 'string') return false;
   if (name.length === 0 || name.length > 64) return false;
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) return false;
+  // Allow lowercase alphanumeric, underscores, and hyphens. First char must
+  // be alphanumeric (no leading separator). Matches claudex's existing
+  // convention of names like `claude_any_baiwan`.
+  if (!/^[a-z0-9][a-z0-9_-]*$/.test(name)) return false;
   if (name.startsWith(CLAUDEX_PROVIDER_PREFIX)) return false;
   if (isReservedProviderId(name)) return false;
   return true;

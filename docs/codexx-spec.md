@@ -281,7 +281,7 @@ Path: `~/.config/claudex-cli/codex-providers/<name>.json`
 ```typescript
 interface CodexProvider {
   schema_version: 1;
-  name: string;                            // matches filename; ^[a-z0-9][a-z0-9-]*$, max 64 chars
+  name: string;                            // matches filename; ^[a-z0-9][a-z0-9_-]*$, max 64 chars (underscores allowed for parity with claudex naming)
   base_url: string;                        // full URL, must start with http:// or https://
   api_key: string;                         // plaintext, chmod 600 enforced
   model: string;

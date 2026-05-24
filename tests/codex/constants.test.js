@@ -43,9 +43,11 @@ test('isReservedProviderId: true for reserved, false otherwise', () => {
   assert.equal(isReservedProviderId('claudex-foo'), false);
 });
 
-test('isValidProviderName: lowercase alphanumeric with hyphens', () => {
+test('isValidProviderName: lowercase alphanumeric with hyphens and underscores', () => {
   assert.equal(isValidProviderName('openrouter'), true);
   assert.equal(isValidProviderName('foo-bar'), true);
+  assert.equal(isValidProviderName('foo_bar'), true);
+  assert.equal(isValidProviderName('any_baiwan'), true);
   assert.equal(isValidProviderName('a1'), true);
   assert.equal(isValidProviderName('a'), true);
 });
@@ -53,9 +55,9 @@ test('isValidProviderName: lowercase alphanumeric with hyphens', () => {
 test('isValidProviderName: rejects invalid characters', () => {
   assert.equal(isValidProviderName(''), false);
   assert.equal(isValidProviderName('Foo'), false);
-  assert.equal(isValidProviderName('foo_bar'), false);
   assert.equal(isValidProviderName('foo.bar'), false);
   assert.equal(isValidProviderName('-foo'), false);
+  assert.equal(isValidProviderName('_foo'), false);
   assert.equal(isValidProviderName('foo bar'), false);
   assert.equal(isValidProviderName(null), false);
   assert.equal(isValidProviderName(undefined), false);
