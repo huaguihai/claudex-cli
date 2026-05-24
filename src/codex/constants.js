@@ -37,6 +37,14 @@ export function codexAgentsMdPath() {
   return path.join(codexHome(), 'AGENTS.md');
 }
 
+export function codexEnvFilePath() {
+  // Loaded by codex's arg0 dispatcher before Tokio starts: every KEY=VAL
+  // becomes a process env var (except CODEX_-prefixed which are filtered).
+  // This is the only env source the Desktop App / IDE extension can rely on,
+  // since GUI launches don't inherit shell env.
+  return path.join(codexHome(), '.env');
+}
+
 export function claudexAppDir() {
   return process.env.CLAUDEX_CONFIG_DIR || path.join(os.homedir(), '.config', 'claudex-cli');
 }

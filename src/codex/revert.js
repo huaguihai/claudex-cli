@@ -5,6 +5,7 @@ import {
   codexConfigTomlPath,
   codexAuthJsonPath,
   codexAgentsMdPath,
+  codexEnvFilePath,
   codexSnapshotDir,
   codexCurrentProviderFile,
   codexLastKnownHashesPath,
@@ -29,6 +30,7 @@ export async function revertToPreClaudex(opts = {}) {
   const configPath = opts.configTomlPath || codexConfigTomlPath();
   const authPath = opts.authJsonPath || codexAuthJsonPath();
   const agentsPath = opts.agentsMdPath || codexAgentsMdPath();
+  const envPath = opts.envFilePath || codexEnvFilePath();
 
   const manifest = await readSnapshotManifest({ dir: snapshotDir });
   if (!manifest) {
@@ -36,8 +38,8 @@ export async function revertToPreClaudex(opts = {}) {
   }
 
   const result = {
-    restored: { config_toml: false, auth_json: false, agents_md: false },
-    deleted: { auth_json: false, agents_md: false, current_provider: false, last_known_hashes: false, backups: false }
+    restored: { config_toml: false, auth_json: false, agents_md: false, env_file: false },
+    deleted: { auth_json: false, agents_md: false, env_file: false, current_provider: false, last_known_hashes: false, backups: false }
   };
 
   // config.toml
@@ -57,6 +59,17 @@ export async function revertToPreClaudex(opts = {}) {
   } else if (await exists(authPath)) {
     await fsp.unlink(authPath);
     result.deleted.auth_json = true;
+  }
+
+  // .env — restore if snapshot had it; delete current if snapshot didn't
+  const snapEnv = path.join(snapshotDir, '.env');
+  if (await exists(snapEnv)) {
+    const txt = await fsp.readFile(snapEnv, 'utf8');
+    await writeAtomic(envPath, txt, { mode: 0o600 });
+    result.restored.env_file = true;
+  } else if (await exists(envPath)) {
+    await fsp.unlink(envPath);
+    result.deleted.env_file = true;
   }
 
   // AGENTS.md

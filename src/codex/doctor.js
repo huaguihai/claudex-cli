@@ -6,6 +6,7 @@ import {
   codexConfigTomlPath,
   codexAuthJsonPath,
   codexAgentsMdPath,
+  codexEnvFilePath,
   AGENTS_MD_MARKER_BEGIN,
   AGENTS_MD_MARKER_END
 } from './constants.js';
@@ -18,6 +19,7 @@ import {
   detectCodexAppRunning,
   preflight
 } from './launch.js';
+import { ENV_MARKER_BEGIN, ENV_MARKER_END } from './env-file.js';
 
 /**
  * One diagnostic check result.
@@ -47,6 +49,7 @@ export async function runDoctor(opts = {}) {
   checks.push(await checkProjectLocalConfig(cwd));
   checks.push(await checkCredentialsStoreMode());
   checks.push(await checkNativeContextIntegrity());
+  checks.push(await checkEnvFile());
   checks.push(await checkProviderInventory());
 
   return checks;
@@ -357,6 +360,45 @@ async function checkNativeContextIntegrity() {
     status: 'fail',
     message: 'AGENTS.md has only one of BEGIN/END markers — section tampered',
     fix: 'Run codexx native off to clean up, then codexx native on to re-inject'
+  };
+}
+
+async function checkEnvFile() {
+  const p = codexEnvFilePath();
+  const active = await getCurrentProvider();
+  if (!(await exists(p))) {
+    if (!active) {
+      return { name: 'env_file', status: 'info', message: 'no ~/.codex/.env (no active codexx provider)' };
+    }
+    return {
+      name: 'env_file',
+      status: 'warn',
+      message: '~/.codex/.env missing but a codexx provider is active — Desktop App / GUI launches may fail with "Missing env var"',
+      fix: 'Run codexx use <name> to (re)write ~/.codex/.env'
+    };
+  }
+  const raw = await fsp.readFile(p, 'utf8');
+  const hasBegin = raw.includes(ENV_MARKER_BEGIN);
+  const hasEnd = raw.includes(ENV_MARKER_END);
+  if (!hasBegin && !hasEnd) {
+    if (active) {
+      return {
+        name: 'env_file',
+        status: 'warn',
+        message: '~/.codex/.env exists but contains no codexx-managed block',
+        fix: 'Run codexx use <name> to inject OPENAI_API_KEY'
+      };
+    }
+    return { name: 'env_file', status: 'pass', message: '~/.codex/.env present (user-managed, no codexx block)' };
+  }
+  if (hasBegin && hasEnd) {
+    return { name: 'env_file', status: 'pass', message: '~/.codex/.env has intact codexx-managed block' };
+  }
+  return {
+    name: 'env_file',
+    status: 'fail',
+    message: '~/.codex/.env has only one of BEGIN/END markers — section tampered',
+    fix: 'Run codexx use <name> to repair'
   };
 }
 

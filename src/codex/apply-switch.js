@@ -5,6 +5,7 @@ import lockfile from 'proper-lockfile';
 import {
   codexConfigTomlPath,
   codexAuthJsonPath,
+  codexEnvFilePath,
   codexLockPath
 } from './constants.js';
 import { exists, ensureDir, writeAtomic, sha256 } from '../shared/fs-utils.js';
@@ -19,6 +20,11 @@ import {
   buildAuthForProvider,
   backupChatGptTokensIfPresent
 } from './auth-json.js';
+import {
+  readEnvFile,
+  writeEnvFile,
+  spliceClaudexEnv
+} from './env-file.js';
 import { ensurePreClaudexSnapshot, takeBackup, pruneBackups } from './snapshot.js';
 import { setCurrentProvider } from './providers.js';
 import {
@@ -43,9 +49,7 @@ import {
  *   - retention: { keepCount?, keepDays? } passed to pruneBackups
  */
 export async function applyProviderSwitch(provider, opts = {}) {
-  const configPath = codexConfigTomlPath();
-  const authPath = codexAuthJsonPath();
-  const lockPath = codexLockPath();
+  const lockPath = opts.lockPath || codexLockPath();
 
   // Lock target must exist
   await ensureDir(path.dirname(lockPath));
@@ -62,12 +66,18 @@ export async function applyProviderSwitch(provider, opts = {}) {
     await ensurePreClaudexSnapshot();
 
     // 2) Read before state
+    const configPath = codexConfigTomlPath();
+    const authPath = codexAuthJsonPath();
+    const envPath = codexEnvFilePath();
+
     const configBeforeText = (await exists(configPath))
       ? await fsp.readFile(configPath, 'utf8')
       : '';
     const authBefore = await readAuthJson();
+    const envBeforeText = await readEnvFile();
     const configHashBefore = sha256(configBeforeText);
     const authHashBefore = authBefore ? sha256(JSON.stringify(authBefore)) : null;
+    const envHashBefore = envBeforeText ? sha256(envBeforeText) : null;
 
     // 3) Drift detection
     let drift = null;
@@ -99,8 +109,11 @@ export async function applyProviderSwitch(provider, opts = {}) {
     const applyResult = applyClaudexProvider(configBeforeText, provider, opts.buildOpts);
     const configNextText = applyResult.next;
     const authNext = buildAuthForProvider(provider, opts.buildOpts);
+    const envNextText = spliceClaudexEnv(envBeforeText, {
+      OPENAI_API_KEY: provider.api_key
+    });
 
-    // 5) Pre-validate (already done inside applyClaudexProvider, double-check)
+    // 5) Pre-validate
     parseConfigToml(configNextText);
 
     // 6) Backup before write
@@ -115,24 +128,34 @@ export async function applyProviderSwitch(provider, opts = {}) {
       });
     }
 
-    // 8) Write auth.json first
+    // 8) Write auth.json
     await writeAuthJson(authNext);
 
-    // 9) Write config.toml; on failure roll back auth
+    // 9) Write .env; rollback auth on failure
+    try {
+      await writeEnvFile(envNextText);
+    } catch (err) {
+      if (authBefore) await writeAuthJson(authBefore);
+      else if (await exists(authPath)) await fsp.unlink(authPath);
+      throw new Error(`.env write failed; rolled back auth.json: ${err.message}`);
+    }
+
+    // 10) Write config.toml; rollback .env + auth on failure
     try {
       await writeAtomic(configPath, configNextText);
     } catch (err) {
-      if (authBefore) {
-        await writeAuthJson(authBefore);
-      } else if (await exists(authPath)) {
-        await fsp.unlink(authPath);
-      }
+      // rollback .env
+      if (envBeforeText) await writeEnvFile(envBeforeText);
+      else if (await exists(envPath)) await fsp.unlink(envPath);
+      // rollback auth
+      if (authBefore) await writeAuthJson(authBefore);
+      else if (await exists(authPath)) await fsp.unlink(authPath);
       throw new Error(
-        `config.toml write failed; rolled back auth.json: ${err.message}`
+        `config.toml write failed; rolled back auth.json + .env: ${err.message}`
       );
     }
 
-    // 10) Post-verify
+    // 11) Post-verify
     const configActual = await fsp.readFile(configPath, 'utf8');
     const verifyResult = verifyNonClaudexUntouched(configBeforeText, configActual);
     if (!verifyResult.ok) {
@@ -142,18 +165,21 @@ export async function applyProviderSwitch(provider, opts = {}) {
     }
 
     const authActual = await readAuthJson();
+    const envActual = await readEnvFile();
     const configHashAfter = sha256(configActual);
     const authHashAfter = authActual ? sha256(JSON.stringify(authActual)) : null;
+    const envHashAfter = envActual ? sha256(envActual) : null;
 
-    // 11) Update state
+    // 12) Update state
     await setCurrentProvider(provider.name);
     await writeLastKnownHashes({
       config_toml_hash: configHashAfter,
       auth_json_hash: authHashAfter,
+      env_file_hash: envHashAfter,
       recorded_at: new Date().toISOString()
     });
 
-    // 12) Audit
+    // 13) Audit
     await appendAuditEvent({
       action: 'use',
       from: opts.previousProvider ?? null,
@@ -162,12 +188,14 @@ export async function applyProviderSwitch(provider, opts = {}) {
       config_hash_after: configHashAfter,
       auth_hash_before: authHashBefore,
       auth_hash_after: authHashAfter,
+      env_hash_before: envHashBefore,
+      env_hash_after: envHashAfter,
       backup_dir: backupDir,
       chatgpt_backup: chatgptBackupPath,
       drift
     });
 
-    // 13) Prune old backups (best-effort)
+    // 14) Prune old backups (best-effort)
     try {
       await pruneBackups(opts.retention || {});
     } catch {
@@ -180,8 +208,16 @@ export async function applyProviderSwitch(provider, opts = {}) {
       backupDir,
       chatgptBackupPath,
       drift,
-      hashesBefore: { config_toml: configHashBefore, auth_json: authHashBefore },
-      hashesAfter: { config_toml: configHashAfter, auth_json: authHashAfter }
+      hashesBefore: {
+        config_toml: configHashBefore,
+        auth_json: authHashBefore,
+        env_file: envHashBefore
+      },
+      hashesAfter: {
+        config_toml: configHashAfter,
+        auth_json: authHashAfter,
+        env_file: envHashAfter
+      }
     };
   } finally {
     await release();

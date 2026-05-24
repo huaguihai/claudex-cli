@@ -6,6 +6,7 @@ import {
   codexConfigTomlPath,
   codexAuthJsonPath,
   codexAgentsMdPath,
+  codexEnvFilePath,
   codexSnapshotDir,
   codexBackupsDir,
   SCHEMA_VERSION
@@ -34,6 +35,7 @@ export async function ensurePreClaudexSnapshot(opts = {}) {
   const configPath = opts.configTomlPath || codexConfigTomlPath();
   const authPath = opts.authJsonPath || codexAuthJsonPath();
   const agentsPath = opts.agentsMdPath || codexAgentsMdPath();
+  const envPath = opts.envFilePath || codexEnvFilePath();
 
   const manifest = {
     schema_version: SCHEMA_VERSION,
@@ -67,6 +69,15 @@ export async function ensurePreClaudexSnapshot(opts = {}) {
     manifest.hashes.agents_md = null;
   }
 
+  if (await exists(envPath)) {
+    const dst = path.join(dir, '.env');
+    await fsp.copyFile(envPath, dst);
+    await fsp.chmod(dst, 0o600);
+    manifest.hashes.env_file = await sha256File(dst);
+  } else {
+    manifest.hashes.env_file = null;
+  }
+
   await writeJson(manifestPath, manifest);
   return { taken: true, dir };
 }
@@ -93,7 +104,8 @@ export async function takeBackup(reason, opts = {}) {
 
   const configPath = opts.configTomlPath || codexConfigTomlPath();
   const authPath = opts.authJsonPath || codexAuthJsonPath();
-  const hashes = { config_toml: null, auth_json: null };
+  const envPath = opts.envFilePath || codexEnvFilePath();
+  const hashes = { config_toml: null, auth_json: null, env_file: null };
 
   if (await exists(configPath)) {
     const dst = path.join(dir, 'config.toml');
@@ -105,6 +117,12 @@ export async function takeBackup(reason, opts = {}) {
     await fsp.copyFile(authPath, dst);
     await fsp.chmod(dst, 0o600);
     hashes.auth_json = await sha256File(dst);
+  }
+  if (await exists(envPath)) {
+    const dst = path.join(dir, '.env');
+    await fsp.copyFile(envPath, dst);
+    await fsp.chmod(dst, 0o600);
+    hashes.env_file = await sha256File(dst);
   }
 
   await writeAtomic(
