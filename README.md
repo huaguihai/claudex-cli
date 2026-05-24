@@ -460,7 +460,7 @@ codexx revert
 |---|---|
 | `codexx` | Spawns `codex` with the active provider; passes through all native subcommands |
 | `codexx use <name>` | Switches active provider; persists in `~/.codex/config.toml` + `~/.codex/auth.json` |
-| `codexx add / list / remove` | Provider CRUD with validation |
+| `codexx add / list / edit / remove` | Provider CRUD with validation; `edit` patches fields in place (Enter-to-keep wizard, or `--model X` flag for single-field changes) |
 | `codexx test [name]` | HTTP probe respecting `wire_api` (chat / responses) |
 | `codexx status` | Active provider + Codex version + Desktop App state + drift |
 | `codexx doctor [--json]` | 13-check health report (CLI version, drift, env conflicts, project-local config, credentials store, native context integrity, …) |
@@ -503,6 +503,7 @@ codexx -- <args>                    # force passthrough
 codexx init                         # state dir + check codex install
 codexx menu                         # interactive menu
 codexx add [flags]                  # add provider (wizard or flags)
+codexx edit <name|index> [flags]    # patch fields in place (wizard or flags)
 codexx list                         # list providers
 codexx use <name|index>             # switch active provider
 codexx remove <name|index> [--yes]

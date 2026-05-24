@@ -474,7 +474,7 @@ codexx revert
 |---|---|
 | `codexx` | 用当前 provider 启动 `codex`；所有 codex 原生子命令透传 |
 | `codexx use <name>` | 切换 provider；持久化到 `~/.codex/config.toml` + `~/.codex/auth.json` |
-| `codexx add / list / remove` | provider 增删改查 + 校验 |
+| `codexx add / list / edit / remove` | provider 增删改查；`edit` 逐字段补丁（回车保留 wizard，或 `--model X` 单字段命令）|
 | `codexx test [name]` | 按 `wire_api` 选 chat / responses 做 HTTP 探测 |
 | `codexx status` | 当前 provider + Codex 版本 + 桌面 App 状态 + drift |
 | `codexx doctor [--json]` | 13 项健康检查（CLI 版本、drift、env 冲突、项目级 config、credentials store、native context 完整性…）|
@@ -517,6 +517,7 @@ codexx -- <args>                    # 强制透传
 codexx init                         # 创建 state 目录 + 检测 codex 安装
 codexx menu                         # 交互菜单
 codexx add [flags]                  # 添加 provider（向导或 flags）
+codexx edit <name|index> [flags]    # 逐字段编辑（向导或 flags）
 codexx list                         # 列出所有 provider
 codexx use <name|index>             # 切换 provider
 codexx remove <name|index> [--yes]

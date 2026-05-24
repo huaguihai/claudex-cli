@@ -163,6 +163,21 @@ Conflicts with codex subcommands: only `update`. Resolution: `codexx update` is 
 
 Print all known codexx providers, marking the active one.
 
+#### `codexx edit <name|index> [flags]`
+
+- Synopsis: `codexx edit <name> [--base-url U] [--api-key K] [--model M] [--wire-api chat|responses] [--reasoning-effort low|medium|high]`
+- Behavior:
+  1. Resolve name (or index from `list`).
+  2. Read existing provider metadata.
+  3. **Non-interactive (stdin not a TTY)**: apply only the fields passed as flags; every other field keeps its current value. No prompts.
+  4. **Interactive (TTY)**: walk every editable field, showing the current value (api_key masked as `sk-xxxx...last4`); Enter keeps, new value replaces. Flags pre-fill (skip prompt for that field).
+  5. Validate the merged result (same `validateProviderShape` as `add`).
+  6. `base_url` is auto-normalised via `normalizeBaseUrl` (bare domain → append `/v1`).
+  7. Save to `~/.config/claudex-cli/codex-providers/<name>.json` (chmod 600), stamp `updated_at`.
+  8. If the edited provider is currently active, automatically call `applyProviderSwitch` to push changes into `~/.codex/config.toml` + `auth.json` + `.env`. Otherwise print a hint that changes will take effect on next `codexx use`.
+- Exit: 0 / 2 (validation error) / 1 (filesystem error during re-apply).
+- Immutable fields (`name`, `schema_version`, `created_at`) are silently ignored if passed in.
+
 #### `codexx use <name|index>`
 
 - Behavior:
@@ -171,7 +186,7 @@ Print all known codexx providers, marking the active one.
   3. `detectDrift()`; if drifted, prompt user (skip with `--force`).
   4. Detect ChatGPT OAuth in auth.json; back up if present (prompt unless `--yes`).
   5. Acquire file lock.
-  6. Write config.toml (surgical) + auth.json (atomic double-write with rollback).
+  6. Write `config.toml` (surgical) + `auth.json` + `~/.codex/.env` (atomic triple-write with rollback chain).
   7. Verify post-write; release lock.
   8. Print active state banner.
 - Exit: 0 / 1 (drift refused) / 2 (validation) / 3 (filesystem error).
@@ -385,6 +400,25 @@ Invariants:
 - `native off` removes BEGIN→END block (inclusive) and trailing blank line.
 - Content outside markers is byte-preserved.
 - If user has tampered with content inside markers, `native off` still removes the entire block; `native on` overwrites it (with audit log entry).
+
+### 4.5b `~/.codex/.env` — env-injection for GUI-launched codex
+
+```
+# claudex-cli managed BEGIN — do not edit between markers
+OPENAI_API_KEY=<active provider's api_key>
+# claudex-cli managed END
+```
+
+Why this file exists: Codex's `arg0_dispatch_or_else` (entry point shared by CLI, Desktop App, and IDE extension) calls `dotenvy::from_path_iter(~/.codex/.env)` before Tokio starts and `set_var`s each `KEY=VAL` into the process env. For custom `[model_providers.X]` providers with `env_key = "OPENAI_API_KEY"`, Codex's auth flow reads `std::env::var("OPENAI_API_KEY")` and does **not** fall back to `auth.json`'s `OPENAI_API_KEY` field. macOS GUI launches don't inherit shell env, so `.env` is the only env source the App can rely on.
+
+Invariants:
+
+- File mode = 0600.
+- Marker-delimited block managed by codexx; content outside markers is byte-preserved.
+- Keys other than `OPENAI_API_KEY` may be added inside the block in future (e.g. `OPENAI_BASE_URL` for fine-grained overrides) but only `OPENAI_API_KEY` is written today.
+- `codexx use` writes the active provider's `api_key` here as part of the atomic triple-write (auth.json → .env → config.toml).
+- `codexx revert` restores `.env` from the pre-claudex snapshot (or deletes it if snapshot had none).
+- If the marker block is the only content, `clearClaudexEnv` deletes the file entirely.
 
 ### 4.6 Reserved provider ids
 
@@ -747,20 +781,22 @@ Every milestone has verifiable, testable outcomes.
 - Smoke test on macOS 13/14/15 and Linux Ubuntu 22.04.
 - Manual spike: switch providers, verify Desktop App routes correctly via network observation.
 
-## 9. Open Questions
+## 9. Resolved Decisions
 
-| # | Question | Default | Final decision by |
-|---|---|---|---|
-| Q1 | Default `wire_api`: `chat` or `responses`? | `chat` | Pre-M3 |
-| Q2 | `codexx use` auto-prompt to restart running codex/App, or only print hint? | Only hint | Pre-M3 |
-| Q3 | AGENTS.md injection: when to auto-prompt? | Only on first `native on` | Pre-M5 |
-| Q4 | `codexx update` semantics: self-update or passthrough? | Self-update; `-- update` for codex | Pre-M3 |
-| Q5 | Shell alias prompt in `codexx init`: on by default or opt-in? | Opt-in (`init --with-alias`) | Pre-M3 |
-| Q6 | Backup retention defaults | 5 backups OR 7 days | Pre-M4 |
-| Q7 | Encrypted backups in MVP? | No (v2) | — |
-| Q8 | Keyring backend in MVP? | No (v2) | — |
-| Q9 | Linux/Windows first-class in MVP? | No, best-effort | — |
-| Q10 | `codexx test` on missing provider model: hard fail or warn? | Warn | Pre-M3 |
+All Open Questions from the original draft have been resolved during M1–M6 implementation:
+
+| # | Question | Resolution |
+|---|---|---|
+| Q1 | Default `wire_api`: `chat` or `responses`? | `chat` (implemented as default in `cmdAdd` wizard and flag mode). |
+| Q2 | `codexx use` auto-prompt to restart running codex/App? | Only print hint; codex >= v0.130 hot-reloads automatically, doctor reflects this. |
+| Q3 | AGENTS.md injection: when to auto-prompt? | Only on explicit `codexx native on`; never auto-injected. |
+| Q4 | `codexx update` semantics? | Self-update; `codexx -- update` passes through to `codex update`. |
+| Q5 | Shell alias prompt in `codexx init`? | No prompt today; users keep typing `codexx`. Optional `npm link` for development. |
+| Q6 | Backup retention defaults | 5 backups OR 7 days, whichever covers more entries. |
+| Q7 | Encrypted backups in MVP? | No — chmod 600 only. Deferred to v2 alongside keyring. |
+| Q8 | Keyring backend in MVP? | No — file-based `auth.json` + `.env`. Deferred to v2. |
+| Q9 | Linux/Windows first-class in MVP? | Best-effort; macOS verified end-to-end. |
+| Q10 | `codexx test` on missing/unsupported model? | Reports HTTP status + response body in failure reason; user decides. |
 
 ## 10. Out of Scope and Future
 
