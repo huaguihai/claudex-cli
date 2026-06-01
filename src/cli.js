@@ -13,34 +13,35 @@ import {
   defaultNativeConfig,
   nativeStateLabel,
   validateNativeProfile
-} from './native-context.js';
+} from './shared/native-context.js';
 import {
   buildProviderBehaviorProfile,
   preferredProtocolOrder
-} from './provider-profile.js';
-import { buildAlignmentPolicy } from './alignment-policy.js';
-import { buildProviderTuning } from './provider-tuning.js';
-import { classifyPromptSignals } from './prompt-signals.js';
-import { buildDynamicRouteGuidance, buildRouteDecision } from './route-guidance.js';
+} from './shared/provider-profile.js';
+import { buildAlignmentPolicy } from './shared/alignment-policy.js';
+import { buildProviderTuning } from './shared/provider-tuning.js';
+import { classifyPromptSignals } from './shared/prompt-signals.js';
+import { buildDynamicRouteGuidance, buildRouteDecision } from './shared/route-guidance.js';
 import {
   appendSessionStep,
   buildSessionContext,
   inferStepKind,
   readSessionState,
   writeSessionState
-} from './session-guidance.js';
+} from './shared/session-guidance.js';
 import {
   buildSubagentQualityGate,
   buildSubagentQualityGuidance
-} from './subagent-quality.js';
+} from './shared/subagent-quality.js';
 import {
   buildTaskQualityGate,
   buildTaskQualityGuidance
-} from './task-quality.js';
+} from './shared/task-quality.js';
 
 
 const home = os.homedir();
 const claudeDir = path.join(home, '.claude');
+const globalClaudeSettingsFile = path.join(claudeDir, 'settings.json');
 const appDir = path.join(home, '.config', 'claudex-cli');
 const backupsDir = path.join(appDir, 'backups');
 const currentProviderFile = path.join(appDir, 'current-provider');
@@ -48,6 +49,15 @@ const languageFile = path.join(appDir, 'language');
 const nativeConfigFile = path.join(appDir, 'native.json');
 const sessionStateFile = path.join(appDir, 'native-session.json');
 const legacyCurrentProviderFile = path.join(claudeDir, 'current-provider');
+
+const defaultGlobalClaudeSettings = {
+  env: {
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
+    CLAUDE_CODE_ATTRIBUTION_HEADER: '0',
+    CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS: '1',
+    ENABLE_TOOL_SEARCH: 'false'
+  }
+};
 class BackSignal extends Error {
   constructor() {
     super('BACK_SIGNAL');
@@ -94,7 +104,7 @@ const TXT = {
     providerNotFound: '未找到服务商: {v}',
     manageTitle: '管理模型服务商',
     mg1: '1. 新增服务商',
-    mg2: '2. 编辑服务商（覆盖保存）',
+    mg2: '2. 编辑服务商（逐字段，回车保留原值）',
     mg3: '3. 删除服务商',
     mg4: '4. 列出服务商',
     mg5: '5. 返回主菜单',
@@ -120,6 +130,11 @@ const TXT = {
     updated: '✏️ 已更新: {v}',
     deleted: '🗑️ 已删除: {v}',
     cancelled: '已取消',
+    editIntro: '正在编辑 {v}（每项回车保留原值，输入新值则替换）:',
+    editCurrent: '当前',
+    editUnset: '(未设)',
+    editNewOrKeep: '新值 (回车保留{hint})',
+    editedOk: '✅ 已更新 {v}: {file}',
     testOK: '✅ 测试通过: {name} ({status}) via {protocol}',
     doctorTitle: '🩺 诊断检查:',
     envConflicts: '- 环境变量冲突:',
@@ -140,26 +155,22 @@ const TXT = {
     helperAdded: '已写入快捷函数: cdxrun',
     helperRun: '请执行: source {v}',
     helperExists: '快捷函数已存在',
+    globalSettingsCreated: '🧩 已创建全局 Claude 配置: {v}',
+    globalSettingsExists: 'ℹ️ 已保留现有全局 Claude 配置: {v}',
     wizardSaved: '已保存配置: {v}',
     testNowQ: '是否立即测试连接？(Y/n): ',
     testPass: '连接测试通过: {name} (HTTP {status}, {protocol})',
-    useUsage: '用法: claudex provider use <name>',
-    removeUsage: '用法: claudex provider remove <name> [--yes]',
-    testUsage: '用法: claudex provider test <name>',
-    providerUsage: '用法: claudex provider <add|list|use|remove|test>',
-    removeConfirm: '删除 {v} ? (y/N): ',
-    backGuide: '提示：输入 b 或 back 可返回上一级。',
-    backDone: '↩️ 已返回上一级。',
-    testingNow: '🔍 正在测试连接: {name} ...',
     claudeNotFound: '⚠️ 未检测到 Claude Code CLI（claude 命令不可用）',
     claudeRequired: 'Claudex 需要 Claude Code 才能正常工作。',
-    claudeInstallQ: '是否现在安装 Claude Code？(Y/n): ',
-    claudeInstalling: '📦 正在安装 Claude Code ...',
-    claudeInstallOK: '✅ Claude Code 安装成功！',
-    claudeInstallFail: '❌ 安装失败: {v}',
-    claudeInstallSkip: '已跳过安装。请手动安装后重试：\n  npm install -g @anthropic-ai/claude-code',
+    claudeInstallQ: '是否现在查看官方推荐安装命令？(Y/n): ',
+    claudeInstallSkip: '已跳过。请先按官方方式安装 Claude Code，然后重试。',
+    claudeInstallManual: '请先执行以下官方推荐安装命令:',
+    claudeInstallFallback: '如需备选方式，可使用: {v}',
     claudeInstalled: '- Claude Code: 已安装 ({v})',
     claudeNotInstalled: '- Claude Code: 未安装',
+    providerSetupRequired: '⚠️ 还没有可用的服务商配置，先进入引导菜单完成配置。',
+    providerSetupMenu: '正在打开 claudex menu ...',
+    providerSetupOptional: '如需手动配置，也可以运行: claudex add',
     nativeTitle: 'Native 模式',
     native1: '1. 开启 Native 模式',
     native2: '2. 关闭 Native 模式',
@@ -221,7 +232,7 @@ const TXT = {
     providerNotFound: 'Provider not found: {v}',
     manageTitle: 'Manage Model Providers',
     mg1: '1. Add provider',
-    mg2: '2. Edit provider (overwrite)',
+    mg2: '2. Edit provider (field-by-field, Enter to keep current)',
     mg3: '3. Delete provider',
     mg4: '4. List providers',
     mg5: '5. Back to main menu',
@@ -247,6 +258,11 @@ const TXT = {
     updated: '✏️ Updated: {v}',
     deleted: '🗑️ Deleted: {v}',
     cancelled: 'Cancelled',
+    editIntro: 'Editing {v} (press Enter to keep current value, type new value to replace):',
+    editCurrent: 'current',
+    editUnset: '(unset)',
+    editNewOrKeep: 'new value (Enter to keep{hint})',
+    editedOk: '✅ Updated {v}: {file}',
     testOK: '✅ Test OK: {name} ({status}) via {protocol}',
     doctorTitle: '🩺 Doctor checks:',
     envConflicts: '- Env conflicts:',
@@ -267,24 +283,22 @@ const TXT = {
     helperAdded: 'Injected shell helper: cdxrun',
     helperRun: 'Run: source {v}',
     helperExists: 'Shell helper already exists',
+    globalSettingsCreated: '🧩 Created global Claude settings: {v}',
+    globalSettingsExists: 'ℹ️ Kept existing global Claude settings: {v}',
     wizardSaved: 'Saved config: {v}',
     testNowQ: 'Test connection now? (Y/n): ',
     testPass: 'Connection test passed: {name} (HTTP {status}, {protocol})',
-    useUsage: 'usage: claudex provider use <name>',
-    removeUsage: 'usage: claudex provider remove <name> [--yes]',
-    testUsage: 'usage: claudex provider test <name>',
-    providerUsage: 'usage: claudex provider <add|list|use|remove|test>',
-    removeConfirm: 'Delete {v}? (y/N): ',
-    backGuide: 'Tip: enter b or back to return to the previous menu.',
-    backDone: '↩️ Back to previous menu.',
-    testingNow: '🔍 Testing connection: {name} ...',
     claudeNotFound: '⚠️ Claude Code CLI not found (claude command unavailable)',
     claudeRequired: 'Claudex requires Claude Code to work properly.',
-    claudeInstallQ: 'Install Claude Code now? (Y/n): ',
-    claudeInstalling: '📦 Installing Claude Code ...',
-    claudeInstallOK: '✅ Claude Code installed successfully!',
-    claudeInstallFail: '❌ Installation failed: {v}',
-    claudeInstallSkip: 'Skipped. Install manually:\n  npm install -g @anthropic-ai/claude-code',
+    claudeInstallQ: 'Show the official recommended Claude Code install command now? (Y/n): ',
+    claudeInstallSkip: 'Skipped. Install Claude Code with an official method, then retry.',
+    claudeInstallManual: 'Run this official recommended install command first:',
+    claudeInstallFallback: 'Optional fallback: {v}',
+    claudeInstalled: '- Claude Code: installed ({v})',
+    claudeNotInstalled: '- Claude Code: not installed',
+    providerSetupRequired: '⚠️ No provider configuration is available yet. Opening guided setup first.',
+    providerSetupMenu: 'Opening claudex menu ...',
+    providerSetupOptional: 'If you prefer manual setup, you can also run: claudex add',
     nativeTitle: 'Native Mode',
     native1: '1. Turn Native mode on',
     native2: '2. Turn Native mode off',
@@ -354,6 +368,7 @@ Usage:
   claudex menu                # 进入交互菜单
   claudex init
   claudex add
+  claudex edit <name|index> [--base-url U --api-key K --haiku-model H --sonnet-model S --opus-model O]
   claudex list
   claudex use <name|index>
   claudex remove <name|index> [--yes]
@@ -417,6 +432,19 @@ async function readJson(file) {
 async function writeJson(file, obj) {
   const txt = JSON.stringify(obj, null, 2) + '\n';
   await fsp.writeFile(file, txt, { mode: 0o600 });
+}
+
+async function ensureGlobalClaudeSettings(lang, { quiet = false } = {}) {
+  await ensureDir(claudeDir);
+
+  if (await exists(globalClaudeSettingsFile)) {
+    if (!quiet) console.log(t(lang, 'globalSettingsExists', { v: globalClaudeSettingsFile }));
+    return { created: false, file: globalClaudeSettingsFile };
+  }
+
+  await writeJson(globalClaudeSettingsFile, defaultGlobalClaudeSettings);
+  if (!quiet) console.log(t(lang, 'globalSettingsCreated', { v: globalClaudeSettingsFile }));
+  return { created: true, file: globalClaudeSettingsFile };
 }
 
 async function readSessionStateFile() {
@@ -656,53 +684,12 @@ async function setLanguage(lang) {
   return v;
 }
 
-function isClaudeInstalled() {
-  try {
-    execFileSync('claude', ['--version'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function getClaudeVersion() {
   try {
     return execFileSync('claude', ['--version'], { encoding: 'utf8' }).trim();
   } catch {
     return null;
   }
-}
-
-async function ensureClaudeInstalled(lang) {
-  if (isClaudeInstalled()) return true;
-
-  console.log(`\n${t(lang, 'claudeNotFound')}`);
-  console.log(t(lang, 'claudeRequired'));
-  console.log('');
-
-  const ans = await ask(t(lang, 'claudeInstallQ'));
-  if (!shouldRunTestInput(ans)) {
-    console.log(t(lang, 'claudeInstallSkip'));
-    return false;
-  }
-
-  console.log(t(lang, 'claudeInstalling'));
-  console.log('> npm install -g @anthropic-ai/claude-code\n');
-  try {
-    await runProcess('npm', ['install', '-g', '@anthropic-ai/claude-code']);
-  } catch (err) {
-    console.log(t(lang, 'claudeInstallFail', { v: String(err.message || err) }));
-    console.log(t(lang, 'claudeInstallSkip'));
-    return false;
-  }
-
-  if (isClaudeInstalled()) {
-    console.log(t(lang, 'claudeInstallOK'));
-    return true;
-  }
-
-  console.log(t(lang, 'claudeInstallFail', { v: 'verification failed' }));
-  return false;
 }
 
 function shellRcFile() {
@@ -800,6 +787,78 @@ async function writeProviderSettings({ name, baseUrl, apiKey, haikuModel, sonnet
   };
   await writeJson(file, data);
   return file;
+}
+
+function maskApiKey(key) {
+  if (typeof key !== 'string' || key.length === 0) return '(not set)';
+  if (key.length <= 10) return key.slice(0, 3) + '***';
+  return key.slice(0, 7) + '...' + key.slice(-4);
+}
+
+async function readProviderSettings(name) {
+  const file = providerSettingsPath(name);
+  if (!(await exists(file))) throw new Error(`provider settings not found: ${file}`);
+  const data = await readJson(file);
+  const env = (data && data.env) || {};
+  return {
+    name,
+    baseUrl: env.ANTHROPIC_BASE_URL || '',
+    apiKey: env.ANTHROPIC_API_KEY || '',
+    haikuModel: env.ANTHROPIC_DEFAULT_HAIKU_MODEL || '',
+    sonnetModel: env.ANTHROPIC_DEFAULT_SONNET_MODEL || '',
+    opusModel: env.ANTHROPIC_DEFAULT_OPUS_MODEL || ''
+  };
+}
+
+/**
+ * Wizard that lets the user EDIT a provider by walking through every
+ * field with the current value displayed, accepting Enter to keep or a
+ * new value to replace. CLI flags pre-populate (and bypass prompting
+ * for that field). Returns the merged provider info ready for write.
+ *
+ * In non-interactive mode (stdin is not a TTY): only apply field
+ * updates from flags; leave every unflagged field at its current value.
+ * Does not block on prompts. This is the codexx-style behaviour and
+ * makes `claudex edit X --haiku-model Y` work in shell scripts.
+ */
+async function promptProviderEdit(name, flags, lang) {
+  const current = await readProviderSettings(name);
+  const interactive = process.stdin.isTTY === true;
+
+  if (!interactive) {
+    return {
+      name,
+      baseUrl: typeof flags['base-url'] === 'string' ? flags['base-url'] : current.baseUrl,
+      apiKey: typeof flags['api-key'] === 'string' ? flags['api-key'] : current.apiKey,
+      haikuModel: typeof flags['haiku-model'] === 'string' ? flags['haiku-model'] : current.haikuModel,
+      sonnetModel: typeof flags['sonnet-model'] === 'string' ? flags['sonnet-model'] : current.sonnetModel,
+      opusModel: typeof flags['opus-model'] === 'string' ? flags['opus-model'] : current.opusModel
+    };
+  }
+
+  const rl = readline.createInterface({ input, output });
+  try {
+    console.log(t(lang, 'editIntro', { v: name }));
+
+    const askField = async (flagValue, currentValue, label, hint = '') => {
+      if (typeof flagValue === 'string') return flagValue;
+      const shown = label === 'api_key' ? maskApiKey(currentValue) : (currentValue || t(lang, 'editUnset'));
+      console.log(`  ${label} ${t(lang, 'editCurrent')}: ${shown}`);
+      const next = (await rl.question(`  ${t(lang, 'editNewOrKeep', { hint: hint ? ', ' + hint : '' })}: `)).trim();
+      if (isBackInput(next)) throw new BackSignal();
+      return next.length > 0 ? next : currentValue;
+    };
+
+    const baseUrl = await askField(flags['base-url'], current.baseUrl, 'base_url');
+    const apiKey = await askField(flags['api-key'], current.apiKey, 'api_key');
+    const haikuModel = await askField(flags['haiku-model'], current.haikuModel, 'haiku_model');
+    const sonnetModel = await askField(flags['sonnet-model'], current.sonnetModel, 'sonnet_model');
+    const opusModel = await askField(flags['opus-model'], current.opusModel, 'opus_model');
+
+    return { name, baseUrl, apiKey, haikuModel, sonnetModel, opusModel };
+  } finally {
+    rl.close();
+  }
 }
 
 function readProviderAuth(settings) {
@@ -1077,6 +1136,76 @@ async function runProcess(command, args, env = process.env) {
   });
 }
 
+function isClaudeInstalled() {
+  try {
+    execFileSync('claude', ['--version'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function recommendedClaudeInstallCommand() {
+  if (process.platform === 'darwin') {
+    return {
+      command: 'curl -fsSL https://claude.ai/install.sh | bash',
+      fallback: 'brew install --cask claude-code'
+    };
+  }
+
+  if (process.platform === 'win32') {
+    return {
+      command: 'irm https://claude.ai/install.ps1 | iex',
+      fallback: 'winget install Anthropic.ClaudeCode'
+    };
+  }
+
+  return {
+    command: 'curl -fsSL https://claude.ai/install.sh | bash',
+    fallback: ''
+  };
+}
+
+async function ensureClaudeInstalled(lang) {
+  if (isClaudeInstalled()) return true;
+
+  console.log(`\n${t(lang, 'claudeNotFound')}`);
+  console.log(t(lang, 'claudeRequired'));
+  console.log('');
+
+  const ans = await ask(t(lang, 'claudeInstallQ'));
+  if (!shouldRunTestInput(ans)) {
+    console.log(t(lang, 'claudeInstallSkip'));
+    return false;
+  }
+
+  const install = recommendedClaudeInstallCommand();
+  console.log(t(lang, 'claudeInstallManual'));
+  console.log(`> ${install.command}`);
+  if (install.fallback) {
+    console.log(t(lang, 'claudeInstallFallback', { v: install.fallback }));
+  }
+  return false;
+}
+
+async function ensureLaunchPrerequisites(lang) {
+  if (!(await ensureClaudeInstalled(lang))) return false;
+
+  await ensureDir(appDir);
+  await ensureDir(backupsDir);
+  await ensureGlobalClaudeSettings(lang, { quiet: true });
+
+  if ((await listProviders()).length === 0) {
+    console.log(t(lang, 'providerSetupRequired'));
+    console.log(t(lang, 'providerSetupMenu'));
+    console.log(t(lang, 'providerSetupOptional'));
+    await mainMenu(lang);
+    return false;
+  }
+
+  return true;
+}
+
 async function runClaude(extraArgs) {
   const current = await getCurrentProvider();
   if (!current) {
@@ -1156,9 +1285,8 @@ async function cmdUpdate(rest) {
 async function cmdInit(lang) {
   await ensureDir(appDir);
   await ensureDir(backupsDir);
+  await ensureGlobalClaudeSettings(lang);
   const injected = await injectShellBlock();
-  const current = await getCurrentProvider();
-  if (!current) await setCurrentProvider('gemma');
 
   console.log(t(lang, 'initialized', { v: appDir }));
   console.log(t(lang, 'shellFile', { v: injected.rc }));
@@ -1228,6 +1356,24 @@ async function cmdProvider(subArgs, lang) {
     if (flags.current || flags['set-current']) await setCurrentProvider(info.name);
     console.log(t(lang, 'saved', { v: file }));
     console.log(`claudex provider test ${info.name}`);
+    return;
+  }
+
+  if (action === 'edit') {
+    const target = await resolveProviderArg(positional[0] || flags.name, lang);
+    if (!target) throw new Error(t(lang, 'providerUsage'));
+    let info;
+    try {
+      info = await promptProviderEdit(target, flags, lang);
+    } catch (err) {
+      if (err instanceof BackSignal) {
+        console.log(t(lang, 'backDone'));
+        return;
+      }
+      throw err;
+    }
+    const file = await writeProviderSettings(info);
+    console.log(t(lang, 'editedOk', { v: target, file }));
     return;
   }
 
@@ -1406,10 +1552,16 @@ async function manageProvidersMenu(lang) {
       }
       if (choice === '2') {
         const name = await pickProvider(lang, t(lang, 'askEdit'));
-        const info = await promptProviderAdd({ name }, lang);
-        const file = await writeProviderSettings(info);
-        console.log(t(lang, 'updated', { v: file }));
-        await askAndRunProviderTest(info.name, lang);
+        try {
+          const info = await promptProviderEdit(name, {}, lang);
+          const file = await writeProviderSettings(info);
+          console.log(t(lang, 'editedOk', { v: name, file }));
+          await askAndRunProviderTest(info.name, lang);
+        } catch (err) {
+          if (err instanceof BackSignal) {
+            console.log(t(lang, 'backDone'));
+          } else throw err;
+        }
         continue;
       }
       if (choice === '3') {
@@ -1591,7 +1743,7 @@ export async function main(argv = process.argv.slice(2)) {
   const lang = await getLanguage();
   const [cmd, ...rest] = argv;
   if (!cmd) {
-    if (!(await ensureClaudeInstalled(lang))) return;
+    if (!(await ensureLaunchPrerequisites(lang))) return;
     await runClaude([]);
     return;
   }
@@ -1608,13 +1760,18 @@ export async function main(argv = process.argv.slice(2)) {
   }
 
   if (cmd.startsWith('-')) {
-    if (!(await ensureClaudeInstalled(lang))) return;
+    if (!(await ensureLaunchPrerequisites(lang))) return;
     await runClaude(argv);
     return;
   }
 
   if (cmd === 'add') {
     await cmdProvider(['add', ...rest], lang);
+    return;
+  }
+
+  if (cmd === 'edit') {
+    await cmdProvider(['edit', ...rest], lang);
     return;
   }
 
@@ -1682,7 +1839,7 @@ export async function main(argv = process.argv.slice(2)) {
   }
 
   if (cmd === 'run') {
-    if (!(await ensureClaudeInstalled(lang))) return;
+    if (!(await ensureLaunchPrerequisites(lang))) return;
     await runClaude(rest);
     return;
   }

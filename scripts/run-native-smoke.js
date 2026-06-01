@@ -2,11 +2,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { buildRouteDecision, buildDynamicRouteGuidance } from '../src/route-guidance.js';
-import { buildSessionContext } from '../src/session-guidance.js';
-import { classifyPromptSignals } from '../src/prompt-signals.js';
-import { buildAlignmentPolicy } from '../src/alignment-policy.js';
-import { buildSubagentQualityGate, buildSubagentQualityGuidance } from '../src/subagent-quality.js';
+import { buildRouteDecision, buildDynamicRouteGuidance } from '../src/shared/route-guidance.js';
+import { buildSessionContext } from '../src/shared/session-guidance.js';
+import { classifyPromptSignals } from '../src/shared/prompt-signals.js';
+import { buildAlignmentPolicy } from '../src/shared/alignment-policy.js';
+import { buildSubagentQualityGate, buildSubagentQualityGuidance } from '../src/shared/subagent-quality.js';
 
 const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const smokePath = process.argv[2] || path.join(repoRoot, 'tests', 'native-benchmarks', 'smoke.json');
