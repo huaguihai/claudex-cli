@@ -152,9 +152,10 @@ const TXT = {
     requiredErr: 'name/base-url/api-key/haiku-model/sonnet-model/opus-model 为必填项',
     initialized: '初始化完成: {v}',
     shellFile: 'Shell 配置文件: {v}',
-    helperAdded: '已写入快捷函数: cdxrun',
+    helperAdded: '已写入快捷函数: cdxrun + claude（裸 claude 自动跟随当前服务商）',
+    helperUpdated: '已更新快捷函数: cdxrun + claude（裸 claude 自动跟随当前服务商）',
     helperRun: '请执行: source {v}',
-    helperExists: '快捷函数已存在',
+    helperExists: '快捷函数已是最新',
     globalSettingsCreated: '🧩 已创建全局 Claude 配置: {v}',
     globalSettingsExists: 'ℹ️ 已保留现有全局 Claude 配置: {v}',
     wizardSaved: '已保存配置: {v}',
@@ -280,9 +281,10 @@ const TXT = {
     requiredErr: 'name/base-url/api-key/haiku-model/sonnet-model/opus-model are required.',
     initialized: 'Initialized: {v}',
     shellFile: 'Shell file: {v}',
-    helperAdded: 'Injected shell helper: cdxrun',
+    helperAdded: 'Injected shell helpers: cdxrun + claude (bare claude follows the current provider)',
+    helperUpdated: 'Updated shell helpers: cdxrun + claude (bare claude follows the current provider)',
     helperRun: 'Run: source {v}',
-    helperExists: 'Shell helper already exists',
+    helperExists: 'Shell helpers already up to date',
     globalSettingsCreated: '🧩 Created global Claude settings: {v}',
     globalSettingsExists: 'ℹ️ Kept existing global Claude settings: {v}',
     wizardSaved: 'Saved config: {v}',
@@ -699,20 +701,63 @@ function shellRcFile() {
   return path.join(home, '.zshrc');
 }
 
+const SHELL_BLOCK_BEGIN = '# BEGIN CLAUDEX-SWITCHER';
+const SHELL_BLOCK_END = '# END CLAUDEX-SWITCHER';
+
+// Build the managed shell block (no trailing newline). Defines `cdxrun` plus a
+// bare `claude` wrapper so that running `claude` directly auto-uses the current
+// provider's settings file — while staying out of the way when the user already
+// has their own auth.
+export function buildShellBlock() {
+  return [
+    SHELL_BLOCK_BEGIN,
+    '# Run Claude with the current provider.',
+    'cdxrun() { claudex run "$@"; }',
+    '',
+    '# Bare `claude` uses the current provider; yields to an explicit --settings,',
+    '# pre-set ANTHROPIC_* creds, or a missing/unconfigured provider.',
+    'claude() {',
+    '  case "$*" in *--settings*) command claude "$@"; return;; esac',
+    '  if [ -n "$ANTHROPIC_API_KEY$ANTHROPIC_AUTH_TOKEN" ]; then command claude "$@"; return; fi',
+    '  local __cdx_provider __cdx_settings',
+    '  __cdx_provider=$(cat "$HOME/.config/claudex-cli/current-provider" 2>/dev/null)',
+    '  __cdx_settings="$HOME/.claude/settings.$__cdx_provider.json"',
+    '  if [ -n "$__cdx_provider" ] && [ -f "$__cdx_settings" ]; then',
+    '    command claude --settings "$__cdx_settings" "$@"',
+    '  else',
+    '    command claude "$@"',
+    '  fi',
+    '}',
+    SHELL_BLOCK_END
+  ].join('\n');
+}
+
+// Insert or replace the managed block in `content`. Pure helper: returns the new
+// file content plus whether the block was created / updated / left unchanged.
+// Anything outside the markers is preserved untouched.
+export function upsertShellBlock(content, block) {
+  const existing = content || '';
+  const beginIdx = existing.indexOf(SHELL_BLOCK_BEGIN);
+  const endIdx = existing.indexOf(SHELL_BLOCK_END);
+  if (beginIdx !== -1 && endIdx !== -1 && endIdx >= beginIdx) {
+    const before = existing.slice(0, beginIdx);
+    const after = existing.slice(endIdx + SHELL_BLOCK_END.length);
+    const next = `${before}${block}${after}`;
+    return { next, action: next === existing ? 'unchanged' : 'updated' };
+  }
+  const sep = existing.length === 0 || existing.endsWith('\n') ? '' : '\n';
+  return { next: `${existing}${sep}${block}\n`, action: 'created' };
+}
+
 async function injectShellBlock() {
   const rc = shellRcFile();
-  const begin = '# BEGIN CLAUDEX-SWITCHER';
-  const end = '# END CLAUDEX-SWITCHER';
-  const block = `${begin}\n# helper to run Claude with current provider\ncdxrun() {\n  claudex run "$@"\n}\n${end}\n`;
-
   let content = '';
   if (await exists(rc)) content = await fsp.readFile(rc, 'utf8');
-  if (content.includes(begin) && content.includes(end)) return { rc, changed: false };
-
+  const { next, action } = upsertShellBlock(content, buildShellBlock());
+  if (action === 'unchanged') return { rc, action };
   await backupFile(rc);
-  const next = content.endsWith('\n') || content.length === 0 ? `${content}${block}` : `${content}\n${block}`;
   await fsp.writeFile(rc, next, 'utf8');
-  return { rc, changed: true };
+  return { rc, action };
 }
 
 function parseFlags(argv) {
@@ -1263,22 +1308,28 @@ async function cmdUpdate(rest) {
   const repoUrl = 'git+https://github.com/huaguihai/claudex-cli.git#main';
   const fromLocal = typeof flags['from-local'] === 'string' ? flags['from-local'] : '';
   const fromNpm = Boolean(flags['from-npm']);
+
   if (fromLocal) {
     console.log(`Updating from local path: ${fromLocal}`);
     await runProcess('npm', ['i', '-g', fromLocal], process.env);
-    console.log('Update complete.');
-    return;
-  }
-
-  if (fromNpm) {
+  } else if (fromNpm) {
     console.log('Updating from npm registry: claudex-cli@latest');
     await runProcess('npm', ['i', '-g', 'claudex-cli@latest'], process.env);
-    console.log('Update complete.');
-    return;
+  } else {
+    console.log(`Updating from GitHub: ${repoUrl}`);
+    await runProcess('npm', ['i', '-g', repoUrl], process.env);
   }
 
-  console.log(`Updating from GitHub: ${repoUrl}`);
-  await runProcess('npm', ['i', '-g', repoUrl], process.env);
+  // Refresh the shell helpers via the freshly-installed claudex. This MUST run
+  // as a NEW process: the current one still holds the old code in memory, so
+  // its own injectShellBlock would re-write the previous block. Best-effort —
+  // a failure here must not fail the update itself.
+  console.log('Refreshing shell helpers...');
+  try {
+    await runProcess('claudex', ['init'], process.env);
+  } catch (err) {
+    console.log(`Could not refresh shell helpers automatically (${String(err.message || err)}). Run: claudex init`);
+  }
   console.log('Update complete.');
 }
 
@@ -1290,8 +1341,11 @@ async function cmdInit(lang) {
 
   console.log(t(lang, 'initialized', { v: appDir }));
   console.log(t(lang, 'shellFile', { v: injected.rc }));
-  if (injected.changed) {
+  if (injected.action === 'created') {
     console.log(t(lang, 'helperAdded'));
+    console.log(t(lang, 'helperRun', { v: injected.rc }));
+  } else if (injected.action === 'updated') {
+    console.log(t(lang, 'helperUpdated'));
     console.log(t(lang, 'helperRun', { v: injected.rc }));
   } else {
     console.log(t(lang, 'helperExists'));

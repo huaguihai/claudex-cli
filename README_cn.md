@@ -49,6 +49,9 @@ npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 
 # 3) 初始化（写入 shell helper + 创建全局 Claude 配置）
 claudex init
+# 会写入 cdxrun + claude 包装函数，于是直接运行 claude 也会自动使用
+# 当前服务商配置（显式 --settings、已设 ANTHROPIC_* 变量、或当前服务商
+# 缺失时自动让路，退回普通 claude）。
 # 注意：如果未安装 Claude Code，claudex 会在首次运行时
 # 自动检测并引导你安装。
 
@@ -331,7 +334,7 @@ claudex doctor
 claudex                          # 以当前服务商启动 claude
 claudex --continue               # 继续最近一次会话
 claudex menu                     # 交互菜单
-claudex init                     # 初始化 shell helper + 状态目录
+claudex init                     # 写入 shell helper（cdxrun + claude 包装）+ 状态目录
 claudex add                      # 新增服务商（交互）
 claudex list                     # 列出所有服务商
 claudex use <name|序号>           # 切换服务商
@@ -349,7 +352,7 @@ claudex doctor [--provider <name>]
 claudex run [claude args...]     # 透传给 claude
 ```
 
-更新源：`claudex update` 默认从 GitHub 拉取。加 `--from-npm` 走 npm registry。
+更新源：`claudex update` 默认从 GitHub 拉取。加 `--from-npm` 走 npm registry。更新成功后还会自动刷新 shell 包装（相当于替你跑一次 `claudex init`）。
 
 ## 配置参考
 
@@ -412,7 +415,7 @@ claudex run [claude args...]     # 透传给 claude
 
 每次覆盖服务商配置文件时，旧版本自动保存到 `~/.config/claudex-cli/backups/`。
 
-## 常见问题（Top 3）
+## 常见问题（Top 4）
 
 **`401 Invalid API key`**
 → 检查服务商配置里的 key 和 base URL。运行 `claudex test <name>`。确认 shell 全局变量没有把 key 覆盖掉。
@@ -422,6 +425,9 @@ claudex run [claude args...]     # 透传给 claude
 
 **`Could not resolve host` 或请求超时**
 → 检查 DNS、代理、网络链路。用 `curl` 直连服务地址验证。运行 `claudex doctor` 快速定位。
+
+**直接运行 `claude` 提示 `Not logged in`**
+→ 先运行一次 `claudex init`，再 `source ~/.bashrc`（或新开终端）。注入的 `claude` 包装会让裸 `claude` 自动用当前服务商。（shell 里若设了 `ANTHROPIC_API_KEY`，按设计仍优先用它。）
 
 ---
 

@@ -47,8 +47,11 @@ node -v
 # 2) Install
 npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 
-# 3) Initialize shell helper and bootstrap global Claude settings
+# 3) Initialize shell helpers and bootstrap global Claude settings
 claudex init
+# Installs `cdxrun` + a `claude` wrapper, so running `claude` directly
+# auto-uses your current provider (yields to an explicit --settings,
+# pre-set ANTHROPIC_* vars, or a missing provider — falls back to plain claude).
 # Note: if Claude Code is not installed, claudex will detect it
 # and offer to install it automatically when you first run it.
 
@@ -317,7 +320,7 @@ claudex doctor
 claudex                          # launch claude with current provider
 claudex --continue               # continue latest session
 claudex menu                     # interactive menu
-claudex init                     # initialize shell helper + state dir
+claudex init                     # install shell helpers (cdxrun + claude wrapper) + state dir
 claudex add                      # add provider (interactive)
 claudex list                     # list all providers
 claudex use <name|index>         # switch provider
@@ -335,7 +338,7 @@ claudex doctor [--provider <name>]
 claudex run [claude args...]     # pass-through to claude
 ```
 
-Update source: `claudex update` pulls from GitHub by default. Use `--from-npm` for the npm registry.
+Update source: `claudex update` pulls from GitHub by default. Use `--from-npm` for the npm registry. After a successful update it also refreshes your shell helpers automatically (runs `claudex init` for you).
 
 ## Configuration Reference
 
@@ -398,7 +401,7 @@ All fields live under the `env` key:
 
 Every time a provider file is overwritten, the previous version is saved to `~/.config/claudex-cli/backups/`.
 
-## Troubleshooting (Top 3)
+## Troubleshooting (Top 4)
 
 **`401 Invalid API key`**
 → Check provider file key value and base URL. Run `claudex test <name>`. Make sure shell-level Anthropic env vars aren't forcing another key.
@@ -408,6 +411,9 @@ Every time a provider file is overwritten, the previous version is saved to `~/.
 
 **`Could not resolve host` / timeout**
 → Check DNS/proxy/network path. Verify endpoint with `curl`. Run `claudex doctor` for quick diagnostics.
+
+**`claude` says `Not logged in` when run directly**
+→ Run `claudex init` once, then `source ~/.bashrc` (or open a new terminal). The injected `claude` wrapper makes a bare `claude` use your current provider. (A shell-level `ANTHROPIC_API_KEY` still takes precedence by design.)
 
 ---
 
