@@ -352,7 +352,7 @@ claudex doctor [--provider <name>]
 claudex run [claude args...]     # 透传给 claude
 ```
 
-更新源：`claudex update` 默认从 GitHub 拉取。加 `--from-npm` 走 npm registry。
+更新源：`claudex update` 默认从 GitHub 拉取。加 `--from-npm` 走 npm registry。更新成功后还会自动刷新 shell 包装（相当于替你跑一次 `claudex init`）。
 
 ## 配置参考
 

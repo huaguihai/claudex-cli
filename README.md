@@ -338,7 +338,7 @@ claudex doctor [--provider <name>]
 claudex run [claude args...]     # pass-through to claude
 ```
 
-Update source: `claudex update` pulls from GitHub by default. Use `--from-npm` for the npm registry.
+Update source: `claudex update` pulls from GitHub by default. Use `--from-npm` for the npm registry. After a successful update it also refreshes your shell helpers automatically (runs `claudex init` for you).
 
 ## Configuration Reference
 

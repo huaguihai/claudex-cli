@@ -1308,22 +1308,28 @@ async function cmdUpdate(rest) {
   const repoUrl = 'git+https://github.com/huaguihai/claudex-cli.git#main';
   const fromLocal = typeof flags['from-local'] === 'string' ? flags['from-local'] : '';
   const fromNpm = Boolean(flags['from-npm']);
+
   if (fromLocal) {
     console.log(`Updating from local path: ${fromLocal}`);
     await runProcess('npm', ['i', '-g', fromLocal], process.env);
-    console.log('Update complete.');
-    return;
-  }
-
-  if (fromNpm) {
+  } else if (fromNpm) {
     console.log('Updating from npm registry: claudex-cli@latest');
     await runProcess('npm', ['i', '-g', 'claudex-cli@latest'], process.env);
-    console.log('Update complete.');
-    return;
+  } else {
+    console.log(`Updating from GitHub: ${repoUrl}`);
+    await runProcess('npm', ['i', '-g', repoUrl], process.env);
   }
 
-  console.log(`Updating from GitHub: ${repoUrl}`);
-  await runProcess('npm', ['i', '-g', repoUrl], process.env);
+  // Refresh the shell helpers via the freshly-installed claudex. This MUST run
+  // as a NEW process: the current one still holds the old code in memory, so
+  // its own injectShellBlock would re-write the previous block. Best-effort —
+  // a failure here must not fail the update itself.
+  console.log('Refreshing shell helpers...');
+  try {
+    await runProcess('claudex', ['init'], process.env);
+  } catch (err) {
+    console.log(`Could not refresh shell helpers automatically (${String(err.message || err)}). Run: claudex init`);
+  }
   console.log('Update complete.');
 }
 
