@@ -47,8 +47,11 @@ node -v
 # 2) Install
 npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 
-# 3) Initialize shell helper and bootstrap global Claude settings
+# 3) Initialize shell helpers and bootstrap global Claude settings
 claudex init
+# Installs `cdxrun` + a `claude` wrapper, so running `claude` directly
+# auto-uses your current provider (yields to an explicit --settings,
+# pre-set ANTHROPIC_* vars, or a missing provider — falls back to plain claude).
 # Note: if Claude Code is not installed, claudex will detect it
 # and offer to install it automatically when you first run it.
 
@@ -317,7 +320,7 @@ claudex doctor
 claudex                          # launch claude with current provider
 claudex --continue               # continue latest session
 claudex menu                     # interactive menu
-claudex init                     # initialize shell helper + state dir
+claudex init                     # install shell helpers (cdxrun + claude wrapper) + state dir
 claudex add                      # add provider (interactive)
 claudex list                     # list all providers
 claudex use <name|index>         # switch provider

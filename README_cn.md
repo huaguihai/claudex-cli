@@ -49,6 +49,9 @@ npm i -g git+https://github.com/huaguihai/claudex-cli.git#main
 
 # 3) 初始化（写入 shell helper + 创建全局 Claude 配置）
 claudex init
+# 会写入 cdxrun + claude 包装函数，于是直接运行 claude 也会自动使用
+# 当前服务商配置（显式 --settings、已设 ANTHROPIC_* 变量、或当前服务商
+# 缺失时自动让路，退回普通 claude）。
 # 注意：如果未安装 Claude Code，claudex 会在首次运行时
 # 自动检测并引导你安装。
 
@@ -331,7 +334,7 @@ claudex doctor
 claudex                          # 以当前服务商启动 claude
 claudex --continue               # 继续最近一次会话
 claudex menu                     # 交互菜单
-claudex init                     # 初始化 shell helper + 状态目录
+claudex init                     # 写入 shell helper（cdxrun + claude 包装）+ 状态目录
 claudex add                      # 新增服务商（交互）
 claudex list                     # 列出所有服务商
 claudex use <name|序号>           # 切换服务商
