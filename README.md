@@ -401,7 +401,7 @@ All fields live under the `env` key:
 
 Every time a provider file is overwritten, the previous version is saved to `~/.config/claudex-cli/backups/`.
 
-## Troubleshooting (Top 3)
+## Troubleshooting (Top 4)
 
 **`401 Invalid API key`**
 → Check provider file key value and base URL. Run `claudex test <name>`. Make sure shell-level Anthropic env vars aren't forcing another key.
@@ -411,6 +411,9 @@ Every time a provider file is overwritten, the previous version is saved to `~/.
 
 **`Could not resolve host` / timeout**
 → Check DNS/proxy/network path. Verify endpoint with `curl`. Run `claudex doctor` for quick diagnostics.
+
+**`claude` says `Not logged in` when run directly**
+→ Run `claudex init` once, then `source ~/.bashrc` (or open a new terminal). The injected `claude` wrapper makes a bare `claude` use your current provider. (A shell-level `ANTHROPIC_API_KEY` still takes precedence by design.)
 
 ---
 

@@ -415,7 +415,7 @@ claudex run [claude args...]     # 透传给 claude
 
 每次覆盖服务商配置文件时，旧版本自动保存到 `~/.config/claudex-cli/backups/`。
 
-## 常见问题（Top 3）
+## 常见问题（Top 4）
 
 **`401 Invalid API key`**
 → 检查服务商配置里的 key 和 base URL。运行 `claudex test <name>`。确认 shell 全局变量没有把 key 覆盖掉。
@@ -425,6 +425,9 @@ claudex run [claude args...]     # 透传给 claude
 
 **`Could not resolve host` 或请求超时**
 → 检查 DNS、代理、网络链路。用 `curl` 直连服务地址验证。运行 `claudex doctor` 快速定位。
+
+**直接运行 `claude` 提示 `Not logged in`**
+→ 先运行一次 `claudex init`，再 `source ~/.bashrc`（或新开终端）。注入的 `claude` 包装会让裸 `claude` 自动用当前服务商。（shell 里若设了 `ANTHROPIC_API_KEY`，按设计仍优先用它。）
 
 ---
 
