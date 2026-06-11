@@ -401,7 +401,7 @@ All fields live under the `env` key:
 
 Every time a provider file is overwritten, the previous version is saved to `~/.config/claudex-cli/backups/`.
 
-## Troubleshooting (Top 5)
+## Troubleshooting (Top 6)
 
 **`401 Invalid API key`**
 → Check provider file key value and base URL. Run `claudex test <name>`. Make sure shell-level Anthropic env vars aren't forcing another key.
@@ -417,6 +417,9 @@ Every time a provider file is overwritten, the previous version is saved to `~/.
 
 **Windows: `claudex` launches an older `claude` than typing `claude` yourself**
 → Node resolves a bare `claude` to `claude.exe` only, so it skips npm's `claude.cmd`/`claude.ps1` shims and can hit an older WinGet-installed `claude.exe`. `claudex` now mirrors your shell's `PATH`/`PATHEXT` lookup and launches the same `claude` you get interactively (running the npm install's `cli.js` with your `node`). Keep your npm global bin (e.g. `%APPDATA%\npm`) ahead of the WinGet path in `PATH`.
+
+**Windows: `claudex update` fails with `spawn npm ENOENT`**
+→ Same root cause: Node can't resolve npm's `npm.cmd`/`npm.ps1` shims (there is no `npm.exe`). `claudex update` now runs npm — and the post-update `claudex init` — via their `cli.js` with your `node`, so no shell is needed. If you're on a build from before this fix, update once manually: `npm i -g git+https://github.com/huaguihai/claudex-cli.git#main`.
 
 ---
 
