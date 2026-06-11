@@ -597,6 +597,9 @@ Provider 元数据 schema：
 
 ### 常见问题
 
+**`codexx` 提示 `codex CLI not installed`，但明明装了 codex（Windows）**
+→ 旧逻辑用 `which` 检测，而 Windows 没有 `which`（是 `where`）；且裸 `codex` 在 Windows 是 npm shim（`codex.cmd`/`codex.ps1`，没有 `codex.exe`），Node 解析不到。`codexx` 现在通过共享的 PATH/PATHEXT 解析器探测 `codex --version`，因此能检测并启动与你交互式敲 `codex` 一致的那一份。（`codexx update` 也用同样方式解析 npm。）
+
 **`codexx use` 提示 drift detected**
 → 有外部改动（多半是 `codex login`、`codex mcp add`、或手动编辑）改了 `~/.codex/config.toml` 或 `auth.json`。`codexx doctor` 看详情；`codexx reconcile` 把外部状态接受为新基线，或 `use` 加 `--force` 直接覆盖。
 

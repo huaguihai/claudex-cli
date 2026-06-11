@@ -583,6 +583,9 @@ Provider metadata schema:
 
 ### Troubleshooting
 
+**`codexx` says `codex CLI not installed` even though codex is installed (Windows)**
+→ Detection used to shell out to `which`, which doesn't exist on Windows (it's `where`), and a bare `codex` there is an npm shim (`codex.cmd`/`codex.ps1`, no `codex.exe`) that Node can't resolve. `codexx` now probes `codex --version` through the shared PATH/PATHEXT resolver, so it detects and launches the same codex you get interactively. (`codexx update` resolves npm the same way.)
+
 **`codexx use` says drift detected**
 → Something (likely `codex login`, `codex mcp add`, or a manual edit) changed `~/.codex/config.toml` or `auth.json` since the last switch. Run `codexx doctor` to see specifics; `codexx reconcile` to accept the external state as the new baseline, or `--force` on `use` to overwrite.
 
