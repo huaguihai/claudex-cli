@@ -415,7 +415,7 @@ claudex run [claude args...]     # 透传给 claude
 
 每次覆盖服务商配置文件时，旧版本自动保存到 `~/.config/claudex-cli/backups/`。
 
-## 常见问题（Top 4）
+## 常见问题（Top 6）
 
 **`401 Invalid API key`**
 → 检查服务商配置里的 key 和 base URL。运行 `claudex test <name>`。确认 shell 全局变量没有把 key 覆盖掉。
@@ -428,6 +428,12 @@ claudex run [claude args...]     # 透传给 claude
 
 **直接运行 `claude` 提示 `Not logged in`**
 → 先运行一次 `claudex init`，再 `source ~/.bashrc`（或新开终端）。注入的 `claude` 包装会让裸 `claude` 自动用当前服务商。（shell 里若设了 `ANTHROPIC_API_KEY`，按设计仍优先用它。）
+
+**Windows：`claudex` 启动的 `claude` 比你自己敲 `claude` 旧**
+→ Node 解析裸 `claude` 时只会补 `.exe`，因此会跳过 npm 的 `claude.cmd`/`claude.ps1`，命中 WinGet 装的旧 `claude.exe`。`claudex` 现在会复刻 shell 的 `PATH`/`PATHEXT` 查找，启动与你交互式敲 `claude` **完全一致**的那一份（用你的 `node` 直接跑 npm 安装包里的 `cli.js`）。请保证 npm 全局 bin（如 `%APPDATA%\npm`）在 `PATH` 中排在 WinGet 路径前面。
+
+**Windows：`claudex update` 报 `spawn npm ENOENT`**
+→ 同一类根因：Node 无法解析 npm 的 `npm.cmd`/`npm.ps1`（没有 `npm.exe`）。`claudex update` 现在会用你的 `node` 直接跑 npm（以及更新后的 `claudex init`）的 `cli.js`，无需 shell 即可工作。若你用的是修复前的版本，先手动更新一次：`npm i -g git+https://github.com/huaguihai/claudex-cli.git#main`。
 
 ---
 
