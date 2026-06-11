@@ -65,6 +65,7 @@ import {
   buildLaunchBanner,
   preflight
 } from './launch.js';
+import { resolveCommand } from '../shared/resolve-launcher.js';
 
 const PKG_VERSION = '0.1.0';
 
@@ -1100,11 +1101,13 @@ async function cmdRestoreChatGpt(args, lang) {
 async function cmdUpdate(args, lang) {
   // self-update via npm; reuse pattern from claudex `claudex update`.
   const { spawn } = await import('node:child_process');
+  const { file, prefixArgs, shell } = resolveCommand('npm');
   return await new Promise((resolve) => {
+    const spawnOpts = shell ? { stdio: 'inherit', shell: true } : { stdio: 'inherit' };
     const child = spawn(
-      'npm',
-      ['install', '-g', 'git+https://github.com/huaguihai/claudex-cli.git#main'],
-      { stdio: 'inherit' }
+      file,
+      [...prefixArgs, 'install', '-g', 'git+https://github.com/huaguihai/claudex-cli.git#main'],
+      spawnOpts
     );
     child.on('exit', (code) => resolve(code ?? 0));
     child.on('error', (err) => {

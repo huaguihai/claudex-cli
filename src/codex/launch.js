@@ -8,6 +8,7 @@ import {
   codexHome
 } from './constants.js';
 import { exists } from '../shared/fs-utils.js';
+import { resolveCommand } from '../shared/resolve-launcher.js';
 import { getCurrentProvider, readProvider } from './providers.js';
 
 /**
@@ -57,20 +58,19 @@ export async function buildCodexEnv(baseEnv = process.env) {
 /**
  * Detect codex install + version.
  * Returns { installed: boolean, version: string|null, path: string|null }.
+ *
+ * We probe `codex --version` directly rather than shelling out to `which`:
+ * `which` does not exist on Windows (it is `where`), and a bare `codex` there
+ * is an npm shim (codex.cmd / codex.ps1, no codex.exe) that Node's spawn can't
+ * resolve. resolveCommand() turns it into a runnable invocation cross-platform.
  */
 export function detectCodex() {
   try {
-    const which = execFileSync('which', ['codex'], {
-      stdio: ['ignore', 'pipe', 'ignore']
-    })
-      .toString()
-      .trim();
-    if (!which) return { installed: false, version: null, path: null };
-    const out = execFileSync('codex', ['--version'], {
-      stdio: ['ignore', 'pipe', 'ignore']
-    }).toString();
+    const { file, prefixArgs, shell } = resolveCommand('codex');
+    const baseOpts = { stdio: ['ignore', 'pipe', 'ignore'] };
+    const out = execFileSync(file, [...prefixArgs, '--version'], shell ? { ...baseOpts, shell: true } : baseOpts).toString();
     const m = out.match(/(\d+\.\d+\.\d+)/);
-    return { installed: true, version: m ? m[1] : null, path: which };
+    return { installed: true, version: m ? m[1] : null, path: file };
   } catch {
     return { installed: false, version: null, path: null };
   }
@@ -101,8 +101,10 @@ export function detectCodexAppRunning() {
  */
 export async function spawnCodex(args, opts = {}) {
   const env = opts.env || (await buildCodexEnv());
+  const { file, prefixArgs, shell } = resolveCommand('codex');
   return new Promise((resolve, reject) => {
-    const child = spawn('codex', args, { stdio: 'inherit', env });
+    const spawnOpts = shell ? { stdio: 'inherit', env, shell: true } : { stdio: 'inherit', env };
+    const child = spawn(file, [...prefixArgs, ...args], spawnOpts);
     child.on('error', reject);
     child.on('exit', (code) => resolve(code ?? 0));
   });
