@@ -157,6 +157,11 @@ const TXT = {
     helperUpdated: '已更新快捷函数: cdxrun + claude（裸 claude 自动跟随当前服务商）',
     helperRun: '请执行: source {v}',
     helperExists: '快捷函数已是最新',
+    pwshFile: 'PowerShell 配置文件: {v}',
+    pwshHelperAdded: '已写入 PowerShell 快捷函数: cdxrun + claude（裸 claude 自动跟随当前服务商）',
+    pwshHelperUpdated: '已更新 PowerShell 快捷函数: cdxrun + claude（裸 claude 自动跟随当前服务商）',
+    pwshHelperRun: '请执行: . {v}（或新开一个 PowerShell 窗口）',
+    pwshHelperExists: 'PowerShell 快捷函数已是最新',
     globalSettingsCreated: '🧩 已创建全局 Claude 配置: {v}',
     globalSettingsExists: 'ℹ️ 已保留现有全局 Claude 配置: {v}',
     wizardSaved: '已保存配置: {v}',
@@ -286,6 +291,11 @@ const TXT = {
     helperUpdated: 'Updated shell helpers: cdxrun + claude (bare claude follows the current provider)',
     helperRun: 'Run: source {v}',
     helperExists: 'Shell helpers already up to date',
+    pwshFile: 'PowerShell profile: {v}',
+    pwshHelperAdded: 'Injected PowerShell helpers: cdxrun + claude (bare claude follows the current provider)',
+    pwshHelperUpdated: 'Updated PowerShell helpers: cdxrun + claude (bare claude follows the current provider)',
+    pwshHelperRun: 'Run: . {v} (or open a new PowerShell window)',
+    pwshHelperExists: 'PowerShell helpers already up to date',
     globalSettingsCreated: '🧩 Created global Claude settings: {v}',
     globalSettingsExists: 'ℹ️ Kept existing global Claude settings: {v}',
     wizardSaved: 'Saved config: {v}',
@@ -856,6 +866,61 @@ async function injectShellBlock() {
   await backupFile(rc);
   await fsp.writeFile(rc, next, 'utf8');
   return { rc, action };
+}
+
+// Build the managed PowerShell block (no trailing newline). buildShellBlock()'s
+// wrapper only works in bash/zsh; this is the PowerShell 7 analog so a bare
+// `claude` in pwsh also follows the current provider. Reuses the same BEGIN/END
+// markers (`#` is a comment in PowerShell too), so upsertShellBlock applies.
+export function buildPowerShellBlock() {
+  return [
+    SHELL_BLOCK_BEGIN,
+    '# Run Claude with the current provider.',
+    'function cdxrun { claudex run @args }',
+    '',
+    '# Bare `claude` uses the current provider; yields to an explicit --settings,',
+    '# pre-set ANTHROPIC_* creds, or a missing/unconfigured provider.',
+    'function claude {',
+    '  $real = (Get-Command claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source',
+    "  if (-not $real) { Write-Error 'claude not found on PATH'; return }",
+    '  if (("$args" -like \'*--settings*\') -or $env:ANTHROPIC_API_KEY -or $env:ANTHROPIC_AUTH_TOKEN) { & $real @args; return }',
+    '  $provider = (Get-Content "$HOME\\.config\\claudex-cli\\current-provider" -ErrorAction SilentlyContinue | Select-Object -First 1)',
+    '  $settings = "$HOME\\.claude\\settings.$provider.json"',
+    '  if ($provider -and (Test-Path $settings)) { & $real --settings $settings @args } else { & $real @args }',
+    '}',
+    SHELL_BLOCK_END
+  ].join('\n');
+}
+
+function defaultPowerShellProfilePath() {
+  return path.join(home, 'Documents', 'PowerShell', 'Microsoft.PowerShell_profile.ps1');
+}
+
+// Ask pwsh for the real $PROFILE path (handles OneDrive Documents redirection);
+// fall back to the conventional location if pwsh cannot be queried. Injectable
+// for tests via opts.queryProfile / opts.fallback.
+export function powerShellProfilePath(opts = {}) {
+  const query = opts.queryProfile
+    || (() => execFileSync('pwsh', ['-NoProfile', '-NoLogo', '-Command', '$PROFILE'], { encoding: 'utf8' }));
+  try {
+    const out = String(query() || '').trim();
+    if (out) return out;
+  } catch {
+    // pwsh not found / not runnable — fall through to the conventional path.
+  }
+  return opts.fallback || defaultPowerShellProfilePath();
+}
+
+async function injectPowerShellProfile() {
+  const profile = powerShellProfilePath();
+  await ensureDir(path.dirname(profile));
+  let content = '';
+  if (await exists(profile)) content = await fsp.readFile(profile, 'utf8');
+  const { next, action } = upsertShellBlock(content, buildPowerShellBlock());
+  if (action === 'unchanged') return { profile, action };
+  await backupFile(profile);
+  await fsp.writeFile(profile, next, 'utf8');
+  return { profile, action };
 }
 
 function parseFlags(argv) {
@@ -1449,6 +1514,23 @@ async function cmdInit(lang) {
     console.log(t(lang, 'helperRun', { v: injected.rc }));
   } else {
     console.log(t(lang, 'helperExists'));
+  }
+
+  // On Windows the bash/zsh wrapper above never loads in PowerShell, so a bare
+  // `claude` there would ignore the current provider. Inject the PowerShell 7
+  // analog into $PROFILE as well.
+  if (process.platform === 'win32') {
+    const ps = await injectPowerShellProfile();
+    console.log(t(lang, 'pwshFile', { v: ps.profile }));
+    if (ps.action === 'created') {
+      console.log(t(lang, 'pwshHelperAdded'));
+      console.log(t(lang, 'pwshHelperRun', { v: ps.profile }));
+    } else if (ps.action === 'updated') {
+      console.log(t(lang, 'pwshHelperUpdated'));
+      console.log(t(lang, 'pwshHelperRun', { v: ps.profile }));
+    } else {
+      console.log(t(lang, 'pwshHelperExists'));
+    }
   }
 }
 
