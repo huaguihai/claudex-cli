@@ -413,7 +413,7 @@ Every time a provider file is overwritten, the previous version is saved to `~/.
 → Check DNS/proxy/network path. Verify endpoint with `curl`. Run `claudex doctor` for quick diagnostics.
 
 **`claude` says `Not logged in` when run directly**
-→ Run `claudex init` once, then `source ~/.bashrc` (or open a new terminal). The injected `claude` wrapper makes a bare `claude` use your current provider. (A shell-level `ANTHROPIC_API_KEY` still takes precedence by design.)
+→ Run `claudex init` once, then reload your shell. On macOS/Linux the wrapper goes into `~/.bashrc`/`~/.zshrc` (`source` it or open a new terminal). On Windows it goes into your PowerShell 7 `$PROFILE` (`. $PROFILE` or open a new window). The injected `claude` wrapper makes a bare `claude` use your current provider. (A shell-level `ANTHROPIC_API_KEY` still takes precedence by design; cmd.exe is not covered — use `claudex` there.)
 
 **Windows: `claudex` launches an older `claude` than typing `claude` yourself**
 → Node resolves a bare `claude` to `claude.exe` only, so it skips npm's `claude.cmd`/`claude.ps1` shims and can hit an older WinGet-installed `claude.exe`. `claudex` now mirrors your shell's `PATH`/`PATHEXT` lookup and launches the same `claude` you get interactively (running the npm install's `cli.js` with your `node`). Keep your npm global bin (e.g. `%APPDATA%\npm`) ahead of the WinGet path in `PATH`.
