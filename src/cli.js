@@ -3,6 +3,8 @@ import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
+import { runStats } from './stats/command.js';
+import { installStatsCommand } from './stats/install-command.js';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import {
@@ -1450,6 +1452,15 @@ async function cmdInit(lang) {
       console.log(t(lang, 'pwshHelperExists'));
     }
   }
+
+  try {
+    const statsCmd = await installStatsCommand();
+    console.log(lang === 'zh'
+      ? `已安装 /stats 命令：${statsCmd}（在 Claude Code 里输入 /stats 查看用量统计）`
+      : `Installed /stats command: ${statsCmd} (type /stats in Claude Code)`);
+  } catch {
+    // /stats is a convenience; don't fail init if it can't be written.
+  }
 }
 
 async function pickProvider(lang, promptText) {
@@ -1995,6 +2006,11 @@ export async function main(argv = process.argv.slice(2)) {
   if (cmd === 'run') {
     if (!(await ensureLaunchPrerequisites(lang))) return;
     await runClaude(rest);
+    return;
+  }
+
+  if (cmd === 'stats') {
+    console.log(await runStats(rest));
     return;
   }
 

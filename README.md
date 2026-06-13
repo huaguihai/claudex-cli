@@ -336,7 +336,10 @@ claudex native doctor            # show Native checks
 claudex update [--from-local <path>] [--from-npm]
 claudex doctor [--provider <name>]
 claudex run [claude args...]     # pass-through to claude
+claudex stats [--week|--month|--year|--since DATE] [--json] [--idle-gap 5m]   # token usage & activity stats (via ccusage)
 ```
+
+`claudex stats` reads Claude Code's local transcripts and shells out to the bundled [`ccusage`](https://github.com/ryoppippi/ccusage) for token totals, then adds activity metrics (active time by a 5-minute idle gap, active days, streak, busiest hour) and a per-day trend. `--json` emits the raw report. `claudex init` also installs a `/stats` slash command so you can run it inside a Claude Code session (typing `!claudex stats` works too, with no model round-trip).
 
 Update source: `claudex update` pulls from GitHub by default. Use `--from-npm` for the npm registry. After a successful update it also refreshes your shell helpers automatically (runs `claudex init` for you).
 

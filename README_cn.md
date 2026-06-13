@@ -350,7 +350,10 @@ claudex native doctor            # 查看 Native 检查结果
 claudex update [--from-local <path>] [--from-npm]
 claudex doctor [--provider <name>]
 claudex run [claude args...]     # 透传给 claude
+claudex stats [--week|--month|--year|--since DATE] [--json] [--idle-gap 5m]   # token 用量与活跃度统计（基于 ccusage）
 ```
+
+`claudex stats` 读取 Claude Code 的本地会话记录，调用内置的 [`ccusage`](https://github.com/ryoppippi/ccusage) 取 token 总量，再补上 ccusage 没有的活跃度指标（按 5 分钟空闲阈值估算活跃时长、活跃天数、连续打卡、最活跃时段）和每日趋势。`--json` 输出原始报告。`claudex init` 还会安装一个 `/stats` slash 命令，可在 Claude Code 会话里直接运行（直接敲 `!claudex stats` 也行，且不经模型）。
 
 更新源：`claudex update` 默认从 GitHub 拉取。加 `--from-npm` 走 npm registry。更新成功后还会自动刷新 shell 包装（相当于替你跑一次 `claudex init`）。
 
