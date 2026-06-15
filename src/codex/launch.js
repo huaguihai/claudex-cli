@@ -1,6 +1,7 @@
 import { spawn, execFileSync } from 'node:child_process';
 import path from 'node:path';
 import fsp from 'node:fs/promises';
+import fs from 'node:fs';
 
 import {
   codexConfigTomlPath,
@@ -59,21 +60,33 @@ export async function buildCodexEnv(baseEnv = process.env) {
  * Returns { installed: boolean, version: string|null, path: string|null }.
  */
 export function detectCodex() {
-  try {
-    const which = execFileSync('which', ['codex'], {
-      stdio: ['ignore', 'pipe', 'ignore']
-    })
-      .toString()
-      .trim();
-    if (!which) return { installed: false, version: null, path: null };
-    const out = execFileSync('codex', ['--version'], {
-      stdio: ['ignore', 'pipe', 'ignore']
-    }).toString();
-    const m = out.match(/(\d+\.\d+\.\d+)/);
-    return { installed: true, version: m ? m[1] : null, path: which };
-  } catch {
-    return { installed: false, version: null, path: null };
+  const candidates = ['codex'];
+  if (process.platform === 'win32') {
+    const appdata = process.env.APPDATA;
+    if (appdata) candidates.push(path.join(appdata, 'npm', 'codex.cmd'));
   }
+
+  for (const candidate of candidates) {
+    try {
+      if (candidate !== 'codex' && !fs.existsSync(candidate)) continue;
+      const which = candidate === 'codex'
+        ? execFileSync(process.platform === 'win32' ? 'where' : 'which', ['codex'], {
+            stdio: ['ignore', 'pipe', 'ignore']
+          }).toString().split(/\r?\n/).find(Boolean)?.trim()
+        : candidate;
+      if (!which) continue;
+      const out = execFileSync(candidate, ['--version'], {
+        stdio: ['ignore', 'pipe', 'ignore'],
+        shell: process.platform === 'win32'
+      }).toString();
+      const m = out.match(/(\d+\.\d+\.\d+)/);
+      return { installed: true, version: m ? m[1] : null, path: which };
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return { installed: false, version: null, path: null };
 }
 
 /**
@@ -95,14 +108,30 @@ export function detectCodexAppRunning() {
   }
 }
 
+export function resolveCodexCommand() {
+  if (process.platform === 'win32') {
+    const appdata = process.env.APPDATA;
+    if (appdata) {
+      const cmd = path.join(appdata, 'npm', 'codex.cmd');
+      if (fs.existsSync(cmd)) return cmd;
+    }
+  }
+  return 'codex';
+}
+
 /**
  * Spawn `codex` with the given args, inheriting stdio.
  * Resolves with the exit code.
  */
 export async function spawnCodex(args, opts = {}) {
   const env = opts.env || (await buildCodexEnv());
+  const command = resolveCodexCommand();
   return new Promise((resolve, reject) => {
-    const child = spawn('codex', args, { stdio: 'inherit', env });
+    const child = spawn(command, args, {
+      stdio: 'inherit',
+      env,
+      shell: process.platform === 'win32'
+    });
     child.on('error', reject);
     child.on('exit', (code) => resolve(code ?? 0));
   });
