@@ -490,6 +490,7 @@ codexx revert
 | `codexx reconcile` | After `codex login` / `codex mcp add` / external edits, accept current state as new baseline |
 | `codexx restore-chatgpt` | Restore ChatGPT OAuth tokens from backup if codexx overwrote them |
 | `codexx login / logout / app` | Claudex-aware wrappers — warn before clobbering managed state, then passthrough |
+| `codexx --resume` | **Cross-provider session picker**: lists sessions in the current directory across ALL providers (codex's own `resume` only shows the active provider's sessions). Select by number → resume with current provider. Note: `codexx resume` (bare) remains a pure passthrough to codex's native picker. |
 | `codexx -- <args>` | Force pure passthrough (escape hatch for any future codex subcommand) |
 
 ### How It Works
