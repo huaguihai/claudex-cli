@@ -128,6 +128,12 @@ const TXT = {
     missingArg: '⚠️ 缺少参数: {v}',
     invalidArg: '⚠️ 参数无效: {v}',
 
+    // cross-provider resume (codexx --resume)
+    resumeHeader: 'Codex 会话记录（{v}，跨全部 provider）。注: codexx resume 只列当前 provider:',
+    resumeNone: '当前目录（{v}）暂无 Codex 会话记录。',
+    resumePrompt: '输入序号恢复会话（1-{v}，直接回车取消）: ',
+    resumeListOnly: 'ℹ️ 非交互模式：仅列出。要直接恢复某条，请用: codexx resume <id>',
+
     // help (rendered in usage())
     usageHeader: 'codexx — 切换 OpenAI Codex 服务商，体感与原生 codex 一致',
     usageRun: '日常启动:',
@@ -254,6 +260,12 @@ const TXT = {
     notImplemented: '⚠️ Not yet implemented (coming in a later milestone).',
     missingArg: '⚠️ Missing argument: {v}',
     invalidArg: '⚠️ Invalid argument: {v}',
+
+    // cross-provider resume (codexx --resume)
+    resumeHeader: 'Codex sessions in {v} (across ALL providers). Note: `codexx resume` lists only the current provider:',
+    resumeNone: 'No Codex sessions recorded for this directory ({v}).',
+    resumePrompt: 'Enter a number to resume (1-{v}, empty to cancel): ',
+    resumeListOnly: 'ℹ️ Non-interactive: list only. To resume one directly: codexx resume <id>',
 
     usageHeader: 'codexx — switch OpenAI Codex providers; daily UX matches native codex',
     usageRun: 'Run codex:',

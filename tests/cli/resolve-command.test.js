@@ -54,3 +54,27 @@ test('未知命令：原样返回，不做任何解析', () => {
   const r = resolveCommand('git', { platform: 'win32', pathEnv: NODE_DIR, fileExists: () => false });
   assert.deepEqual(r, { file: 'git', prefixArgs: [] });
 });
+
+test('win32：codex 是 npm shim → 解析到 codex 的 cli.js 用 node 跑（不再误判未安装）', () => {
+  const codexCmd = path.join(NPM_BIN, 'codex.cmd');
+  const codexCli = path.join(NPM_BIN, 'node_modules', '@openai', 'codex', 'bin', 'codex.js');
+  const set = new Set([codexCmd, codexCli]);
+  const r = resolveCommand('codex', {
+    platform: 'win32', pathEnv: NPM_BIN, pathExt: '.COM;.EXE;.BAT;.CMD', execPath: NODE,
+    fileExists: (p) => set.has(p)
+  });
+  assert.deepEqual(r, { file: NODE, prefixArgs: [codexCli] });
+});
+
+test('win32：codex shim 但缺 cli.js → shell 兜底（codex --version 仍可探测）', () => {
+  const codexCmd = path.join(NPM_BIN, 'codex.cmd');
+  const set = new Set([codexCmd]);
+  const r = resolveCommand('codex', {
+    platform: 'win32', pathEnv: NPM_BIN, execPath: NODE, fileExists: (p) => set.has(p)
+  });
+  assert.deepEqual(r, { file: codexCmd, prefixArgs: [], shell: true });
+});
+
+test('非 win32：codex 用裸命令（detectCodex 直接探测 codex --version）', () => {
+  assert.deepEqual(resolveCommand('codex', { platform: 'linux' }), { file: 'codex', prefixArgs: [] });
+});

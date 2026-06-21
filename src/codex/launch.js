@@ -9,6 +9,7 @@ import {
   codexHome
 } from './constants.js';
 import { exists } from '../shared/fs-utils.js';
+import { resolveCommand } from '../shared/resolve-launcher.js';
 import { getCurrentProvider, readProvider } from './providers.js';
 
 /**
@@ -58,35 +59,22 @@ export async function buildCodexEnv(baseEnv = process.env) {
 /**
  * Detect codex install + version.
  * Returns { installed: boolean, version: string|null, path: string|null }.
+ *
+ * We probe `codex --version` directly rather than shelling out to `which`:
+ * `which` does not exist on Windows (it is `where`), and a bare `codex` there
+ * is an npm shim (codex.cmd / codex.ps1, no codex.exe) that Node's spawn can't
+ * resolve. resolveCommand() turns it into a runnable invocation cross-platform.
  */
 export function detectCodex() {
-  const candidates = ['codex'];
-  if (process.platform === 'win32') {
-    const appdata = process.env.APPDATA;
-    if (appdata) candidates.push(path.join(appdata, 'npm', 'codex.cmd'));
+  try {
+    const { file, prefixArgs, shell } = resolveCommand('codex');
+    const baseOpts = { stdio: ['ignore', 'pipe', 'ignore'] };
+    const out = execFileSync(file, [...prefixArgs, '--version'], shell ? { ...baseOpts, shell: true } : baseOpts).toString();
+    const m = out.match(/(\d+\.\d+\.\d+)/);
+    return { installed: true, version: m ? m[1] : null, path: file };
+  } catch {
+    return { installed: false, version: null, path: null };
   }
-
-  for (const candidate of candidates) {
-    try {
-      if (candidate !== 'codex' && !fs.existsSync(candidate)) continue;
-      const which = candidate === 'codex'
-        ? execFileSync(process.platform === 'win32' ? 'where' : 'which', ['codex'], {
-            stdio: ['ignore', 'pipe', 'ignore']
-          }).toString().split(/\r?\n/).find(Boolean)?.trim()
-        : candidate;
-      if (!which) continue;
-      const out = execFileSync(candidate, ['--version'], {
-        stdio: ['ignore', 'pipe', 'ignore'],
-        shell: process.platform === 'win32'
-      }).toString();
-      const m = out.match(/(\d+\.\d+\.\d+)/);
-      return { installed: true, version: m ? m[1] : null, path: which };
-    } catch {
-      // Try the next candidate.
-    }
-  }
-
-  return { installed: false, version: null, path: null };
 }
 
 /**
@@ -108,30 +96,16 @@ export function detectCodexAppRunning() {
   }
 }
 
-export function resolveCodexCommand() {
-  if (process.platform === 'win32') {
-    const appdata = process.env.APPDATA;
-    if (appdata) {
-      const cmd = path.join(appdata, 'npm', 'codex.cmd');
-      if (fs.existsSync(cmd)) return cmd;
-    }
-  }
-  return 'codex';
-}
-
 /**
  * Spawn `codex` with the given args, inheriting stdio.
  * Resolves with the exit code.
  */
 export async function spawnCodex(args, opts = {}) {
   const env = opts.env || (await buildCodexEnv());
-  const command = resolveCodexCommand();
+  const { file, prefixArgs, shell } = resolveCommand('codex');
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      stdio: 'inherit',
-      env,
-      shell: process.platform === 'win32'
-    });
+    const spawnOpts = shell ? { stdio: 'inherit', env, shell: true } : { stdio: 'inherit', env };
+    const child = spawn(file, [...prefixArgs, ...args], spawnOpts);
     child.on('error', reject);
     child.on('exit', (code) => resolve(code ?? 0));
   });

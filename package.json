@@ -20,6 +20,7 @@
     "benchmark:native:all": "npm run benchmark:native && npm run benchmark:native:summary && npm run benchmark:native:autotune && npm run benchmark:native:dashboard && npm run benchmark:native:smoke"
   },
   "dependencies": {
+    "ccusage": "20.0.11",
     "proper-lockfile": "^4.1.2",
     "smol-toml": "^1.4.2"
   },

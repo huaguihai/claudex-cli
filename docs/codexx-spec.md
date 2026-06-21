@@ -756,6 +756,7 @@ Every milestone has verifiable, testable outcomes.
 
 - All claudex-owned subcommands implemented per §3.2.
 - Passthrough verified for: `resume`, `exec`, `review`, `apply`, `fork`, `mcp`, `plugin`, `features`, `app`.
+- `codexx --resume`: cross-provider session picker lists current directory's sessions across ALL providers (codex's `resume` only shows active provider's). Non-interactive: list-only; interactive: select by number → `codex resume <id>` with current provider. Excludes non-interactive (exec/review) sessions by default, matching codex picker behavior.
 - `codexx --help` outputs all commands with one-line descriptions.
 - `codexx -- update` reaches codex (not claudex self-update).
 - Exit codes match §3.3 for each documented error case.

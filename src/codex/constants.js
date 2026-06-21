@@ -37,6 +37,13 @@ export function codexAgentsMdPath() {
   return path.join(codexHome(), 'AGENTS.md');
 }
 
+export function codexSessionsDir() {
+  // Codex stores interactive session transcripts ("rollouts") under
+  // ~/.codex/sessions/YYYY/MM/DD/rollout-<ts>-<uuid>.jsonl. The first line of
+  // each file is a session_meta record holding id / cwd / model_provider.
+  return path.join(codexHome(), 'sessions');
+}
+
 export function codexEnvFilePath() {
   // Loaded by codex's arg0 dispatcher before Tokio starts: every KEY=VAL
   // becomes a process env var (except CODEX_-prefixed which are filtered).

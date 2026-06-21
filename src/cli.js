@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import fsp from 'node:fs/promises';
-import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
+import { runStats } from './stats/command.js';
+import { installStatsCommand } from './stats/install-command.js';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import {
@@ -19,6 +20,7 @@ import {
   buildProviderBehaviorProfile,
   preferredProtocolOrder
 } from './shared/provider-profile.js';
+import { resolveCommand, resolveClaudeCommand } from './shared/resolve-launcher.js';
 import { buildAlignmentPolicy } from './shared/alignment-policy.js';
 import { buildProviderTuning } from './shared/provider-tuning.js';
 import { classifyPromptSignals } from './shared/prompt-signals.js';
@@ -157,6 +159,11 @@ const TXT = {
     helperUpdated: '已更新快捷函数: cdxrun + claude（裸 claude 自动跟随当前服务商）',
     helperRun: '请执行: source {v}',
     helperExists: '快捷函数已是最新',
+    pwshFile: 'PowerShell 配置文件: {v}',
+    pwshHelperAdded: '已写入 PowerShell 快捷函数: cdxrun + claude（裸 claude 自动跟随当前服务商）',
+    pwshHelperUpdated: '已更新 PowerShell 快捷函数: cdxrun + claude（裸 claude 自动跟随当前服务商）',
+    pwshHelperRun: '请执行: . {v}（或新开一个 PowerShell 窗口）',
+    pwshHelperExists: 'PowerShell 快捷函数已是最新',
     globalSettingsCreated: '🧩 已创建全局 Claude 配置: {v}',
     globalSettingsExists: 'ℹ️ 已保留现有全局 Claude 配置: {v}',
     wizardSaved: '已保存配置: {v}',
@@ -286,6 +293,11 @@ const TXT = {
     helperUpdated: 'Updated shell helpers: cdxrun + claude (bare claude follows the current provider)',
     helperRun: 'Run: source {v}',
     helperExists: 'Shell helpers already up to date',
+    pwshFile: 'PowerShell profile: {v}',
+    pwshHelperAdded: 'Injected PowerShell helpers: cdxrun + claude (bare claude follows the current provider)',
+    pwshHelperUpdated: 'Updated PowerShell helpers: cdxrun + claude (bare claude follows the current provider)',
+    pwshHelperRun: 'Run: . {v} (or open a new PowerShell window)',
+    pwshHelperExists: 'PowerShell helpers already up to date',
     globalSettingsCreated: '🧩 Created global Claude settings: {v}',
     globalSettingsExists: 'ℹ️ Kept existing global Claude settings: {v}',
     wizardSaved: 'Saved config: {v}',
@@ -687,91 +699,9 @@ async function setLanguage(lang) {
   return v;
 }
 
-// ---------------------------------------------------------------------------
-// Resolving npm-style launchers (claude / npm / claudex) on Windows
-//
-// On POSIX a bare command name is correct: PATH resolves it like the user's
-// shell does. On Windows it is NOT: Node/libuv only appends `.exe` when
-// searching PATH for an extension-less command. So spawn('claude') skips npm's
-// `claude.cmd` / `claude.ps1` shims (and can hit an older WinGet `claude.exe`),
-// and spawn('npm') fails outright with ENOENT because npm ships only as
-// `npm.cmd` / `npm.ps1` (there is no `npm.exe`). We replicate the shell's
-// PATH×PATHEXT lookup, and for an npm-style shim we run the cli.js it wraps
-// with our own node — identical to what the shim does, but Node escapes args
-// safely (no shell), so values containing spaces survive.
-//
-// Pure core: every environment dependency is injected, so it is unit-testable
-// without touching the real filesystem or running on Windows.
-// ---------------------------------------------------------------------------
-function resolveWindowsLauncher(name, cliCandidates, opts = {}) {
-  const platform = opts.platform || process.platform;
-  if (platform !== 'win32') return { file: name, prefixArgs: [] };
-
-  const pathEnv = opts.pathEnv ?? process.env.PATH ?? process.env.Path ?? '';
-  const pathExt = opts.pathExt ?? process.env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD';
-  const execPath = opts.execPath || process.execPath;
-  const fileExists = opts.fileExists || ((p) => fs.existsSync(p));
-
-  const dirs = pathEnv.split(';')
-    .map((d) => d.trim().replace(/^"+|"+$/g, ''))
-    .filter(Boolean);
-
-  // PATHEXT order mirrors cmd.exe; append .CMD/.PS1 so npm shims stay
-  // discoverable even when PATHEXT omits them (.PS1 is not in the default).
-  const exts = [];
-  for (const raw of `${pathExt};.CMD;.PS1`.split(';')) {
-    const ext = raw.trim();
-    if (ext && !exts.some((x) => x.toLowerCase() === ext.toLowerCase())) exts.push(ext);
-  }
-
-  let found = null;
-  for (const dir of dirs) {
-    for (const ext of exts) {
-      // Lower-case the ext (PATHEXT is upper-case) so the resolved path matches
-      // the on-disk name users see from `where`; Windows matches either way.
-      const candidate = path.join(dir, `${name}${ext.toLowerCase()}`);
-      if (fileExists(candidate)) { found = candidate; break; }
-    }
-    if (found) break;
-  }
-
-  if (!found) return { file: name, prefixArgs: [] };
-
-  const ext = path.extname(found).toLowerCase();
-  if (ext === '.exe' || ext === '.com') {
-    return { file: found, prefixArgs: [] }; // directly spawnable; safe arg passing
-  }
-
-  // .cmd/.bat/.ps1 are shims that need a shell to run — and a shell mangles
-  // args containing spaces. Resolve the cli.js the shim wraps and run it with
-  // our own node instead, so Node escapes the args safely.
-  const dir = path.dirname(found);
-  for (const segments of cliCandidates) {
-    const cli = path.join(dir, ...segments);
-    if (fileExists(cli)) return { file: execPath, prefixArgs: [cli] };
-  }
-
-  // Unusual layout: fall back to a shell-resolved launch (correct binary; the
-  // space-in-arg caveat only bites the rare no-cli.js shim install).
-  return { file: found, prefixArgs: [], shell: true };
-}
-
-// npm-style packages keep their cli.js next to the shim, under node_modules.
-const CLAUDE_CLI_CANDIDATES = [['node_modules', '@anthropic-ai', 'claude-code', 'cli.js']];
-const NPM_CLI_CANDIDATES = [['node_modules', 'npm', 'bin', 'npm-cli.js']];
-const CLAUDEX_CLI_CANDIDATES = [['node_modules', 'claudex-cli', 'bin', 'claudex.js']];
-
-export function resolveClaudeCommand(opts = {}) {
-  return resolveWindowsLauncher('claude', CLAUDE_CLI_CANDIDATES, opts);
-}
-
-// Dispatcher used by runProcess: maps a command name to its launcher resolver.
-export function resolveCommand(name, opts = {}) {
-  if (name === 'claude') return resolveWindowsLauncher('claude', CLAUDE_CLI_CANDIDATES, opts);
-  if (name === 'npm') return resolveWindowsLauncher('npm', NPM_CLI_CANDIDATES, opts);
-  if (name === 'claudex') return resolveWindowsLauncher('claudex', CLAUDEX_CLI_CANDIDATES, opts);
-  return { file: name, prefixArgs: [] };
-}
+// Launcher resolution lives in ./shared/resolve-launcher.js (shared with the
+// codex CLI). Re-export so existing imports of these keep resolving via cli.js.
+export { resolveCommand, resolveClaudeCommand };
 
 // Spawn the resolved claude, threading the caller's options through untouched.
 function spawnClaude(args, options = {}) {
@@ -856,6 +786,61 @@ async function injectShellBlock() {
   await backupFile(rc);
   await fsp.writeFile(rc, next, 'utf8');
   return { rc, action };
+}
+
+// Build the managed PowerShell block (no trailing newline). buildShellBlock()'s
+// wrapper only works in bash/zsh; this is the PowerShell 7 analog so a bare
+// `claude` in pwsh also follows the current provider. Reuses the same BEGIN/END
+// markers (`#` is a comment in PowerShell too), so upsertShellBlock applies.
+export function buildPowerShellBlock() {
+  return [
+    SHELL_BLOCK_BEGIN,
+    '# Run Claude with the current provider.',
+    'function cdxrun { claudex run @args }',
+    '',
+    '# Bare `claude` uses the current provider; yields to an explicit --settings,',
+    '# pre-set ANTHROPIC_* creds, or a missing/unconfigured provider.',
+    'function claude {',
+    '  $real = (Get-Command claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source',
+    "  if (-not $real) { Write-Error 'claude not found on PATH'; return }",
+    '  if (("$args" -like \'*--settings*\') -or $env:ANTHROPIC_API_KEY -or $env:ANTHROPIC_AUTH_TOKEN) { & $real @args; return }',
+    '  $provider = (Get-Content "$HOME\\.config\\claudex-cli\\current-provider" -ErrorAction SilentlyContinue | Select-Object -First 1)',
+    '  $settings = "$HOME\\.claude\\settings.$provider.json"',
+    '  if ($provider -and (Test-Path $settings)) { & $real --settings $settings @args } else { & $real @args }',
+    '}',
+    SHELL_BLOCK_END
+  ].join('\n');
+}
+
+function defaultPowerShellProfilePath() {
+  return path.join(home, 'Documents', 'PowerShell', 'Microsoft.PowerShell_profile.ps1');
+}
+
+// Ask pwsh for the real $PROFILE path (handles OneDrive Documents redirection);
+// fall back to the conventional location if pwsh cannot be queried. Injectable
+// for tests via opts.queryProfile / opts.fallback.
+export function powerShellProfilePath(opts = {}) {
+  const query = opts.queryProfile
+    || (() => execFileSync('pwsh', ['-NoProfile', '-NoLogo', '-Command', '$PROFILE'], { encoding: 'utf8' }));
+  try {
+    const out = String(query() || '').trim();
+    if (out) return out;
+  } catch {
+    // pwsh not found / not runnable — fall through to the conventional path.
+  }
+  return opts.fallback || defaultPowerShellProfilePath();
+}
+
+async function injectPowerShellProfile() {
+  const profile = powerShellProfilePath();
+  await ensureDir(path.dirname(profile));
+  let content = '';
+  if (await exists(profile)) content = await fsp.readFile(profile, 'utf8');
+  const { next, action } = upsertShellBlock(content, buildPowerShellBlock());
+  if (action === 'unchanged') return { profile, action };
+  await backupFile(profile);
+  await fsp.writeFile(profile, next, 'utf8');
+  return { profile, action };
 }
 
 function parseFlags(argv) {
@@ -1450,6 +1435,32 @@ async function cmdInit(lang) {
   } else {
     console.log(t(lang, 'helperExists'));
   }
+
+  // On Windows the bash/zsh wrapper above never loads in PowerShell, so a bare
+  // `claude` there would ignore the current provider. Inject the PowerShell 7
+  // analog into $PROFILE as well.
+  if (process.platform === 'win32') {
+    const ps = await injectPowerShellProfile();
+    console.log(t(lang, 'pwshFile', { v: ps.profile }));
+    if (ps.action === 'created') {
+      console.log(t(lang, 'pwshHelperAdded'));
+      console.log(t(lang, 'pwshHelperRun', { v: ps.profile }));
+    } else if (ps.action === 'updated') {
+      console.log(t(lang, 'pwshHelperUpdated'));
+      console.log(t(lang, 'pwshHelperRun', { v: ps.profile }));
+    } else {
+      console.log(t(lang, 'pwshHelperExists'));
+    }
+  }
+
+  try {
+    const statsCmd = await installStatsCommand();
+    console.log(lang === 'zh'
+      ? `已安装 /stats 命令：${statsCmd}（在 Claude Code 里输入 /stats 查看用量统计）`
+      : `Installed /stats command: ${statsCmd} (type /stats in Claude Code)`);
+  } catch {
+    // /stats is a convenience; don't fail init if it can't be written.
+  }
 }
 
 async function pickProvider(lang, promptText) {
@@ -1995,6 +2006,11 @@ export async function main(argv = process.argv.slice(2)) {
   if (cmd === 'run') {
     if (!(await ensureLaunchPrerequisites(lang))) return;
     await runClaude(rest);
+    return;
+  }
+
+  if (cmd === 'stats') {
+    console.log(await runStats(rest));
     return;
   }
 

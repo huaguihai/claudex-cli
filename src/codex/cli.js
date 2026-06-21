@@ -38,6 +38,7 @@ import {
   providerExists,
   normalizeBaseUrl
 } from './providers.js';
+import { scanSessions, formatSessionLine, parseSelection } from './sessions.js';
 import { applyProviderSwitch } from './apply-switch.js';
 import { revertToPreClaudex, restoreBackup } from './revert.js';
 import {
@@ -65,6 +66,7 @@ import {
   buildLaunchBanner,
   preflight
 } from './launch.js';
+import { resolveCommand } from '../shared/resolve-launcher.js';
 
 const PKG_VERSION = '0.1.0';
 
@@ -120,6 +122,14 @@ export async function main(argv = process.argv.slice(2)) {
   if (VERSION_FLAGS.has(first)) {
     process.stdout.write(`codexx v${PKG_VERSION}\n`);
     return 0;
+  }
+
+  // `codexx --resume`: cross-provider session picker (enhancement). Distinct
+  // from `codexx resume` (bare passthrough to codex's current-provider picker).
+  // codex has no top-level --resume flag, so intercepting it collides with
+  // nothing.
+  if (first === '--resume') {
+    return await cmdResumeAll(argv.slice(1), lang);
   }
 
   if (!CLAUDEX_OWNED.has(first)) {
@@ -195,6 +205,7 @@ function usage(lang) {
   out.push(t(lang, 'usageRun'));
   out.push('  codexx                          # spawn codex using the active provider');
   out.push('  codexx [<codex args>...]        # passthrough (e.g. codexx resume --last)');
+  out.push('  codexx --resume                 # pick a past session across ALL providers (this cwd)');
   out.push('  codexx -- <args>                # force passthrough');
   out.push('');
   out.push(t(lang, 'usageMgmt'));
@@ -1100,11 +1111,13 @@ async function cmdRestoreChatGpt(args, lang) {
 async function cmdUpdate(args, lang) {
   // self-update via npm; reuse pattern from claudex `claudex update`.
   const { spawn } = await import('node:child_process');
+  const { file, prefixArgs, shell } = resolveCommand('npm');
   return await new Promise((resolve) => {
+    const spawnOpts = shell ? { stdio: 'inherit', shell: true } : { stdio: 'inherit' };
     const child = spawn(
-      'npm',
-      ['install', '-g', 'git+https://github.com/huaguihai/claudex-cli.git#main'],
-      { stdio: 'inherit' }
+      file,
+      [...prefixArgs, 'install', '-g', 'git+https://github.com/huaguihai/claudex-cli.git#main'],
+      spawnOpts
     );
     child.on('exit', (code) => resolve(code ?? 0));
     child.on('error', (err) => {
@@ -1218,6 +1231,42 @@ async function runCodexDefault(lang) {
 
 async function passthroughCodex(args) {
   return await spawnCodex(args);
+}
+
+// ----- cross-provider resume (codexx --resume) -----
+
+// `codexx resume` stays a pure passthrough to codex's own picker, which only
+// shows sessions for the active provider. `codexx --resume` is the
+// enhancement: list THIS cwd's sessions across ALL providers, then hand the
+// chosen id to `codex resume` (recovered with the current active provider).
+async function cmdResumeAll(args, lang) {
+  const cwd = process.cwd();
+  const sessions = await scanSessions({ cwd });
+  if (sessions.length === 0) {
+    process.stdout.write(t(lang, 'resumeNone', { v: cwd }) + '\n');
+    return 0;
+  }
+  process.stdout.write(t(lang, 'resumeHeader', { v: cwd }) + '\n');
+  sessions.forEach((s, i) => {
+    process.stdout.write(formatSessionLine(s, i + 1) + '\n');
+  });
+  if (process.stdin.isTTY !== true) {
+    process.stdout.write(t(lang, 'resumeListOnly') + '\n');
+    return 0;
+  }
+  const rl = readline.createInterface({ input, output });
+  let idx = null;
+  try {
+    const answer = await rl.question(t(lang, 'resumePrompt', { v: sessions.length }));
+    idx = parseSelection(answer, sessions.length);
+  } finally {
+    rl.close();
+  }
+  if (idx === null) {
+    process.stdout.write(t(lang, 'canceled') + '\n');
+    return 0;
+  }
+  return await spawnCodex(['resume', sessions[idx].id]);
 }
 
 // ----- shared flag parser -----

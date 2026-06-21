@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildShellBlock, upsertShellBlock } from '../../src/cli.js';
+import { buildShellBlock, upsertShellBlock, buildPowerShellBlock, powerShellProfilePath } from '../../src/cli.js';
 
 test('buildShellBlock: 含起止 marker 与两个 helper', () => {
   const block = buildShellBlock();
@@ -47,4 +47,49 @@ test('upsertShellBlock: 内容已是最新 → unchanged', () => {
 test('upsertShellBlock: 不与非换行结尾的内容粘连', () => {
   const { next } = upsertShellBlock('export A=1', buildShellBlock());
   assert.match(next, /export A=1\n# BEGIN CLAUDEX-SWITCHER/);
+});
+
+test('buildPowerShellBlock: 含起止 marker 与两个 PowerShell 函数', () => {
+  const block = buildPowerShellBlock();
+  assert.match(block, /# BEGIN CLAUDEX-SWITCHER/);
+  assert.match(block, /# END CLAUDEX-SWITCHER/);
+  assert.match(block, /function cdxrun/);
+  assert.match(block, /function claude/);
+});
+
+test('buildPowerShellBlock: 三道护栏 + 调真身不递归', () => {
+  const block = buildPowerShellBlock();
+  assert.match(block, /-CommandType Application/);                              // 取真正的 claude，避免递归
+  assert.match(block, /"\$args" -like '\*--settings\*'/);                       // 显式 --settings → 让路
+  assert.match(block, /\$env:ANTHROPIC_API_KEY -or \$env:ANTHROPIC_AUTH_TOKEN/); // 已有凭证 → 让路
+  assert.match(block, /current-provider/);                                      // 读取当前 provider
+  assert.match(block, /& \$real --settings \$settings @args/);                  // 注入当前 provider 配置
+  assert.match(block, /& \$real @args/);                                        // 兜底裸跑
+});
+
+test('upsertShellBlock: PowerShell 块复用同一套 marker，可写入且幂等', () => {
+  const created = upsertShellBlock('', buildPowerShellBlock());
+  assert.equal(created.action, 'created');
+  const again = upsertShellBlock(created.next, buildPowerShellBlock());
+  assert.equal(again.action, 'unchanged');
+});
+
+test('powerShellProfilePath: 采用 pwsh 查询结果并去除空白', () => {
+  const p = powerShellProfilePath({
+    queryProfile: () => '  C:\\Users\\X\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1\r\n'
+  });
+  assert.equal(p, 'C:\\Users\\X\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1');
+});
+
+test('powerShellProfilePath: pwsh 不可用 → 退回 fallback', () => {
+  const p = powerShellProfilePath({
+    queryProfile: () => { throw new Error('spawn pwsh ENOENT'); },
+    fallback: 'C:\\fb\\profile.ps1'
+  });
+  assert.equal(p, 'C:\\fb\\profile.ps1');
+});
+
+test('powerShellProfilePath: 查询返回空 → 退回 fallback', () => {
+  const p = powerShellProfilePath({ queryProfile: () => '   ', fallback: 'C:\\fb\\profile.ps1' });
+  assert.equal(p, 'C:\\fb\\profile.ps1');
 });

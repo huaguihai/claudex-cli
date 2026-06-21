@@ -336,7 +336,10 @@ claudex native doctor            # show Native checks
 claudex update [--from-local <path>] [--from-npm]
 claudex doctor [--provider <name>]
 claudex run [claude args...]     # pass-through to claude
+claudex stats [--week|--month|--year|--since DATE] [--json] [--idle-gap 5m]   # token usage & activity stats (via ccusage)
 ```
+
+`claudex stats` reads Claude Code's local transcripts and shells out to the bundled [`ccusage`](https://github.com/ryoppippi/ccusage) for token totals, then adds activity metrics (active time by a 5-minute idle gap, active days, streak, busiest hour) and a per-day trend. `--json` emits the raw report. `claudex init` also installs a `/stats` slash command so you can run it inside a Claude Code session (typing `!claudex stats` works too, with no model round-trip).
 
 Update source: `claudex update` pulls from GitHub by default. Use `--from-npm` for the npm registry. After a successful update it also refreshes your shell helpers automatically (runs `claudex init` for you).
 
@@ -413,7 +416,7 @@ Every time a provider file is overwritten, the previous version is saved to `~/.
 → Check DNS/proxy/network path. Verify endpoint with `curl`. Run `claudex doctor` for quick diagnostics.
 
 **`claude` says `Not logged in` when run directly**
-→ Run `claudex init` once, then `source ~/.bashrc` (or open a new terminal). The injected `claude` wrapper makes a bare `claude` use your current provider. (A shell-level `ANTHROPIC_API_KEY` still takes precedence by design.)
+→ Run `claudex init` once, then reload your shell. On macOS/Linux the wrapper goes into `~/.bashrc`/`~/.zshrc` (`source` it or open a new terminal). On Windows it goes into your PowerShell 7 `$PROFILE` (`. $PROFILE` or open a new window). The injected `claude` wrapper makes a bare `claude` use your current provider. (A shell-level `ANTHROPIC_API_KEY` still takes precedence by design; cmd.exe is not covered — use `claudex` there.)
 
 **Windows: `claudex` launches an older `claude` than typing `claude` yourself**
 → Node resolves a bare `claude` to `claude.exe` only, so it skips npm's `claude.cmd`/`claude.ps1` shims and can hit an older WinGet-installed `claude.exe`. `claudex` now mirrors your shell's `PATH`/`PATHEXT` lookup and launches the same `claude` you get interactively (running the npm install's `cli.js` with your `node`). Keep your npm global bin (e.g. `%APPDATA%\npm`) ahead of the WinGet path in `PATH`.
@@ -487,6 +490,7 @@ codexx revert
 | `codexx reconcile` | After `codex login` / `codex mcp add` / external edits, accept current state as new baseline |
 | `codexx restore-chatgpt` | Restore ChatGPT OAuth tokens from backup if codexx overwrote them |
 | `codexx login / logout / app` | Claudex-aware wrappers — warn before clobbering managed state, then passthrough |
+| `codexx --resume` | **Cross-provider session picker**: lists sessions in the current directory across ALL providers (codex's own `resume` only shows the active provider's sessions). Select by number → resume with current provider. Note: `codexx resume` (bare) remains a pure passthrough to codex's native picker. |
 | `codexx -- <args>` | Force pure passthrough (escape hatch for any future codex subcommand) |
 
 ### How It Works
@@ -582,6 +586,9 @@ Provider metadata schema:
 | `cli_auth_credentials_store = "keyring"` | not yet supported — `codexx doctor` will warn |
 
 ### Troubleshooting
+
+**`codexx` says `codex CLI not installed` even though codex is installed (Windows)**
+→ Detection used to shell out to `which`, which doesn't exist on Windows (it's `where`), and a bare `codex` there is an npm shim (`codex.cmd`/`codex.ps1`, no `codex.exe`) that Node can't resolve. `codexx` now probes `codex --version` through the shared PATH/PATHEXT resolver, so it detects and launches the same codex you get interactively. (`codexx update` resolves npm the same way.)
 
 **`codexx use` says drift detected**
 → Something (likely `codex login`, `codex mcp add`, or a manual edit) changed `~/.codex/config.toml` or `auth.json` since the last switch. Run `codexx doctor` to see specifics; `codexx reconcile` to accept the external state as the new baseline, or `--force` on `use` to overwrite.
