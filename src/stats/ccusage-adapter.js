@@ -52,7 +52,7 @@ export function normalizeDaily(json) {
     totals.total += total;
     costUSD += row.totalCost ?? 0;
     for (const m of row.modelsUsed ?? []) models.add(m);
-    return { date: row.date, input, output, cacheCreation, cacheRead, total };
+    return { date: row.period || row.date, input, output, cacheCreation, cacheRead, total };
   });
   // Third-party providers usually aren't in ccusage's price table -> cost 0.
   return { days, totals, models: [...models], costUSD, costReliable: costUSD > 0 };

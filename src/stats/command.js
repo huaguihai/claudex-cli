@@ -18,9 +18,10 @@ export function parseWindow(args, nowMs) {
     const ms = Date.parse(raw);
     if (!Number.isNaN(ms)) return { sinceMs: ms, label: `自 ${raw}` };
   }
-  if (args.includes('--year')) return { sinceMs: nowMs - 365 * DAY_MS, label: '过去 365 天' };
-  if (args.includes('--month')) return { sinceMs: nowMs - 30 * DAY_MS, label: '过去 30 天' };
-  return { sinceMs: nowMs - 7 * DAY_MS, label: '过去 7 天' };
+  if (args.includes('--year')) return { sinceMs: nowMs - 365 * DAY_MS, label: '最近 365 天' };
+  if (args.includes('--month')) return { sinceMs: nowMs - 30 * DAY_MS, label: '最近 30 天' };
+  // 严格的 7 天：今天往前数 6 天 = 7 个自然日
+  return { sinceMs: nowMs - 6 * DAY_MS, label: '最近 7 天' };
 }
 
 /** Parse --idle-gap <N>[m|h] into milliseconds (default 5m). Pure. */

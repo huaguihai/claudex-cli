@@ -87,10 +87,11 @@ const TXT = {
     m4: '4. 管理模型服务商',
     m5: '5. Native 模式',
     m6: '6. 问题排查',
-    m7: '7. 更多设置',
-    m8: '8. 退出',
-    choose18: '请选择 (1-8): ',
-    invalid18: '输入无效，请输入 1-8。',
+    m7: '7. 查看 Token 消耗情况',
+    m8: '8. 更多设置',
+    m9: '9. 退出',
+    choose19: '请选择 (1-9): ',
+    invalid19: '输入无效，请输入 1-9。',
     bye: '👋 已退出。',
     currentProvider: '📌 当前服务商: {v}',
     currentSettings: '当前配置文件: {file} {state}',
@@ -221,10 +222,11 @@ const TXT = {
     m4: '4. Manage model providers',
     m5: '5. Native Mode',
     m6: '6. Troubleshooting',
-    m7: '7. More settings',
-    m8: '8. Exit',
-    choose18: 'Choose (1-8): ',
-    invalid18: 'Invalid input. Enter 1-8.',
+    m7: '7. View Token Usage',
+    m8: '8. More settings',
+    m9: '9. Exit',
+    choose19: 'Choose (1-9): ',
+    invalid19: 'Invalid input. Enter 1-9.',
     bye: '👋 Exited.',
     currentProvider: '📌 Current provider: {v}',
     currentSettings: 'Current settings: {file} {state}',
@@ -1855,8 +1857,9 @@ async function mainMenu(lang) {
     console.log(t(lang, 'm6'));
     console.log(t(lang, 'm7'));
     console.log(t(lang, 'm8'));
+    console.log(t(lang, 'm9'));
     console.log('----------------------------------------');
-    const choice = await ask(t(lang, 'choose18'));
+    const choice = await ask(t(lang, 'choose19'));
 
     try {
       if (choice === '1') {
@@ -1885,15 +1888,21 @@ async function mainMenu(lang) {
         continue;
       }
       if (choice === '7') {
+        console.log('');
+        console.log(await runStats([]));
+        console.log('');
+        continue;
+      }
+      if (choice === '8') {
         await moreSettingsMenu(lang);
         lang = await getLanguage();
         continue;
       }
-      if (choice === '8' || choice.toLowerCase() === 'q') {
+      if (choice === '9' || choice.toLowerCase() === 'q') {
         console.log(t(lang, 'bye'));
         return;
       }
-      console.log(t(lang, 'invalid18'));
+      console.log(t(lang, 'invalid19'));
     } catch (err) {
       if (err instanceof BackSignal) {
         console.log(t(lang, 'backDone'));
