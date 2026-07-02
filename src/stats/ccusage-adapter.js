@@ -37,7 +37,7 @@ export function parseCcusageJson(stdout) {
 export function normalizeDaily(json) {
   const daily = Array.isArray(json?.daily) ? json.daily : [];
   const totals = { input: 0, output: 0, cacheCreation: 0, cacheRead: 0, total: 0 };
-  const models = new Set();
+  const modelUsage = new Map(); // 统计每个模型的总消耗
   let costUSD = 0;
   const days = daily.map((row) => {
     const input = row.inputTokens ?? 0;
@@ -51,11 +51,27 @@ export function normalizeDaily(json) {
     totals.cacheRead += cacheRead;
     totals.total += total;
     costUSD += row.totalCost ?? 0;
-    for (const m of row.modelsUsed ?? []) models.add(m);
+
+    // 统计每个模型的 token 消耗
+    for (const breakdown of row.modelBreakdowns ?? []) {
+      const modelName = breakdown.modelName;
+      const modelTokens = (breakdown.inputTokens ?? 0) +
+                         (breakdown.outputTokens ?? 0) +
+                         (breakdown.cacheCreationTokens ?? 0) +
+                         (breakdown.cacheReadTokens ?? 0);
+      modelUsage.set(modelName, (modelUsage.get(modelName) ?? 0) + modelTokens);
+    }
+
     return { date: row.period || row.date, input, output, cacheCreation, cacheRead, total };
   });
+
+  // 按使用量降序排序模型，返回 { name, tokens } 对象数组
+  const models = [...modelUsage.entries()]
+    .sort((a, b) => b[1] - a[1])  // 按 token 数降序
+    .map(([name, tokens]) => ({ name, tokens }));
+
   // Third-party providers usually aren't in ccusage's price table -> cost 0.
-  return { days, totals, models: [...models], costUSD, costReliable: costUSD > 0 };
+  return { days, totals, models, costUSD, costReliable: costUSD > 0 };
 }
 
 function defaultRunner(args) {

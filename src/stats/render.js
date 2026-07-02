@@ -103,31 +103,22 @@ export function renderText(report) {
     lines.push('│                                                                         │');
   }
 
-  // 模型列表（如果太长则换行）
+  // 模型列表（带进度条和 token 数）
   if (report.models.length) {
     lines.push('├─────────────────────────────────────────────────────────────────────────┤');
     lines.push(`│${padToWidth('  🤖 使用的模型', 73)}│`);
-    const modelText = report.models.join(', ');
-    if (modelText.length <= 65) {
-      const modelLine = `    ${modelText}`;
+    lines.push('│                                                                         │');
+
+    const maxTokens = Math.max(...report.models.map(m => m.tokens));
+    for (const model of report.models) {
+      const barWidth = 40;
+      const barLength = Math.round((model.tokens / maxTokens) * barWidth);
+      const barStr = '█'.repeat(barLength);
+      const tokenStr = humanizeTokens(model.tokens).padStart(8);
+      // 模型名最长 25 个字符，超出则截断
+      const modelName = model.name.length > 25 ? model.name.slice(0, 22) + '...' : model.name;
+      const modelLine = `    ${modelName.padEnd(25)}  ${barStr.padEnd(barWidth)} ${tokenStr}`;
       lines.push(`│${padToWidth(modelLine, 73)}│`);
-    } else {
-      // 模型名太长，分行显示
-      const chunks = [];
-      let current = '';
-      for (const model of report.models) {
-        if ((current + model + ', ').length > 65) {
-          if (current) chunks.push(current.slice(0, -2)); // 去掉最后的 ', '
-          current = model + ', ';
-        } else {
-          current += model + ', ';
-        }
-      }
-      if (current) chunks.push(current.slice(0, -2));
-      for (const chunk of chunks) {
-        const modelLine = `    ${chunk}`;
-        lines.push(`│${padToWidth(modelLine, 73)}│`);
-      }
     }
     lines.push('│                                                                         │');
   }
