@@ -1,9 +1,11 @@
 // Render a StatsReport to terminal ASCII or JSON. Pure string functions.
 
-/** 计算字符串的实际显示宽度（考虑中文和 Emoji） */
+/** 计算字符串的实际显示宽度（考虑中文和 Emoji，忽略 ANSI 转义码） */
 function displayWidth(str) {
+  // 先移除 ANSI 转义码
+  const cleaned = str.replace(/\x1b\[[0-9;]*m/g, '');
   let width = 0;
-  for (const char of str) {
+  for (const char of cleaned) {
     const code = char.codePointAt(0);
     // Emoji 和中文字符占 2 个宽度
     if (code > 0x1F000 || (code >= 0x4E00 && code <= 0x9FFF) || (code >= 0x3000 && code <= 0x303F)) {
@@ -91,13 +93,18 @@ export function renderText(report) {
     lines.push(`│${padToWidth('  📈 每日趋势', 73)}│`);
     lines.push('│                                                                         │');
     const max = Math.max(...report.days.map((d) => d.total));
-    for (const d of report.days) {
+    for (let i = 0; i < report.days.length; i++) {
+      const d = report.days[i];
       const dateLabel = d.date ? d.date.slice(5) : '未知日期';
       const barWidth = 40;
       const barLength = Math.round((d.total / max) * barWidth);
-      const barStr = '█'.repeat(barLength);
+      // 根据排名计算颜色：第1名最深绿(绿色), 最后一名最浅(青色)
+      const colorIndex = Math.floor((i / (report.days.length - 1 || 1)) * 3);
+      const colors = ['\x1b[32m', '\x1b[92m', '\x1b[96m', '\x1b[36m']; // 深绿 -> 亮绿 -> 亮青 -> 青
+      const color = colors[colorIndex] || '\x1b[32m';
+      const barStr = color + '█'.repeat(barLength) + '\x1b[0m';
       const tokenStr = humanizeTokens(d.total).padStart(8);
-      const dayLine = `    ${dateLabel}  ${barStr.padEnd(barWidth)} ${tokenStr}`;
+      const dayLine = `    ${dateLabel}  ${barStr}${' '.repeat(barWidth - barLength)} ${tokenStr}`;
       lines.push(`│${padToWidth(dayLine, 73)}│`);
     }
     lines.push('│                                                                         │');
@@ -110,14 +117,19 @@ export function renderText(report) {
     lines.push('│                                                                         │');
 
     const maxTokens = Math.max(...report.models.map(m => m.tokens));
-    for (const model of report.models) {
-      const barWidth = 40;
+    for (let i = 0; i < report.models.length; i++) {
+      const model = report.models[i];
+      const barWidth = 32;  // 缩短进度条宽度，为 token 数留空间
       const barLength = Math.round((model.tokens / maxTokens) * barWidth);
-      const barStr = '█'.repeat(barLength);
+      // 根据排名计算颜色：第1名最深绿，最后一名最浅
+      const colorIndex = Math.floor((i / (report.models.length - 1 || 1)) * 3);
+      const colors = ['\x1b[32m', '\x1b[92m', '\x1b[96m', '\x1b[36m']; // 深绿 -> 亮绿 -> 亮青 -> 青
+      const color = colors[colorIndex] || '\x1b[32m';
+      const barStr = color + '█'.repeat(barLength) + '\x1b[0m';
       const tokenStr = humanizeTokens(model.tokens).padStart(8);
-      // 模型名最长 25 个字符，超出则截断
-      const modelName = model.name.length > 25 ? model.name.slice(0, 22) + '...' : model.name;
-      const modelLine = `    ${modelName.padEnd(25)}  ${barStr.padEnd(barWidth)} ${tokenStr}`;
+      // 模型名最长 23 个字符，超出则截断
+      const modelName = model.name.length > 23 ? model.name.slice(0, 20) + '...' : model.name;
+      const modelLine = `    ${modelName.padEnd(23)}  ${barStr}${' '.repeat(barWidth - barLength)} ${tokenStr}`;
       lines.push(`│${padToWidth(modelLine, 73)}│`);
     }
     lines.push('│                                                                         │');
