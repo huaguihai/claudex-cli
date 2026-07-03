@@ -97,15 +97,19 @@ export function renderText(report) {
       const d = report.days[i];
       const dateLabel = d.date ? d.date.slice(5) : '未知日期';
       const barWidth = 40;
-      const barLength = Math.round((d.total / max) * barWidth);
-      // 根据排名计算颜色：第1名最深绿(绿色), 最后一名最浅(青色)
-      const colorIndex = Math.floor((i / (report.days.length - 1 || 1)) * 3);
-      const colors = ['\x1b[32m', '\x1b[92m', '\x1b[96m', '\x1b[36m']; // 深绿 -> 亮绿 -> 亮青 -> 青
-      const color = colors[colorIndex] || '\x1b[32m';
+      // 保证最小长度 1，避免小值看不见
+      const barLength = Math.max(1, Math.round((d.total / max) * barWidth));
+      // 统一使用绿色（因为不是按消耗量排序的）
+      const color = '\x1b[92m'; // 亮绿
       const barStr = color + '█'.repeat(barLength) + '\x1b[0m';
       const tokenStr = humanizeTokens(d.total).padStart(8);
       const dayLine = `    ${dateLabel}  ${barStr}${' '.repeat(barWidth - barLength)} ${tokenStr}`;
       lines.push(`│${padToWidth(dayLine, 73)}│`);
+
+      // 添加行间距（除了最后一行）
+      if (i < report.days.length - 1) {
+        lines.push('│                                                                         │');
+      }
     }
     lines.push('│                                                                         │');
   }
@@ -120,8 +124,9 @@ export function renderText(report) {
     for (let i = 0; i < report.models.length; i++) {
       const model = report.models[i];
       const barWidth = 32;  // 缩短进度条宽度，为 token 数留空间
-      const barLength = Math.round((model.tokens / maxTokens) * barWidth);
-      // 根据排名计算颜色：第1名最深绿，最后一名最浅
+      // 保证最小长度 1，避免小值看不见
+      const barLength = Math.max(1, Math.round((model.tokens / maxTokens) * barWidth));
+      // 根据排名计算颜色：第1名最深绿，最后一名最浅（models 已按 tokens 降序排序）
       const colorIndex = Math.floor((i / (report.models.length - 1 || 1)) * 3);
       const colors = ['\x1b[32m', '\x1b[92m', '\x1b[96m', '\x1b[36m']; // 深绿 -> 亮绿 -> 亮青 -> 青
       const color = colors[colorIndex] || '\x1b[32m';
@@ -131,6 +136,11 @@ export function renderText(report) {
       const modelName = model.name.length > 23 ? model.name.slice(0, 20) + '...' : model.name;
       const modelLine = `    ${modelName.padEnd(23)}  ${barStr}${' '.repeat(barWidth - barLength)} ${tokenStr}`;
       lines.push(`│${padToWidth(modelLine, 73)}│`);
+
+      // 添加行间距（除了最后一行）
+      if (i < report.models.length - 1) {
+        lines.push('│                                                                         │');
+      }
     }
     lines.push('│                                                                         │');
   }
