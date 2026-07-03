@@ -7,6 +7,11 @@
     "claudex": "./bin/claudex.js",
     "codexx": "./bin/codexx.js"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "scripts/"
+  ],
   "scripts": {
     "start": "node ./bin/claudex.js",
     "lint": "node ./bin/claudex.js --help",

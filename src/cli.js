@@ -2,11 +2,42 @@
 import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { spawn, execFileSync } from 'node:child_process';
 import { runStats } from './stats/command.js';
 import { installStatsCommand } from './stats/install-command.js';
-import readline from 'node:readline/promises';
+import readline from 'node:readline';
 import { stdin as input, stdout as output } from 'node:process';
+
+// 输入行队列（用于管道模式）
+let inputLines = [];
+let inputReady = false;
+
+// 预加载管道输入
+if (!input.isTTY) {
+  let buffer = '';
+  input.setEncoding('utf8');
+  input.on('data', (chunk) => {
+    buffer += chunk;
+    const parts = buffer.split('\n');
+    buffer = parts.pop() || '';
+    inputLines.push(...parts);
+  });
+  input.on('end', () => {
+    if (buffer) inputLines.push(buffer);
+    inputReady = true;
+  });
+}
+
+// 全局 readline 接口（仅用于 TTY 模式）
+let globalRl = null;
+function getReadline() {
+  if (!globalRl && input.isTTY) {
+    globalRl = readline.createInterface({ input, output });
+  }
+  return globalRl;
+}
+
 import {
   buildNativeContext,
   buildNativeDoctorLines,
@@ -879,22 +910,40 @@ function parseFlags(argv) {
 }
 
 async function ask(question) {
-  const rl = readline.createInterface({ input, output });
-  try {
-    return (await rl.question(question)).trim();
-  } finally {
-    rl.close();
+  // 管道模式：从预加载的行队列中读取
+  if (!input.isTTY) {
+    // 等待输入就绪
+    while (!inputReady && inputLines.length === 0) {
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+
+    output.write(question);
+    const answer = inputLines.shift() || '';
+    return answer.trim();
   }
+
+  // TTY 模式：使用 readline
+  const rl = getReadline();
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      resolve(answer.trim());
+    });
+  });
 }
 
 async function promptProviderAdd(flags, lang) {
-  const rl = readline.createInterface({ input, output });
+  const rl = getReadline();
   try {
     console.log(t(lang, 'backGuide'));
     const askOrFlag = async (flagValue, key) => {
-      const v = (flagValue || (await rl.question(t(lang, key)))).trim();
-      if (isBackInput(v)) throw new BackSignal();
-      return v;
+      if (flagValue) return flagValue;
+      return new Promise((resolve) => {
+        rl.question(t(lang, key), (answer) => {
+          const v = answer.trim();
+          if (isBackInput(v)) throw new BackSignal();
+          resolve(v);
+        });
+      });
     };
 
     const name = await askOrFlag(flags.name, 'providerNameQ');
@@ -909,8 +958,8 @@ async function promptProviderAdd(flags, lang) {
     }
 
     return { name, baseUrl, apiKey, haikuModel, sonnetModel, opusModel };
-  } finally {
-    rl.close();
+  } catch (err) {
+    throw err;
   }
 }
 
@@ -978,7 +1027,7 @@ async function promptProviderEdit(name, flags, lang) {
     };
   }
 
-  const rl = readline.createInterface({ input, output });
+  const rl = getReadline();
   try {
     console.log(t(lang, 'editIntro', { v: name }));
 
@@ -986,9 +1035,13 @@ async function promptProviderEdit(name, flags, lang) {
       if (typeof flagValue === 'string') return flagValue;
       const shown = label === 'api_key' ? maskApiKey(currentValue) : (currentValue || t(lang, 'editUnset'));
       console.log(`  ${label} ${t(lang, 'editCurrent')}: ${shown}`);
-      const next = (await rl.question(`  ${t(lang, 'editNewOrKeep', { hint: hint ? ', ' + hint : '' })}: `)).trim();
-      if (isBackInput(next)) throw new BackSignal();
-      return next.length > 0 ? next : currentValue;
+      return new Promise((resolve) => {
+        rl.question(`  ${t(lang, 'editNewOrKeep', { hint: hint ? ', ' + hint : '' })}: `, (answer) => {
+          const next = answer.trim();
+          if (isBackInput(next)) throw new BackSignal();
+          resolve(next.length > 0 ? next : currentValue);
+        });
+      });
     };
 
     const baseUrl = await askField(flags['base-url'], current.baseUrl, 'base_url');
@@ -998,8 +1051,8 @@ async function promptProviderEdit(name, flags, lang) {
     const opusModel = await askField(flags['opus-model'], current.opusModel, 'opus_model');
 
     return { name, baseUrl, apiKey, haikuModel, sonnetModel, opusModel };
-  } finally {
-    rl.close();
+  } catch (err) {
+    throw err;
   }
 }
 
@@ -1594,9 +1647,12 @@ async function cmdProvider(subArgs, lang) {
     if (!(await exists(file))) throw new Error(`provider settings not found: ${file}`);
 
     if (!flags.yes) {
-      const rl = readline.createInterface({ input, output });
-      const ans = (await rl.question(t(lang, 'removeConfirm', { v: file }))).trim().toLowerCase();
-      rl.close();
+      const rl = getReadline();
+      const ans = await new Promise((resolve) => {
+        rl.question(t(lang, 'removeConfirm', { v: file }), (answer) => {
+          resolve(answer.trim().toLowerCase());
+        });
+      });
       if (ans !== 'y' && ans !== 'yes') {
         console.log(t(lang, 'cancelled'));
         return;
@@ -1808,6 +1864,7 @@ async function nativeMenu(lang) {
     }
   }
 }
+
 async function contextUsageMenu(lang) {
   const configFile = path.join(appDir, 'context-usage.json');
 
@@ -1836,23 +1893,189 @@ async function contextUsageMenu(lang) {
     const choice = await ask(t(lang, 'contextUsageChoose'));
 
     if (choice === '1') {
-      await ensureDir(appDir);
-      await writeJson(configFile, { enabled: true });
-      enabled = true;
-      console.log(t(lang, 'contextUsageSaved', { status: t(lang, 'contextUsageEnabled') }));
+      try {
+        await enableContextUsage();
+        await ensureDir(appDir);
+        await writeJson(configFile, { enabled: true });
+        enabled = true;
+        console.log(t(lang, 'contextUsageSaved', { status: t(lang, 'contextUsageEnabled') }));
+      } catch (err) {
+        console.log(t(lang, 'opFailed', { v: err.message }));
+      }
       continue;
     }
     if (choice === '2') {
-      await ensureDir(appDir);
-      await writeJson(configFile, { enabled: false });
-      enabled = false;
-      console.log(t(lang, 'contextUsageSaved', { status: t(lang, 'contextUsageDisabled') }));
+      try {
+        await disableContextUsage();
+        await ensureDir(appDir);
+        await writeJson(configFile, { enabled: false });
+        enabled = false;
+        console.log(t(lang, 'contextUsageSaved', { status: t(lang, 'contextUsageDisabled') }));
+      } catch (err) {
+        console.log(t(lang, 'opFailed', { v: err.message }));
+      }
       continue;
     }
     if (choice === '3') {
       return;
     }
     console.log(t(lang, 'contextUsageInvalid'));
+  }
+}
+
+const STATUSLINE_SCRIPT = `#!/usr/bin/env python3
+"""Claude Code statusLine: 显示当前 context 使用百分比。
+
+原理: 读取会话 transcript(JSONL), 反向取最近一次的 context 占用 ——
+compact 边界(compactMetadata.postTokens, 压缩后大小)与真实 assistant usage
+谁先遇到用谁; usage ≈ input + cache_read + cache_creation_input_tokens。
+跳过 token 全为 0 的合成消息(<synthetic>, API 出错时会留下)。
+注意: compact 后若直接取最后一条 usage 会穿透到压缩前的旧值, 显示仍是压缩前的占用。
+
+context 窗口上限:
+  - 环境变量 CLAUDE_CTX_LIMIT 优先(整数, 如 1000000)
+  - 否则: model id 含 "1m" → 1,000,000, 其余 → 200,000
+"""
+import sys
+import json
+import os
+
+
+def context_limit(model_id):
+    override = os.environ.get("CLAUDE_CTX_LIMIT")
+    if override:
+        try:
+            return int(override)
+        except ValueError:
+            pass
+    return 1_000_000 if "1m" in model_id else 200_000
+
+
+def used_tokens(transcript_path):
+    """反向扫 transcript, 返回当前 context 占用 token 数。
+
+    compact 边界(compactMetadata.postTokens, 压缩后大小)与真实 usage,
+    谁先在反向遍历中出现就用谁:
+      - 从未 compact          → 先遇到 usage, 用它
+      - compact 后已有新调用  → 先遇到新 usage(已反映压缩后), 用它
+      - compact 后还没发消息  → 先遇到 compactMetadata, 用 postTokens
+    若取最后一条 usage 会穿透到压缩前的旧值(即原 bug)。全 0 合成消息跳过。
+    """
+    try:
+        with open(transcript_path, encoding="utf-8") as f:
+            lines = f.readlines()
+    except OSError:
+        return 0
+    for line in reversed(lines):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except ValueError:
+            continue
+        meta = obj.get("compactMetadata")
+        if isinstance(meta, dict) and isinstance(meta.get("postTokens"), int):
+            return meta["postTokens"]
+        message = obj.get("message")
+        if not isinstance(message, dict):
+            continue
+        usage = message.get("usage")
+        if not isinstance(usage, dict):
+            continue
+        total = (usage.get("input_tokens", 0)
+                 + usage.get("cache_read_input_tokens", 0)
+                 + usage.get("cache_creation_input_tokens", 0))
+        if total > 0:  # 跳过全 0 的合成消息
+            return total
+    return 0
+
+
+def main():
+    try:
+        data = json.load(sys.stdin)
+    except ValueError:
+        print("ctx —")
+        return
+
+    model = data.get("model") or {}
+    model_id = (model.get("id") or "").lower()
+    model_name = model.get("display_name") or model.get("id") or "claude"
+
+    limit = context_limit(model_id)
+    used = used_tokens(data.get("transcript_path") or "")
+    pct = (used / limit * 100) if limit else 0
+
+    if pct >= 85:
+        color = "\\\\033[91m"   # 亮红: 该 /compact 了
+    elif pct >= 60:
+        color = "\\\\033[93m"   # 亮黄: 留意
+    else:
+        color = "\\\\033[92m"   # 亮绿: 充裕
+    reset = "\\\\033[0m"
+    dim = "\\\\033[2m"
+
+    bar_len = 10
+    filled = min(bar_len, round(pct / 100 * bar_len))
+    bar = "█" * filled + "░" * (bar_len - filled)
+
+    print(f"{dim}{model_name}{reset} {color}{bar} {pct:.0f}%{reset} "
+          f"{dim}({used // 1000}k/{limit // 1000}k){reset}")
+
+
+main()
+`;
+
+async function enableContextUsage() {
+  // 1. 确保脚本目录存在
+  const scriptDir = path.join(home, '.claude', 'claudex-context');
+  const scriptPath = path.join(scriptDir, 'statusline-context.py');
+
+  await ensureDir(scriptDir);
+
+  // 2. 写入脚本内容
+  await fsp.writeFile(scriptPath, STATUSLINE_SCRIPT, 'utf8');
+  await fsp.chmod(scriptPath, 0o755);
+
+  // 3. 读取全局配置
+  let settings = {};
+  if (await exists(globalClaudeSettingsFile)) {
+    try {
+      settings = await readJson(globalClaudeSettingsFile);
+    } catch {
+      settings = {};
+    }
+  }
+
+  // 4. 写入 statusLine 配置
+  settings.statusLine = {
+    type: 'command',
+    command: `python3 ${scriptPath}`,
+    padding: 0
+  };
+
+  // 5. 保存配置
+  await ensureDir(claudeDir);
+  await writeJson(globalClaudeSettingsFile, settings);
+}
+
+async function disableContextUsage() {
+  // 读取全局配置
+  if (!(await exists(globalClaudeSettingsFile))) {
+    return;
+  }
+
+  let settings = {};
+  try {
+    settings = await readJson(globalClaudeSettingsFile);
+  } catch {
+    return;
+  }
+
+  // 移除 statusLine 配置
+  if (settings.statusLine) {
+    delete settings.statusLine;
+    await writeJson(globalClaudeSettingsFile, settings);
   }
 }
 
