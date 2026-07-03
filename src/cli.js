@@ -85,13 +85,11 @@ const TXT = {
     m2: '2. 查看当前配置',
     m3: '3. 切换模型服务商',
     m4: '4. 管理模型服务商',
-    m5: '5. Native 模式',
-    m6: '6. 问题排查',
-    m7: '7. 查看 Token 消耗情况',
-    m8: '8. 更多设置',
-    m9: '9. 退出',
-    choose19: '请选择 (1-9): ',
-    invalid19: '输入无效，请输入 1-9。',
+    m5: '5. 查看 Token 消耗情况',
+    m6: '6. 更多',
+    m7: '7. 退出',
+    choose17: '请选择 (1-7): ',
+    invalid17: '输入无效，请输入 1-7。',
     bye: '👋 已退出。',
     currentProvider: '📌 当前服务商: {v}',
     currentSettings: '当前配置文件: {file} {state}',
@@ -114,13 +112,16 @@ const TXT = {
     mg5: '5. 返回主菜单',
     choose15: '请选择 (1-5): ',
     invalid15: '输入无效，请输入 1-5。',
-    moreTitle: '更多设置',
-    more1: '1. 初始化/修复 shell 快捷函数',
-    more2: '2. 显示命令帮助',
-    more3: '3. 语言设置（中文 / English）',
-    more4: '4. 返回主菜单',
-    choose14: '请选择 (1-4): ',
-    invalid14: '输入无效，请输入 1-4。',
+    moreTitle: '更多',
+    more1: '1. Native 模式',
+    more2: '2. 问题排查',
+    more3: '3. 实时显示上下文状态',
+    more4: '4. 初始化/修复 shell 快捷函数',
+    more5: '5. 显示命令帮助',
+    more6: '6. 语言设置（中文 / English）',
+    more7: '7. 返回主菜单',
+    choose17more: '请选择 (1-7): ',
+    invalid17more: '输入无效，请输入 1-7。',
     langTitle: '语言设置',
     lang1: '1. 中文',
     lang2: '2. English',
@@ -128,6 +129,17 @@ const TXT = {
     langChoose: '请选择 (1-3): ',
     langInvalid: '输入无效，请输入 1-3。',
     langSaved: '语言已切换为: {v}',
+    contextUsageTitle: '实时显示上下文状态',
+    contextUsageDesc: '在会话输入框下方显示上下文使用情况（例如：Opus 4.8 (1M context) ████░░░░░░ 36% (359k/1000k)）',
+    contextUsageStatus: '当前状态: {status}',
+    contextUsageEnabled: '已启用',
+    contextUsageDisabled: '已禁用',
+    contextUsage1: '1. 启用',
+    contextUsage2: '2. 禁用',
+    contextUsage3: '3. 返回',
+    contextUsageChoose: '请选择 (1-3): ',
+    contextUsageInvalid: '输入无效，请输入 1-3。',
+    contextUsageSaved: '✅ 已保存: 实时显示上下文状态已{status}',
     opFailed: '❌ 操作失败: {v}',
     execFailed: '❌ 执行失败: {v}',
     saved: '💾 已保存: {v}',
@@ -1796,6 +1808,54 @@ async function nativeMenu(lang) {
     }
   }
 }
+async function contextUsageMenu(lang) {
+  const configFile = path.join(appDir, 'context-usage.json');
+
+  // 读取当前配置
+  let enabled = false;
+  try {
+    if (await exists(configFile)) {
+      const data = await readJson(configFile);
+      enabled = Boolean(data?.enabled);
+    }
+  } catch {
+    // ignore
+  }
+
+  while (true) {
+    console.log(`\n${t(lang, 'contextUsageTitle')}`);
+    console.log(t(lang, 'contextUsageDesc'));
+    console.log('');
+    const statusText = enabled ? t(lang, 'contextUsageEnabled') : t(lang, 'contextUsageDisabled');
+    console.log(t(lang, 'contextUsageStatus', { status: statusText }));
+    console.log('');
+    console.log(t(lang, 'contextUsage1'));
+    console.log(t(lang, 'contextUsage2'));
+    console.log(t(lang, 'contextUsage3'));
+
+    const choice = await ask(t(lang, 'contextUsageChoose'));
+
+    if (choice === '1') {
+      await ensureDir(appDir);
+      await writeJson(configFile, { enabled: true });
+      enabled = true;
+      console.log(t(lang, 'contextUsageSaved', { status: t(lang, 'contextUsageEnabled') }));
+      continue;
+    }
+    if (choice === '2') {
+      await ensureDir(appDir);
+      await writeJson(configFile, { enabled: false });
+      enabled = false;
+      console.log(t(lang, 'contextUsageSaved', { status: t(lang, 'contextUsageDisabled') }));
+      continue;
+    }
+    if (choice === '3') {
+      return;
+    }
+    console.log(t(lang, 'contextUsageInvalid'));
+  }
+}
+
 async function moreSettingsMenu(lang) {
   while (true) {
     console.log(`\n${t(lang, 'moreTitle')}`);
@@ -1803,17 +1863,32 @@ async function moreSettingsMenu(lang) {
     console.log(t(lang, 'more2'));
     console.log(t(lang, 'more3'));
     console.log(t(lang, 'more4'));
-    const choice = await ask(t(lang, 'choose14'));
+    console.log(t(lang, 'more5'));
+    console.log(t(lang, 'more6'));
+    console.log(t(lang, 'more7'));
+    const choice = await ask(t(lang, 'choose17more'));
 
     if (choice === '1') {
-      await cmdInit(lang);
+      await nativeMenu(lang);
       continue;
     }
     if (choice === '2') {
-      usage();
+      await cmdDoctor({}, lang);
       continue;
     }
     if (choice === '3') {
+      await contextUsageMenu(lang);
+      continue;
+    }
+    if (choice === '4') {
+      await cmdInit(lang);
+      continue;
+    }
+    if (choice === '5') {
+      usage();
+      continue;
+    }
+    if (choice === '6') {
       console.log(`\n${t(lang, 'langTitle')}`);
       console.log(t(lang, 'lang1'));
       console.log(t(lang, 'lang2'));
@@ -1839,8 +1914,8 @@ async function moreSettingsMenu(lang) {
       }
       continue;
     }
-    if (choice === '4') return;
-    console.log(t(lang, 'invalid14'));
+    if (choice === '7') return;
+    console.log(t(lang, 'invalid17more'));
   }
 }
 
@@ -1856,10 +1931,8 @@ async function mainMenu(lang) {
     console.log(t(lang, 'm5'));
     console.log(t(lang, 'm6'));
     console.log(t(lang, 'm7'));
-    console.log(t(lang, 'm8'));
-    console.log(t(lang, 'm9'));
     console.log('----------------------------------------');
-    const choice = await ask(t(lang, 'choose19'));
+    const choice = await ask(t(lang, 'choose17'));
 
     try {
       if (choice === '1') {
@@ -1880,29 +1953,21 @@ async function mainMenu(lang) {
         continue;
       }
       if (choice === '5') {
-        await nativeMenu(lang);
-        continue;
-      }
-      if (choice === '6') {
-        await cmdDoctor({}, lang);
-        continue;
-      }
-      if (choice === '7') {
         console.log('');
         console.log(await runStats([]));
         console.log('');
         continue;
       }
-      if (choice === '8') {
+      if (choice === '6') {
         await moreSettingsMenu(lang);
         lang = await getLanguage();
         continue;
       }
-      if (choice === '9' || choice.toLowerCase() === 'q') {
+      if (choice === '7' || choice.toLowerCase() === 'q') {
         console.log(t(lang, 'bye'));
         return;
       }
-      console.log(t(lang, 'invalid19'));
+      console.log(t(lang, 'invalid17'));
     } catch (err) {
       if (err instanceof BackSignal) {
         console.log(t(lang, 'backDone'));
