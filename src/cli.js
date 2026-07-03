@@ -2007,13 +2007,13 @@ def main():
     pct = (used / limit * 100) if limit else 0
 
     if pct >= 85:
-        color = "\\\\033[91m"   # 亮红: 该 /compact 了
+        color = "\\033[91m"   # 亮红: 该 /compact 了
     elif pct >= 60:
-        color = "\\\\033[93m"   # 亮黄: 留意
+        color = "\\033[93m"   # 亮黄: 留意
     else:
-        color = "\\\\033[92m"   # 亮绿: 充裕
-    reset = "\\\\033[0m"
-    dim = "\\\\033[2m"
+        color = "\\033[92m"   # 亮绿: 充裕
+    reset = "\\033[0m"
+    dim = "\\033[2m"
 
     bar_len = 10
     filled = min(bar_len, round(pct / 100 * bar_len))
@@ -2027,25 +2027,34 @@ main()
 `;
 
 async function enableContextUsage() {
-  // 1. 确保脚本目录存在
-  const scriptDir = path.join(home, '.claude', 'claudex-context');
+  // 1. 确保脚本目录存在（使用和用户原配置一致的目录）
+  const scriptDir = path.join(home, '.claude', 'context-monitor');
   const scriptPath = path.join(scriptDir, 'statusline-context.py');
 
   await ensureDir(scriptDir);
 
-  // 2. 写入脚本内容
-  await fsp.writeFile(scriptPath, STATUSLINE_SCRIPT, 'utf8');
-  await fsp.chmod(scriptPath, 0o755);
-
-  // 3. 读取全局配置
+  // 2. 检查是否已有 statusLine 配置
+  const backupFile = globalClaudeSettingsFile + '.claudex-backup';
   let settings = {};
+  let hasExistingStatusLine = false;
+
   if (await exists(globalClaudeSettingsFile)) {
     try {
       settings = await readJson(globalClaudeSettingsFile);
+      if (settings.statusLine) {
+        hasExistingStatusLine = true;
+        // 备份原配置
+        await fsp.copyFile(globalClaudeSettingsFile, backupFile);
+        console.log(`⚠️  检测到已有上下文显示配置，已备份到: ${backupFile}`);
+      }
     } catch {
       settings = {};
     }
   }
+
+  // 3. 写入脚本内容
+  await fsp.writeFile(scriptPath, STATUSLINE_SCRIPT, 'utf8');
+  await fsp.chmod(scriptPath, 0o755);
 
   // 4. 写入 statusLine 配置
   settings.statusLine = {
@@ -2060,7 +2069,23 @@ async function enableContextUsage() {
 }
 
 async function disableContextUsage() {
-  // 读取全局配置
+  // 检查是否有备份文件
+  const backupFile = globalClaudeSettingsFile + '.claudex-backup';
+
+  if (await exists(backupFile)) {
+    // 如果有备份，恢复备份
+    try {
+      await fsp.copyFile(backupFile, globalClaudeSettingsFile);
+      console.log(`✅ 已从备份恢复原配置: ${backupFile}`);
+      // 删除备份文件
+      await fsp.unlink(backupFile);
+      return;
+    } catch (err) {
+      console.log(`⚠️  恢复备份失败: ${err.message}，将直接移除 statusLine 配置`);
+    }
+  }
+
+  // 没有备份或恢复失败，直接移除 statusLine
   if (!(await exists(globalClaudeSettingsFile))) {
     return;
   }
