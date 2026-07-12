@@ -20,7 +20,11 @@ import {
   codexProvidersDir,
   isValidProviderName,
   isReservedProviderId,
-  CLAUDEX_PROVIDER_PREFIX
+  CLAUDEX_PROVIDER_PREFIX,
+  LEGACY_AGENTS_MD_MARKER_BEGIN,
+  LEGACY_AGENTS_MD_MARKER_END,
+  codexAgentsMdPath,
+  legacyCodexNativeStatePath
 } from './constants.js';
 import {
   exists,
@@ -52,13 +56,6 @@ import { runDoctor, formatDoctorReport, summariseStatus } from './doctor.js';
 import { inspectDrift, acceptExternalChanges } from './reconcile.js';
 import { restoreChatGptTokens, findLatestChatGptBackup } from './restore-chatgpt.js';
 import {
-  injectNativeContext,
-  removeNativeContext,
-  nativeStatus,
-  setNativeProfile,
-  NATIVE_PROFILES
-} from './native.js';
-import {
   detectCodex,
   detectCodexAppRunning,
   spawnCodex,
@@ -81,7 +78,6 @@ const CLAUDEX_OWNED = new Set([
   'test',
   'status',
   'doctor',
-  'native',
   'lang',
   'update',
   'snapshot',
@@ -161,8 +157,6 @@ export async function main(argv = process.argv.slice(2)) {
         return await cmdStatus(rest, lang);
       case 'doctor':
         return await cmdDoctor(rest, lang);
-      case 'native':
-        return await cmdNative(rest, lang);
       case 'lang':
         return await cmdLang(rest, lang);
       case 'update':
@@ -205,13 +199,13 @@ function usage(lang) {
   out.push(t(lang, 'usageRun'));
   out.push('  codexx                          # spawn codex using the active provider');
   out.push('  codexx [<codex args>...]        # passthrough (e.g. codexx resume --last)');
-  out.push('  codexx --resume                 # pick a past session across ALL providers (this cwd)');
+  out.push('  codexx --resume [--include-subagents]  # pick a past session across ALL providers (this cwd; subagents hidden by default)');
   out.push('  codexx -- <args>                # force passthrough');
   out.push('');
   out.push(t(lang, 'usageMgmt'));
   out.push('  codexx init                     # initialise state dir + check codex install');
   out.push('  codexx menu                     # interactive menu');
-  out.push('  codexx add                      # add provider via wizard');
+  out.push('  codexx add [--test|--no-test]   # add provider via wizard; optionally probe connectivity');
   out.push('  codexx edit <name> [--model X --base-url U --api-key K --wire-api chat|responses --reasoning-effort low|medium|high]');
   out.push('  codexx list                     # list providers');
   out.push('  codexx use <name|index>         # switch active provider');
@@ -228,7 +222,6 @@ function usage(lang) {
   out.push('  codexx audit [--tail N]         # view audit log');
   out.push('  codexx reconcile [--yes]        # accept external edits as new baseline');
   out.push('  codexx restore-chatgpt [--yes]  # restore ChatGPT OAuth tokens from backup');
-  out.push('  codexx native on|off|status|profile [name]|doctor');
   out.push('  codexx update                   # self-update');
   out.push('');
   out.push(t(lang, 'usageEsc'));
@@ -282,6 +275,15 @@ async function cmdInit(args, lang) {
   await ensureDir(codexProvidersDir());
   await ensureDir(codexBackupsDir());
 
+  // One-shot migration: remove leftover codexx Native artifacts from older versions.
+  const scrubbed = await scrubLegacyNativeArtifacts();
+  if (scrubbed.agentsCleaned) {
+    process.stdout.write(t(lang, 'legacyNativeAgentsCleaned') + '\n');
+  }
+  if (scrubbed.stateRemoved) {
+    process.stdout.write(t(lang, 'legacyNativeStateRemoved') + '\n');
+  }
+
   const codex = detectCodex();
   if (!codex.installed) {
     process.stderr.write(t(lang, 'codexNotInstalled') + '\n');
@@ -296,6 +298,60 @@ async function cmdInit(args, lang) {
   process.stdout.write(t(lang, 'initOk') + '\n');
   process.stdout.write(t(lang, 'codexCliVersion', { v: codex.version || 'unknown' }) + '\n');
   return 0;
+}
+
+/**
+ * Remove leftover AGENTS.md native blocks + codex-native.json from older codexx
+ * versions that still had the Native feature. Pure cleanup; never injects.
+ */
+async function scrubLegacyNativeArtifacts() {
+  let agentsCleaned = false;
+  let stateRemoved = false;
+
+  const agentsPath = codexAgentsMdPath();
+  if (await exists(agentsPath)) {
+    const raw = await fsp.readFile(agentsPath, 'utf8');
+    if (raw.includes(LEGACY_AGENTS_MD_MARKER_BEGIN) || raw.includes(LEGACY_AGENTS_MD_MARKER_END)) {
+      const cleaned = removeLegacyAgentsBlock(raw);
+      if (cleaned !== raw) {
+        await fsp.writeFile(agentsPath, cleaned, 'utf8');
+        agentsCleaned = true;
+      }
+    }
+  }
+
+  const statePath = legacyCodexNativeStatePath();
+  if (await exists(statePath)) {
+    await fsp.unlink(statePath);
+    stateRemoved = true;
+  }
+
+  return { agentsCleaned, stateRemoved };
+}
+
+/** Pure: strip the legacy BEGIN…END block (and one surrounding blank line). */
+export function removeLegacyAgentsBlock(raw) {
+  const beginIdx = raw.indexOf(LEGACY_AGENTS_MD_MARKER_BEGIN);
+  if (beginIdx === -1) {
+    // Only END present — leave as-is rather than guess.
+    return raw;
+  }
+  const endIdx = raw.indexOf(LEGACY_AGENTS_MD_MARKER_END, beginIdx);
+  if (endIdx === -1) {
+    // Dangling BEGIN — drop from BEGIN to EOF (safer than leaving a broken marker).
+    let removeStart = beginIdx;
+    if (removeStart >= 2 && raw.slice(removeStart - 2, removeStart) === '\n\n') {
+      removeStart -= 1;
+    }
+    return raw.slice(0, removeStart).replace(/\n+$/, '\n');
+  }
+  let removeStart = beginIdx;
+  if (removeStart >= 2 && raw.slice(removeStart - 2, removeStart) === '\n\n') {
+    removeStart -= 1;
+  }
+  let removeEnd = endIdx + LEGACY_AGENTS_MD_MARKER_END.length;
+  if (raw[removeEnd] === '\n') removeEnd += 1;
+  return raw.slice(0, removeStart) + raw.slice(removeEnd);
 }
 
 // ----- list -----
@@ -426,7 +482,7 @@ async function cmdAdd(args, lang) {
     return 2;
   }
   process.stdout.write(t(lang, 'addedOk', { v: provider.name }) + '\n');
-  return 0;
+  return await maybeTestAfterAdd(provider, flags, lang);
 }
 
 // ----- edit -----
@@ -611,21 +667,27 @@ async function cmdUse(args, lang) {
 
 // ----- test -----
 
-async function cmdTest(args, lang) {
-  const flags = parseFlags(args);
-  let name;
-  if (flags._.length === 0) {
-    name = await getCurrentProvider();
-    if (!name) {
-      process.stderr.write(t(lang, 'noActiveProvider') + '\n');
-      return 2;
-    }
-  } else {
-    name = await resolveProviderArg(flags._[0]);
-  }
-  const provider = await readProvider(name);
-  process.stdout.write(t(lang, 'testRunning', { v: name }) + '\n');
-  const result = await probeProvider(provider);
+/**
+ * Decide whether to run a connectivity probe after a successful `add`.
+ * - --no-test always skips
+ * - --test always runs (including non-interactive)
+ * - interactive TTY asks (default Y), same as claudex
+ * - non-interactive without flags skips (don't hang scripts)
+ */
+export function decidePostAddTest({ interactive, forceTest, forceNoTest }) {
+  if (forceNoTest) return 'skip';
+  if (forceTest) return 'run';
+  if (interactive) return 'ask';
+  return 'skip';
+}
+
+/** Empty / y / yes / 是 / ok → run (default yes). */
+export function shouldRunTestInput(ansRaw) {
+  const ans = (ansRaw || '').trim().toLowerCase();
+  return ans === '' || ans === 'y' || ans === 'yes' || ans === '是' || ans === 'ok';
+}
+
+async function reportProbeResult(name, result, lang) {
   if (result.ok) {
     process.stdout.write(
       t(lang, 'testOk', {
@@ -648,6 +710,46 @@ async function cmdTest(args, lang) {
   }
   process.stderr.write(t(lang, 'testFail', { v: name, reason }) + '\n');
   return 1;
+}
+
+async function maybeTestAfterAdd(provider, flags, lang) {
+  const decision = decidePostAddTest({
+    interactive: process.stdin.isTTY === true,
+    forceTest: flags.test === true,
+    forceNoTest: flags['no-test'] === true || flags.noTest === true
+  });
+  if (decision === 'skip') return 0;
+  if (decision === 'ask') {
+    const rl = readline.createInterface({ input, output });
+    let ans = '';
+    try {
+      ans = await rl.question(t(lang, 'testNowQ'));
+    } finally {
+      rl.close();
+    }
+    if (!shouldRunTestInput(ans)) return 0;
+  }
+  process.stdout.write(t(lang, 'testRunning', { v: provider.name }) + '\n');
+  const result = await probeProvider(provider);
+  return await reportProbeResult(provider.name, result, lang);
+}
+
+async function cmdTest(args, lang) {
+  const flags = parseFlags(args);
+  let name;
+  if (flags._.length === 0) {
+    name = await getCurrentProvider();
+    if (!name) {
+      process.stderr.write(t(lang, 'noActiveProvider') + '\n');
+      return 2;
+    }
+  } else {
+    name = await resolveProviderArg(flags._[0]);
+  }
+  const provider = await readProvider(name);
+  process.stdout.write(t(lang, 'testRunning', { v: name }) + '\n');
+  const result = await probeProvider(provider);
+  return await reportProbeResult(name, result, lang);
 }
 
 async function probeProvider(provider) {
@@ -791,66 +893,11 @@ async function cmdDoctor(args, lang) {
   return 0;
 }
 
-async function cmdNative(args, lang) {
-  const sub = args[0];
-  const rest = args.slice(1);
-  if (!sub || sub === 'status') {
-    const s = await nativeStatus();
-    process.stdout.write(`Native: ${s.enabled ? 'on' : 'off'}\n`);
-    process.stdout.write(`Profile: ${s.profile}\n`);
-    process.stdout.write(`Injected in ~/.codex/AGENTS.md: ${s.injectedInFile ? 'yes' : 'no'}\n`);
-    if (s.enabled && !s.injectedInFile) {
-      process.stdout.write('⚠️ state says on but markers missing from AGENTS.md — run codexx native on to re-inject\n');
-    }
-    if (!s.enabled && s.injectedInFile) {
-      process.stdout.write('⚠️ markers found in AGENTS.md but state says off — run codexx native off to clean up\n');
-    }
-    return 0;
-  }
-  if (sub === 'on') {
-    const r = await injectNativeContext();
-    process.stdout.write(`✅ Native on (profile=${r.profile})\n`);
-    if (!r.providerName) process.stdout.write('ℹ️ no active provider — block injected with profile guidance only\n');
-    return 0;
-  }
-  if (sub === 'off') {
-    const r = await removeNativeContext();
-    if (r.removed) process.stdout.write('✅ Native off (block removed from AGENTS.md)\n');
-    else process.stdout.write('Native off (no block was present)\n');
-    return 0;
-  }
-  if (sub === 'profile') {
-    const target = rest[0];
-    if (!target) {
-      const s = await nativeStatus();
-      process.stdout.write(`current profile: ${s.profile}\n`);
-      process.stdout.write(`available: ${NATIVE_PROFILES.join(', ')}\n`);
-      return 0;
-    }
-    try {
-      const r = await setNativeProfile(target);
-      process.stdout.write(`✅ profile set to ${r.profile}${r.hash ? ' (re-injected)' : ''}\n`);
-      return 0;
-    } catch (err) {
-      process.stderr.write(t(lang, 'opFailed', { v: err.message }) + '\n');
-      return 2;
-    }
-  }
-  if (sub === 'doctor') {
-    const s = await nativeStatus();
-    process.stdout.write(`[${s.enabled ? 'PASS' : 'INFO'}] native_state — enabled: ${s.enabled}, profile: ${s.profile}\n`);
-    process.stdout.write(`[${s.injectedInFile === s.enabled ? 'PASS' : 'WARN'}] native_markers — markers in file: ${s.injectedInFile}\n`);
-    return 0;
-  }
-  process.stderr.write(t(lang, 'invalidArg', { v: sub }) + '\n');
-  return 2;
-}
-
 async function cmdMenu(args, lang) {
   while (true) {
     process.stdout.write(`\n${t(lang, 'menuTitle')}\n`);
     process.stdout.write('----------------------------------------\n');
-    for (const k of ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8']) {
+    for (const k of ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7']) {
       process.stdout.write(t(lang, k) + '\n');
     }
     process.stdout.write('----------------------------------------\n');
@@ -893,18 +940,14 @@ async function cmdMenu(args, lang) {
         continue;
       }
       if (choice === '5') {
-        await nativeMenu(lang);
-        continue;
-      }
-      if (choice === '6') {
         await cmdDoctor([], lang);
         continue;
       }
-      if (choice === '7') {
+      if (choice === '6') {
         await moreSettingsMenu(lang);
         continue;
       }
-      if (choice === '8' || choice.toLowerCase() === 'q') {
+      if (choice === '7' || choice.toLowerCase() === 'q') {
         process.stdout.write(t(lang, 'bye') + '\n');
         return 0;
       }
@@ -918,7 +961,7 @@ async function cmdMenu(args, lang) {
 async function manageProvidersMenu(lang) {
   while (true) {
     process.stdout.write('\n');
-    for (const k of ['mmg1', 'mmg2', 'mmg3', 'mmg4']) {
+    for (const k of ['mmg1', 'mmg2', 'mmg3', 'mmg4', 'mmg5']) {
       process.stdout.write(t(lang, k) + '\n');
     }
     const rl = readline.createInterface({ input, output });
@@ -928,11 +971,16 @@ async function manageProvidersMenu(lang) {
     } finally {
       rl.close();
     }
+    // Order aligned with claudex: list → add → edit → remove → back
     if (choice === '1') {
       await cmdList([], lang);
       continue;
     }
     if (choice === '2') {
+      await cmdAdd([], lang);
+      continue;
+    }
+    if (choice === '3') {
       const names = await listProviders();
       if (names.length === 0) {
         process.stdout.write(t(lang, 'providersEmpty') + '\n');
@@ -950,7 +998,7 @@ async function manageProvidersMenu(lang) {
       if (pick) await cmdEdit([pick], lang);
       continue;
     }
-    if (choice === '3') {
+    if (choice === '4') {
       const names = await listProviders();
       if (names.length === 0) {
         process.stdout.write(t(lang, 'providersEmpty') + '\n');
@@ -968,48 +1016,8 @@ async function manageProvidersMenu(lang) {
       if (pick) await cmdRemove([pick], lang);
       continue;
     }
-    if (choice === '4') return;
-  }
-}
-
-async function nativeMenu(lang) {
-  while (true) {
-    process.stdout.write('\n');
-    for (const k of ['nm1', 'nm2', 'nm3', 'nm4', 'nm5']) {
-      process.stdout.write(t(lang, k) + '\n');
-    }
-    const rl = readline.createInterface({ input, output });
-    let choice;
-    try {
-      choice = (await rl.question(t(lang, 'nativeMenuChoose'))).trim();
-    } finally {
-      rl.close();
-    }
-    if (choice === '1') {
-      await cmdNative(['on'], lang);
-      continue;
-    }
-    if (choice === '2') {
-      await cmdNative(['off'], lang);
-      continue;
-    }
-    if (choice === '3') {
-      await cmdNative(['status'], lang);
-      continue;
-    }
-    if (choice === '4') {
-      process.stdout.write(`available: ${NATIVE_PROFILES.join(', ')}\n`);
-      const rl2 = readline.createInterface({ input, output });
-      let pick;
-      try {
-        pick = (await rl2.question(t(lang, 'nativeProfilePrompt'))).trim();
-      } finally {
-        rl2.close();
-      }
-      if (pick) await cmdNative(['profile', pick], lang);
-      continue;
-    }
     if (choice === '5') return;
+    process.stdout.write(t(lang, 'mmgInvalid') + '\n');
   }
 }
 
@@ -1042,6 +1050,7 @@ async function moreSettingsMenu(lang) {
       continue;
     }
     if (choice === '3') return;
+    process.stdout.write(t(lang, 'moreInvalid') + '\n');
   }
 }
 
@@ -1239,9 +1248,14 @@ async function passthroughCodex(args) {
 // shows sessions for the active provider. `codexx --resume` is the
 // enhancement: list THIS cwd's sessions across ALL providers, then hand the
 // chosen id to `codex resume` (recovered with the current active provider).
+// Subagent rollouts are hidden by default (they dominate real trees); pass
+// --include-subagents to show them tagged.
 async function cmdResumeAll(args, lang) {
+  const flags = parseFlags(args);
+  const includeSubagents =
+    flags['include-subagents'] === true || flags.includeSubagents === true;
   const cwd = process.cwd();
-  const sessions = await scanSessions({ cwd });
+  const sessions = await scanSessions({ cwd, includeSubagents });
   if (sessions.length === 0) {
     process.stdout.write(t(lang, 'resumeNone', { v: cwd }) + '\n');
     return 0;

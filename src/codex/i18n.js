@@ -50,6 +50,7 @@ const TXT = {
     driftPrompt: '继续切换会保留外部修改。继续吗? [y/N]: ',
 
     // test
+    testNowQ: '是否立即测试连接？(Y/n): ',
     testRunning: '正在测试 {v} ...',
     testOk: '✅ 测试通过: {v} (HTTP {status}, {protocol}, {ms}ms)',
     testFail: '❌ 测试失败: {v} ({reason})',
@@ -73,32 +74,33 @@ const TXT = {
     codexOldVersion: 'ℹ️ Codex CLI 版本 {v} < v0.130；建议升级以获得 config 热重载能力。',
 
     // menu
+    // Skeleton aligned with claudex:
+    // setup/add → status → switch → manage → [platform] → doctor → more → exit
+    // codexx has no token-stats platform slot, so doctor sits at 5.
     menuTitle: 'codexx 主菜单',
-    menuChoose: '请选择 (1-8): ',
-    menuInvalid: '输入无效，请输入 1-8。',
+    menuChoose: '请选择 (1-7): ',
+    menuInvalid: '输入无效，请输入 1-7。',
     m1: '1. 添加 Codex 服务商',
     m2: '2. 查看当前状态',
     m3: '3. 切换服务商',
     m4: '4. 管理服务商',
-    m5: '5. Native 模式',
-    m6: '6. 诊断 (doctor)',
-    m7: '7. 更多设置',
-    m8: '8. 退出',
-    mmgChoose: '请选择 (1-4): ',
-    mmg1: '1. 列出所有服务商',
-    mmg2: '2. 编辑服务商',
-    mmg3: '3. 删除服务商',
-    mmg4: '4. 返回',
-    nativeMenuChoose: '请选择 (1-5): ',
-    nm1: '1. 开启 Native',
-    nm2: '2. 关闭 Native',
-    nm3: '3. 查看状态',
-    nm4: '4. 切换 profile',
-    nm5: '5. 返回',
+    m5: '5. 诊断 (doctor)',
+    m6: '6. 更多设置',
+    m7: '7. 退出',
+    mmgChoose: '请选择 (1-5): ',
+    mmgInvalid: '输入无效，请输入 1-5。',
+    mmg1: '1. 列出服务商',
+    mmg2: '2. 新增服务商',
+    mmg3: '3. 编辑服务商',
+    mmg4: '4. 删除服务商',
+    mmg5: '5. 返回',
     moreChoose: '请选择 (1-3): ',
+    moreInvalid: '输入无效，请输入 1-3。',
     more1: '1. 切换语言',
     more2: '2. 初始化 (init)',
     more3: '3. 返回',
+    legacyNativeAgentsCleaned: '🧹 已清理旧版 codexx Native 写入的 AGENTS.md 段落',
+    legacyNativeStateRemoved: '🧹 已删除旧版 codex-native.json 状态文件',
 
     // login/logout wrappers
     loginWarnOAuth: '⚠️ 你即将走 codex login OAuth 流程，会覆盖当前 auth.json。',
@@ -120,7 +122,6 @@ const TXT = {
     editPickPrompt: '请输入要编辑的服务商序号或名称: ',
     removePickPrompt: '请输入要删除的服务商序号或名称: ',
     askSwitchTo: '请输入要切换到的服务商序号或名称: ',
-    nativeProfilePrompt: '请输入 profile 名 (native-first/balanced/cost-first): ',
     langPrompt: '请输入语言 (zh/en): ',
 
     // common
@@ -129,8 +130,8 @@ const TXT = {
     invalidArg: '⚠️ 参数无效: {v}',
 
     // cross-provider resume (codexx --resume)
-    resumeHeader: 'Codex 会话记录（{v}，跨全部 provider）。注: codexx resume 只列当前 provider:',
-    resumeNone: '当前目录（{v}）暂无 Codex 会话记录。',
+    resumeHeader: 'Codex 会话记录（{v}，跨全部 provider，默认隐藏 subagent）。注: codexx resume 只列当前 provider:',
+    resumeNone: '当前目录（{v}）暂无 Codex 主会话记录。',
     resumePrompt: '输入序号恢复会话（1-{v}，直接回车取消）: ',
     resumeListOnly: 'ℹ️ 非交互模式：仅列出。要直接恢复某条，请用: codexx resume <id>',
 
@@ -187,6 +188,7 @@ const TXT = {
     driftDetected: '⚠️ External modifications detected in: {v}',
     driftPrompt: 'Switching will preserve external modifications. Continue? [y/N]: ',
 
+    testNowQ: 'Test connection now? (Y/n): ',
     testRunning: 'Testing {v} ...',
     testOk: '✅ Test OK: {v} (HTTP {status}, {protocol}, {ms}ms)',
     testFail: '❌ Test failed: {v} ({reason})',
@@ -207,32 +209,31 @@ const TXT = {
     codexOldVersion: 'ℹ️ Codex CLI {v} < v0.130; consider upgrading for config hot-reload.',
 
     // menu
+    // Skeleton aligned with claudex (no token-stats slot on codexx).
     menuTitle: 'codexx Main Menu',
-    menuChoose: 'Choose (1-8): ',
-    menuInvalid: 'Invalid choice. Enter 1-8.',
+    menuChoose: 'Choose (1-7): ',
+    menuInvalid: 'Invalid choice. Enter 1-7.',
     m1: '1. Add a Codex provider',
     m2: '2. Show current status',
     m3: '3. Switch provider',
     m4: '4. Manage providers',
-    m5: '5. Native mode',
-    m6: '6. Diagnose (doctor)',
-    m7: '7. More settings',
-    m8: '8. Exit',
-    mmgChoose: 'Choose (1-4): ',
+    m5: '5. Diagnose (doctor)',
+    m6: '6. More settings',
+    m7: '7. Exit',
+    mmgChoose: 'Choose (1-5): ',
+    mmgInvalid: 'Invalid choice. Enter 1-5.',
     mmg1: '1. List providers',
-    mmg2: '2. Edit a provider',
-    mmg3: '3. Remove a provider',
-    mmg4: '4. Back',
-    nativeMenuChoose: 'Choose (1-5): ',
-    nm1: '1. Turn Native on',
-    nm2: '2. Turn Native off',
-    nm3: '3. Show status',
-    nm4: '4. Switch profile',
-    nm5: '5. Back',
+    mmg2: '2. Add a provider',
+    mmg3: '3. Edit a provider',
+    mmg4: '4. Remove a provider',
+    mmg5: '5. Back',
     moreChoose: 'Choose (1-3): ',
+    moreInvalid: 'Invalid choice. Enter 1-3.',
     more1: '1. Switch language',
     more2: '2. Initialise (init)',
     more3: '3. Back',
+    legacyNativeAgentsCleaned: '🧹 Removed leftover codexx Native block from AGENTS.md',
+    legacyNativeStateRemoved: '🧹 Removed leftover codex-native.json state file',
 
     // login/logout wrappers
     loginWarnOAuth: '⚠️ codex login will overwrite the current auth.json.',
@@ -254,7 +255,6 @@ const TXT = {
     editPickPrompt: 'Enter provider index or name to edit: ',
     removePickPrompt: 'Enter provider index or name to remove: ',
     askSwitchTo: 'Enter provider index or name to switch to: ',
-    nativeProfilePrompt: 'Enter profile name (native-first/balanced/cost-first): ',
     langPrompt: 'Enter language (zh/en): ',
 
     notImplemented: '⚠️ Not yet implemented (coming in a later milestone).',
@@ -262,8 +262,8 @@ const TXT = {
     invalidArg: '⚠️ Invalid argument: {v}',
 
     // cross-provider resume (codexx --resume)
-    resumeHeader: 'Codex sessions in {v} (across ALL providers). Note: `codexx resume` lists only the current provider:',
-    resumeNone: 'No Codex sessions recorded for this directory ({v}).',
+    resumeHeader: 'Codex sessions in {v} (across ALL providers; subagents hidden by default). Note: `codexx resume` lists only the current provider:',
+    resumeNone: 'No Codex main sessions recorded for this directory ({v}).',
     resumePrompt: 'Enter a number to resume (1-{v}, empty to cancel): ',
     resumeListOnly: 'ℹ️ Non-interactive: list only. To resume one directly: codexx resume <id>',
 
