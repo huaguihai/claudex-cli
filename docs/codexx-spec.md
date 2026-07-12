@@ -131,7 +131,7 @@ CLAUDEX_OWNED:
 
 ```
 init, menu, add, list, use, remove, test, status, doctor,
-native, lang, update, snapshot, restore, revert, audit,
+lang, update, snapshot, restore, revert, audit,
 reconcile, restore-chatgpt
 ```
 
@@ -227,6 +227,9 @@ Run comprehensive diagnostics. Output: list of checks with pass/warn/fail and fi
 Interactive menu, parallel to `claudex menu`.
 
 #### `codexx native on | off | status | profile [name] | doctor`
+
+> **Removed.** Codexx Native (AGENTS.md injection) was deleted. Use `claudex native` for Claude-side Native mode only. `codexx init` scrubs leftover AGENTS.md blocks and `codex-native.json` from older installs.
+
 
 - `on`: inject native context into `~/.codex/AGENTS.md` within delimiters; record in `codex-native.json`.
 - `off`: remove delimited section from AGENTS.md; clean state.

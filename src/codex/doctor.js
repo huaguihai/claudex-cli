@@ -5,10 +5,7 @@ import { parse as parseToml } from 'smol-toml';
 import {
   codexConfigTomlPath,
   codexAuthJsonPath,
-  codexAgentsMdPath,
-  codexEnvFilePath,
-  AGENTS_MD_MARKER_BEGIN,
-  AGENTS_MD_MARKER_END
+  codexEnvFilePath
 } from './constants.js';
 import { exists, sha256, sha256File } from '../shared/fs-utils.js';
 import { readLastKnownHashes } from './audit.js';
@@ -48,7 +45,6 @@ export async function runDoctor(opts = {}) {
   checks.push(await checkShellEnvConflict());
   checks.push(await checkProjectLocalConfig(cwd));
   checks.push(await checkCredentialsStoreMode());
-  checks.push(await checkNativeContextIntegrity());
   checks.push(await checkEnvFile());
   checks.push(await checkProviderInventory());
 
@@ -342,37 +338,6 @@ async function checkCredentialsStoreMode() {
   } catch (err) {
     return { name: 'credentials_store', status: 'fail', message: `config.toml unparseable: ${err.message}` };
   }
-}
-
-async function checkNativeContextIntegrity() {
-  const p = codexAgentsMdPath();
-  if (!(await exists(p))) {
-    return { name: 'native_context_integrity', status: 'info', message: 'no AGENTS.md (native context off)' };
-  }
-  const raw = await fsp.readFile(p, 'utf8');
-  const hasBegin = raw.includes(AGENTS_MD_MARKER_BEGIN);
-  const hasEnd = raw.includes(AGENTS_MD_MARKER_END);
-  if (!hasBegin && !hasEnd) {
-    return { name: 'native_context_integrity', status: 'pass', message: 'AGENTS.md has no claudex-managed section' };
-  }
-  if (hasBegin && hasEnd) {
-    const start = raw.indexOf(AGENTS_MD_MARKER_BEGIN);
-    const end = raw.indexOf(AGENTS_MD_MARKER_END);
-    if (end <= start) {
-      return {
-        name: 'native_context_integrity',
-        status: 'fail',
-        message: 'AGENTS.md markers found but END is before BEGIN'
-      };
-    }
-    return { name: 'native_context_integrity', status: 'pass', message: 'AGENTS.md claudex section markers intact' };
-  }
-  return {
-    name: 'native_context_integrity',
-    status: 'fail',
-    message: 'AGENTS.md has only one of BEGIN/END markers — section tampered',
-    fix: 'Run codexx native off to clean up, then codexx native on to re-inject'
-  };
 }
 
 async function checkEnvFile() {

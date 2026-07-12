@@ -497,8 +497,7 @@ codexx revert
 | `codexx add / list / edit / remove` | provider 增删改查；`edit` 逐字段补丁（回车保留 wizard，或 `--model X` 单字段命令）|
 | `codexx test [name]` | 按 `wire_api` 选 chat / responses 做 HTTP 探测 |
 | `codexx status` | 当前 provider + Codex 版本 + 桌面 App 状态 + drift |
-| `codexx doctor [--json]` | 13 项健康检查（CLI 版本、drift、env 冲突、项目级 config、credentials store、native context 完整性…）|
-| `codexx native on/off/profile` | 用定界符把运行时上下文注入 `~/.codex/AGENTS.md`；可干净移除 |
+| `codexx doctor [--json]` | 健康检查（CLI 版本、drift、env 冲突、项目级 config、credentials store…）|
 | `codexx menu` | 交互菜单——与 `claudex menu` UX 形态相同 |
 | `codexx snapshot / restore / revert` | 首次快照 + 每次切换前备份 + 原子还原 |
 | `codexx reconcile` | `codex login` / `codex mcp add` 等外部修改后，接受为新基线 |
@@ -550,7 +549,6 @@ codexx revert [--yes]               # 还原到 pre-codexx 状态
 codexx audit [--tail N]             # 查看审计日志（JSONL）
 codexx reconcile [--yes]            # 把外部修改接受为新基线
 codexx restore-chatgpt [--yes]      # 从备份还原 ChatGPT OAuth tokens
-codexx native on|off|status|profile [name]|doctor
 codexx lang <zh|en>                 # 切语言
 codexx update                       # 自更新
 codexx login / logout / app         # claudex-aware codex 包装
@@ -562,14 +560,12 @@ codexx login / logout / app         # claudex-aware codex 包装
 |---|---|---|
 | `~/.codex/config.toml` | 与 codex 共享 | codexx 只写 `[model_providers.claudex-<name>]` section 和顶层 `model` / `model_provider`，定界符包裹 |
 | `~/.codex/auth.json` | 与 codex 共享 | codexx 写当前 provider 的 API key（apikey 模式）；ChatGPT OAuth tokens 覆盖前自动备份 |
-| `~/.codex/AGENTS.md` | 与 codex 共享（用户） | 仅 Native on 时在定界符内写入 |
 | `~/.config/claudex-cli/codex-providers/<name>.json` | codexx | provider 元数据（api_key, base_url, model 等）；chmod 600 |
 | `~/.config/claudex-cli/codex-current-provider` | codexx | 单行 = 当前 provider 名 |
 | `~/.config/claudex-cli/codex-snapshot/pre-claudex/` | codexx | 第一次 `codexx use` 时拷的 `~/.codex/` 字节级副本 |
 | `~/.config/claudex-cli/codex-backups/<ts>/` | codexx | 每次切换前备份（config.toml + auth.json + reason + hashes）|
 | `~/.config/claudex-cli/codex-audit.log` | codexx | JSONL 审计日志（use / revert / drift / chatgpt-backup 事件）|
 | `~/.config/claudex-cli/codex-last-known-hashes.json` | codexx | drift 检测基线 |
-| `~/.config/claudex-cli/codex-native.json` | codexx | `{ enabled, profile, last_injected_hash }` |
 
 Provider 元数据 schema：
 

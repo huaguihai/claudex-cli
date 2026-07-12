@@ -246,32 +246,6 @@ test('doctor: credentials_store pass when default (no key)', async () => {
   });
 });
 
-test('doctor: native_context_integrity fails on dangling BEGIN marker', async () => {
-  await withIsolatedHome(async ({ codexHome }) => {
-    await fsp.writeFile(path.join(codexHome, 'config.toml'), 'model = "x"\n');
-    await fsp.writeFile(
-      path.join(codexHome, 'AGENTS.md'),
-      '# proj\n\n<!-- claudex-cli native context BEGIN — managed automatically, do not edit -->\n(orphaned)\n'
-    );
-    const checks = await runDoctor();
-    const c = findCheck(checks, 'native_context_integrity');
-    assert.equal(c.status, 'fail');
-  });
-});
-
-test('doctor: native_context_integrity pass on intact markers', async () => {
-  await withIsolatedHome(async ({ codexHome }) => {
-    await fsp.writeFile(path.join(codexHome, 'config.toml'), 'model = "x"\n');
-    await fsp.writeFile(
-      path.join(codexHome, 'AGENTS.md'),
-      '# proj\n\n<!-- claudex-cli native context BEGIN — managed automatically, do not edit -->\nbody\n<!-- claudex-cli native context END -->\n'
-    );
-    const checks = await runDoctor();
-    const c = findCheck(checks, 'native_context_integrity');
-    assert.equal(c.status, 'pass');
-  });
-});
-
 test('doctor: provider_inventory counts providers', async () => {
   await withIsolatedHome(async ({ codexHome }) => {
     await fsp.writeFile(path.join(codexHome, 'config.toml'), 'model = "x"\n');

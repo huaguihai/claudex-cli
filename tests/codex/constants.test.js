@@ -8,8 +8,8 @@ import {
   CLAUDEX_PROVIDER_PREFIX,
   CONFIG_TOML_MARKER_BEGIN_PREFIX,
   CONFIG_TOML_MARKER_END,
-  AGENTS_MD_MARKER_BEGIN,
-  AGENTS_MD_MARKER_END,
+  LEGACY_AGENTS_MD_MARKER_BEGIN,
+  LEGACY_AGENTS_MD_MARKER_END,
   SCHEMA_VERSION,
   codexHome,
   codexConfigTomlPath,
@@ -22,7 +22,7 @@ import {
   codexSnapshotDir,
   codexAuditLogPath,
   codexLastKnownHashesPath,
-  codexNativeStatePath,
+  legacyCodexNativeStatePath,
   codexLockPath,
   isReservedProviderId,
   isValidProviderName,
@@ -139,7 +139,7 @@ test('claudex-app paths anchor under ~/.config/claudex-cli', () => {
   assert.equal(codexSnapshotDir(), path.join(app, 'codex-snapshot', 'pre-claudex'));
   assert.equal(codexAuditLogPath(), path.join(app, 'codex-audit.log'));
   assert.equal(codexLastKnownHashesPath(), path.join(app, 'codex-last-known-hashes.json'));
-  assert.equal(codexNativeStatePath(), path.join(app, 'codex-native.json'));
+  assert.equal(legacyCodexNativeStatePath(), path.join(app, 'codex-native.json'));
   assert.equal(codexLockPath(), path.join(app, 'codex.lock'));
 });
 
@@ -150,7 +150,8 @@ test('SCHEMA_VERSION matches spec', () => {
 test('markers are stable strings', () => {
   assert.equal(typeof CONFIG_TOML_MARKER_BEGIN_PREFIX, 'string');
   assert.equal(typeof CONFIG_TOML_MARKER_END, 'string');
-  assert.equal(typeof AGENTS_MD_MARKER_BEGIN, 'string');
-  assert.equal(typeof AGENTS_MD_MARKER_END, 'string');
+  // Legacy AGENTS.md markers kept only for scrubbing old installs.
+  assert.equal(typeof LEGACY_AGENTS_MD_MARKER_BEGIN, 'string');
+  assert.equal(typeof LEGACY_AGENTS_MD_MARKER_END, 'string');
   assert.equal(CLAUDEX_PROVIDER_PREFIX, 'claudex-');
 });

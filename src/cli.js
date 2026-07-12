@@ -112,15 +112,16 @@ const TXT = {
     menuTitle: 'Claudex 主菜单',
     bannerSub: 'Provider Switching Console',
     bannerBy: 'Powered by github.com/huaguihai',
-    m1: '1. 开始配置claudex',
+    m1: '1. 开始配置 / 添加服务商',
     m2: '2. 查看当前配置',
     m3: '3. 切换模型服务商',
     m4: '4. 管理模型服务商',
     m5: '5. 查看 Token 消耗情况',
-    m6: '6. 更多',
-    m7: '7. 退出',
-    choose17: '请选择 (1-7): ',
-    invalid17: '输入无效，请输入 1-7。',
+    m6: '6. 诊断 (doctor)',
+    m7: '7. 更多',
+    m8: '8. 退出',
+    choose18: '请选择 (1-8): ',
+    invalid18: '输入无效，请输入 1-8。',
     bye: '👋 已退出。',
     currentProvider: '📌 当前服务商: {v}',
     currentSettings: '当前配置文件: {file} {state}',
@@ -136,23 +137,22 @@ const TXT = {
     providerIndexOutOfRange: '序号超出范围，请输入有效序号。',
     providerNotFound: '未找到服务商: {v}',
     manageTitle: '管理模型服务商',
-    mg1: '1. 新增服务商',
-    mg2: '2. 编辑服务商（逐字段，回车保留原值）',
-    mg3: '3. 删除服务商',
-    mg4: '4. 列出服务商',
+    mg1: '1. 列出服务商',
+    mg2: '2. 新增服务商',
+    mg3: '3. 编辑服务商（逐字段，回车保留原值）',
+    mg4: '4. 删除服务商',
     mg5: '5. 返回主菜单',
     choose15: '请选择 (1-5): ',
     invalid15: '输入无效，请输入 1-5。',
     moreTitle: '更多',
     more1: '1. Native 模式',
-    more2: '2. 问题排查',
-    more3: '3. 实时显示上下文状态',
-    more4: '4. 初始化/修复 shell 快捷函数',
-    more5: '5. 显示命令帮助',
-    more6: '6. 语言设置（中文 / English）',
-    more7: '7. 返回主菜单',
-    choose17more: '请选择 (1-7): ',
-    invalid17more: '输入无效，请输入 1-7。',
+    more2: '2. 实时显示上下文状态',
+    more3: '3. 初始化/修复 shell 快捷函数',
+    more4: '4. 显示命令帮助',
+    more5: '5. 语言设置（中文 / English）',
+    more6: '6. 返回主菜单',
+    choose16more: '请选择 (1-6): ',
+    invalid16more: '输入无效，请输入 1-6。',
     langTitle: '语言设置',
     lang1: '1. 中文',
     lang2: '2. English',
@@ -259,17 +259,16 @@ const TXT = {
     menuTitle: 'Claudex Main Menu',
     bannerSub: 'Provider Switching Console',
     bannerBy: 'Powered by github.com/huaguihai',
-    m1: '1. Initial setup for Claudex',
+    m1: '1. Initial setup / add provider',
     m2: '2. View current configuration',
     m3: '3. Switch model provider',
     m4: '4. Manage model providers',
-    m5: '5. Native Mode',
-    m6: '6. Troubleshooting',
-    m7: '7. View Token Usage',
-    m8: '8. More settings',
-    m9: '9. Exit',
-    choose19: 'Choose (1-9): ',
-    invalid19: 'Invalid input. Enter 1-9.',
+    m5: '5. View token usage',
+    m6: '6. Diagnose (doctor)',
+    m7: '7. More',
+    m8: '8. Exit',
+    choose18: 'Choose (1-8): ',
+    invalid18: 'Invalid input. Enter 1-8.',
     bye: '👋 Exited.',
     currentProvider: '📌 Current provider: {v}',
     currentSettings: 'Current settings: {file} {state}',
@@ -285,20 +284,22 @@ const TXT = {
     providerIndexOutOfRange: 'Index out of range. Enter a valid provider index.',
     providerNotFound: 'Provider not found: {v}',
     manageTitle: 'Manage Model Providers',
-    mg1: '1. Add provider',
-    mg2: '2. Edit provider (field-by-field, Enter to keep current)',
-    mg3: '3. Delete provider',
-    mg4: '4. List providers',
+    mg1: '1. List providers',
+    mg2: '2. Add provider',
+    mg3: '3. Edit provider (field-by-field, Enter to keep current)',
+    mg4: '4. Delete provider',
     mg5: '5. Back to main menu',
     choose15: 'Choose (1-5): ',
     invalid15: 'Invalid input. Enter 1-5.',
-    moreTitle: 'More Settings',
-    more1: '1. Initialize/repair shell helper',
-    more2: '2. Show command help',
-    more3: '3. Language (中文 / English)',
-    more4: '4. Back to main menu',
-    choose14: 'Choose (1-4): ',
-    invalid14: 'Invalid input. Enter 1-4.',
+    moreTitle: 'More',
+    more1: '1. Native mode',
+    more2: '2. Live context usage meter',
+    more3: '3. Initialize/repair shell helpers',
+    more4: '4. Show command help',
+    more5: '5. Language (中文 / English)',
+    more6: '6. Back to main menu',
+    choose16more: 'Choose (1-6): ',
+    invalid16more: 'Invalid input. Enter 1-6.',
     langTitle: 'Language',
     lang1: '1. Chinese',
     lang2: '2. English',
@@ -306,6 +307,17 @@ const TXT = {
     langChoose: 'Choose (1-3): ',
     langInvalid: 'Invalid input. Enter 1-3.',
     langSaved: 'Language set to: {v}',
+    contextUsageTitle: 'Live context usage meter',
+    contextUsageDesc: 'Show context usage under the session input (e.g. Opus 4.8 (1M context) ████░░░░░░ 36% (359k/1000k))',
+    contextUsageStatus: 'Current status: {status}',
+    contextUsageEnabled: 'enabled',
+    contextUsageDisabled: 'disabled',
+    contextUsage1: '1. Enable',
+    contextUsage2: '2. Disable',
+    contextUsage3: '3. Back',
+    contextUsageChoose: 'Choose (1-3): ',
+    contextUsageInvalid: 'Invalid input. Enter 1-3.',
+    contextUsageSaved: '✅ Saved: live context usage meter {status}',
     opFailed: '❌ Operation failed: {v}',
     execFailed: '❌ Execution failed: {v}',
     saved: '💾 Saved: {v}',
@@ -1779,13 +1791,17 @@ async function manageProvidersMenu(lang) {
 
     try {
       if (choice === '1') {
+        await cmdProvider(['list'], lang);
+        continue;
+      }
+      if (choice === '2') {
         const info = await promptProviderAdd({}, lang);
         const file = await writeProviderSettings(info);
         console.log(t(lang, 'saved', { v: file }));
         await askAndRunProviderTest(info.name, lang);
         continue;
       }
-      if (choice === '2') {
+      if (choice === '3') {
         const name = await pickProvider(lang, t(lang, 'askEdit'));
         try {
           const info = await promptProviderEdit(name, {}, lang);
@@ -1799,13 +1815,9 @@ async function manageProvidersMenu(lang) {
         }
         continue;
       }
-      if (choice === '3') {
+      if (choice === '4') {
         const name = await pickProvider(lang, t(lang, 'askDelete'));
         await cmdProvider(['remove', name, '--yes'], lang);
-        continue;
-      }
-      if (choice === '4') {
-        await cmdProvider(['list'], lang);
         continue;
       }
       if (choice === '5') return;
@@ -2113,30 +2125,25 @@ async function moreSettingsMenu(lang) {
     console.log(t(lang, 'more4'));
     console.log(t(lang, 'more5'));
     console.log(t(lang, 'more6'));
-    console.log(t(lang, 'more7'));
-    const choice = await ask(t(lang, 'choose17more'));
+    const choice = await ask(t(lang, 'choose16more'));
 
     if (choice === '1') {
       await nativeMenu(lang);
       continue;
     }
     if (choice === '2') {
-      await cmdDoctor({}, lang);
-      continue;
-    }
-    if (choice === '3') {
       await contextUsageMenu(lang);
       continue;
     }
-    if (choice === '4') {
+    if (choice === '3') {
       await cmdInit(lang);
       continue;
     }
-    if (choice === '5') {
+    if (choice === '4') {
       usage();
       continue;
     }
-    if (choice === '6') {
+    if (choice === '5') {
       console.log(`\n${t(lang, 'langTitle')}`);
       console.log(t(lang, 'lang1'));
       console.log(t(lang, 'lang2'));
@@ -2162,8 +2169,8 @@ async function moreSettingsMenu(lang) {
       }
       continue;
     }
-    if (choice === '7') return;
-    console.log(t(lang, 'invalid17more'));
+    if (choice === '6') return;
+    console.log(t(lang, 'invalid16more'));
   }
 }
 
@@ -2179,8 +2186,9 @@ async function mainMenu(lang) {
     console.log(t(lang, 'm5'));
     console.log(t(lang, 'm6'));
     console.log(t(lang, 'm7'));
+    console.log(t(lang, 'm8'));
     console.log('----------------------------------------');
-    const choice = await ask(t(lang, 'choose17'));
+    const choice = await ask(t(lang, 'choose18'));
 
     try {
       if (choice === '1') {
@@ -2207,15 +2215,19 @@ async function mainMenu(lang) {
         continue;
       }
       if (choice === '6') {
+        await cmdDoctor({}, lang);
+        continue;
+      }
+      if (choice === '7') {
         await moreSettingsMenu(lang);
         lang = await getLanguage();
         continue;
       }
-      if (choice === '7' || choice.toLowerCase() === 'q') {
+      if (choice === '8' || choice.toLowerCase() === 'q') {
         console.log(t(lang, 'bye'));
         return;
       }
-      console.log(t(lang, 'invalid17'));
+      console.log(t(lang, 'invalid18'));
     } catch (err) {
       if (err instanceof BackSignal) {
         console.log(t(lang, 'backDone'));

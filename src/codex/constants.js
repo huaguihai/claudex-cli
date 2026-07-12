@@ -15,9 +15,11 @@ export const CLAUDEX_PROVIDER_PREFIX = 'claudex-';
 export const CONFIG_TOML_MARKER_BEGIN_PREFIX = '# claudex-cli managed BEGIN';
 export const CONFIG_TOML_MARKER_END = '# claudex-cli managed END';
 
-export const AGENTS_MD_MARKER_BEGIN =
+// Legacy markers from the removed codexx Native feature. Kept only so init can
+// scrub leftover blocks from ~/.codex/AGENTS.md written by older versions.
+export const LEGACY_AGENTS_MD_MARKER_BEGIN =
   '<!-- claudex-cli native context BEGIN — managed automatically, do not edit -->';
-export const AGENTS_MD_MARKER_END = '<!-- claudex-cli native context END -->';
+export const LEGACY_AGENTS_MD_MARKER_END = '<!-- claudex-cli native context END -->';
 
 export const SCHEMA_VERSION = 1;
 
@@ -31,10 +33,6 @@ export function codexConfigTomlPath() {
 
 export function codexAuthJsonPath() {
   return path.join(codexHome(), 'auth.json');
-}
-
-export function codexAgentsMdPath() {
-  return path.join(codexHome(), 'AGENTS.md');
 }
 
 export function codexSessionsDir() {
@@ -80,12 +78,18 @@ export function codexLastKnownHashesPath() {
   return path.join(claudexAppDir(), 'codex-last-known-hashes.json');
 }
 
-export function codexNativeStatePath() {
+export function codexLockPath() {
+  return path.join(claudexAppDir(), 'codex.lock');
+}
+
+/** Legacy path kept so init can delete leftover state from older installs. */
+export function legacyCodexNativeStatePath() {
   return path.join(claudexAppDir(), 'codex-native.json');
 }
 
-export function codexLockPath() {
-  return path.join(claudexAppDir(), 'codex.lock');
+/** Legacy path kept so init can scrub leftover AGENTS.md blocks. */
+export function codexAgentsMdPath() {
+  return path.join(codexHome(), 'AGENTS.md');
 }
 
 export function isReservedProviderId(name) {

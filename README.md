@@ -483,8 +483,7 @@ codexx revert
 | `codexx add / list / edit / remove` | Provider CRUD with validation; `edit` patches fields in place (Enter-to-keep wizard, or `--model X` flag for single-field changes) |
 | `codexx test [name]` | HTTP probe respecting `wire_api` (chat / responses) |
 | `codexx status` | Active provider + Codex version + Desktop App state + drift |
-| `codexx doctor [--json]` | 13-check health report (CLI version, drift, env conflicts, project-local config, credentials store, native context integrity, …) |
-| `codexx native on/off/profile` | Inject runtime context block into `~/.codex/AGENTS.md` with delimiters; fully removable |
+| `codexx doctor [--json]` | Health report (CLI version, drift, env conflicts, project-local config, credentials store, …) |
 | `codexx menu` | Interactive menu — same UX shape as `claudex menu` |
 | `codexx snapshot / restore / revert` | First-run snapshot + per-switch backups + atomic restore |
 | `codexx reconcile` | After `codex login` / `codex mcp add` / external edits, accept current state as new baseline |
@@ -537,7 +536,6 @@ codexx revert [--yes]               # restore pre-codexx state
 codexx audit [--tail N]             # view audit log (JSONL)
 codexx reconcile [--yes]            # accept external edits as new baseline
 codexx restore-chatgpt [--yes]      # restore ChatGPT OAuth tokens from backup
-codexx native on|off|status|profile [name]|doctor
 codexx lang <zh|en>                 # CLI language
 codexx update                       # self-update
 codexx login / logout / app         # claudex-aware codex wrappers
@@ -549,14 +547,12 @@ codexx login / logout / app         # claudex-aware codex wrappers
 |---|---|---|
 | `~/.codex/config.toml` | shared with codex | codexx writes only `[model_providers.claudex-<name>]` sections + top-level `model` / `model_provider`, marker-delimited |
 | `~/.codex/auth.json` | shared with codex | codexx writes the active provider's API key (apikey mode); ChatGPT OAuth tokens are backed up before being overwritten |
-| `~/.codex/AGENTS.md` | shared with codex (user) | only touched when Native is on, inside delimited section |
 | `~/.config/claudex-cli/codex-providers/<name>.json` | codexx | provider metadata (api_key, base_url, model, …); chmod 600 |
 | `~/.config/claudex-cli/codex-current-provider` | codexx | single line = active provider name |
 | `~/.config/claudex-cli/codex-snapshot/pre-claudex/` | codexx | byte-identical copy of `~/.codex/` from first `codexx use` |
 | `~/.config/claudex-cli/codex-backups/<ts>/` | codexx | per-switch backups (config.toml + auth.json + reason + hashes) |
 | `~/.config/claudex-cli/codex-audit.log` | codexx | JSONL audit trail (use / revert / drift / chatgpt-backup events) |
 | `~/.config/claudex-cli/codex-last-known-hashes.json` | codexx | drift detection baseline |
-| `~/.config/claudex-cli/codex-native.json` | codexx | `{ enabled, profile, last_injected_hash }` |
 
 Provider metadata schema:
 
