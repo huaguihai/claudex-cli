@@ -135,6 +135,12 @@ export async function main(argv = process.argv.slice(2)) {
   const sub = first;
   const rest = argv.slice(1);
 
+  if (['init', 'menu', 'add', 'edit', 'list', 'use', 'remove', 'test', 'status', 'doctor', 'lang'].includes(sub) &&
+      (rest.includes('--help') || rest.includes('-h'))) {
+    usage(lang);
+    return 0;
+  }
+
   try {
     switch (sub) {
       case 'init':
@@ -205,11 +211,11 @@ function usage(lang) {
   out.push(t(lang, 'usageMgmt'));
   out.push('  codexx init                     # initialise state dir + check codex install');
   out.push('  codexx menu                     # interactive menu');
-  out.push('  codexx add [--test|--no-test]   # add provider via wizard; optionally probe connectivity');
+  out.push('  codexx add [--test|--no-test|--no-input] # add provider via wizard');
   out.push('  codexx edit <name> [--model X --base-url U --api-key K --wire-api chat|responses --reasoning-effort low|medium|high]');
   out.push('  codexx list                     # list providers');
   out.push('  codexx use <name|index>         # switch active provider');
-  out.push('  codexx remove <name|index> [--yes]');
+  out.push('  codexx remove <name|index> [--yes] [--no-input]');
   out.push('  codexx test [name|index]        # provider connectivity test');
   out.push('  codexx status                   # show active provider summary');
   out.push('  codexx lang <zh|en>             # set CLI language');
@@ -227,6 +233,7 @@ function usage(lang) {
   out.push(t(lang, 'usageEsc'));
   out.push('  codexx login / logout / app     # claudex-aware codex wrappers');
   out.push('  codexx resume / fork / exec / review / apply / mcp / plugin / features ...');
+  out.push('  CODEXX_API_KEY=... codexx add ... # avoid putting the key in shell history');
   process.stdout.write(out.join('\n') + '\n');
 }
 
@@ -385,7 +392,7 @@ async function cmdStatus(args, lang) {
       process.stdout.write(t(lang, 'currentModel', { v: p.model }) + '\n');
       process.stdout.write(t(lang, 'currentWireApi', { v: p.wire_api || 'chat' }) + '\n');
     } catch {
-      // provider metadata missing but current pointer set — surface gracefully
+      process.stdout.write(t(lang, 'providerMissing', { v: active }) + '\n');
     }
   }
 
@@ -422,14 +429,14 @@ async function cmdAdd(args, lang) {
   const provider = {
     name: flags.name,
     base_url: flags['base-url'] || flags.baseUrl,
-    api_key: flags['api-key'] || flags.apiKey,
+    api_key: flags['api-key'] || flags.apiKey || process.env.CODEXX_API_KEY,
     model: flags.model,
     wire_api: flags['wire-api'] || flags.wireApi || 'chat',
     model_reasoning_effort: flags['reasoning-effort'] || flags.reasoningEffort
   };
 
   const allRequiredFromFlags = provider.name && provider.base_url && provider.api_key && provider.model;
-  const interactive = process.stdin.isTTY === true;
+  const interactive = process.stdin.isTTY === true && flags['no-input'] !== true;
 
   if (!allRequiredFromFlags) {
     if (!interactive) {
@@ -482,7 +489,9 @@ async function cmdAdd(args, lang) {
     return 2;
   }
   process.stdout.write(t(lang, 'addedOk', { v: provider.name }) + '\n');
-  return await maybeTestAfterAdd(provider, flags, lang);
+  const testCode = await maybeTestAfterAdd(provider, flags, lang);
+  if (testCode === 0) process.stdout.write(`codexx use ${provider.name}\n`);
+  return testCode;
 }
 
 // ----- edit -----
@@ -520,7 +529,7 @@ async function cmdEdit(args, lang) {
     }
   }
 
-  const interactive = process.stdin.isTTY === true;
+  const interactive = process.stdin.isTTY === true && flags['no-input'] !== true;
   if (Object.keys(updates).length === 0) {
     if (!interactive) {
       process.stderr.write(
@@ -603,6 +612,10 @@ async function cmdRemove(args, lang) {
     return 2;
   }
   if (!flags.yes) {
+    if (process.stdin.isTTY !== true || flags['no-input'] === true) {
+      process.stderr.write(t(lang, 'nonInteractiveRequiresYes') + '\n');
+      return 2;
+    }
     const rl = readline.createInterface({ input, output });
     let ans;
     try {
@@ -635,6 +648,10 @@ async function cmdUse(args, lang) {
   const onDrift = async (drift) => {
     if (flags.force) return true;
     process.stdout.write(t(lang, 'driftDetected', { v: drift.driftedFiles.join(', ') }) + '\n');
+    if (process.stdin.isTTY !== true || flags['no-input'] === true) {
+      process.stderr.write(t(lang, 'driftNonInteractive') + '\n');
+      return false;
+    }
     const rl = readline.createInterface({ input, output });
     let ans;
     try {
@@ -685,6 +702,10 @@ export function decidePostAddTest({ interactive, forceTest, forceNoTest }) {
 export function shouldRunTestInput(ansRaw) {
   const ans = (ansRaw || '').trim().toLowerCase();
   return ans === '' || ans === 'y' || ans === 'yes' || ans === '是' || ans === 'ok';
+}
+
+export function isSuccessfulHttpStatus(status) {
+  return status >= 200 && status < 300;
 }
 
 async function reportProbeResult(name, result, lang) {
@@ -758,7 +779,7 @@ async function probeProvider(provider) {
     wire === 'responses' ? '/v1/responses' : '/v1/chat/completions',
     provider.base_url.endsWith('/') ? provider.base_url : provider.base_url + '/'
   );
-  // Use a tiny body that should produce either a 200 or a 4xx telling us "auth ok but request wrong"
+  // Use a tiny body; only a 2xx response proves this provider is usable.
   const body = JSON.stringify(
     wire === 'responses'
       ? { model: provider.model, input: 'ping', max_output_tokens: 1 }
@@ -790,8 +811,7 @@ async function probeProvider(provider) {
         res.on('data', (d) => chunks.push(d));
         res.on('end', () => {
           const ms = Date.now() - startedAt;
-          // Anything < 500 means we reached the provider (auth may still be off).
-          const ok = res.statusCode < 500;
+          const ok = isSuccessfulHttpStatus(res.statusCode);
           resolve({
             ok,
             status: res.statusCode,

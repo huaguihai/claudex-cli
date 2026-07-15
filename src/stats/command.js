@@ -13,10 +13,13 @@ const DAY_MS = 86_400_000;
 /** Parse the time-window flags into { sinceMs, label }. Pure. */
 export function parseWindow(args, nowMs) {
   const sinceIdx = args.indexOf('--since');
-  if (sinceIdx !== -1 && args[sinceIdx + 1]) {
+  if (sinceIdx !== -1) {
     const raw = args[sinceIdx + 1];
-    const ms = Date.parse(raw);
-    if (!Number.isNaN(ms)) return { sinceMs: ms, label: `自 ${raw}` };
+    const ms = /^\d{4}-\d{2}-\d{2}$/.test(raw || '') ? Date.parse(`${raw}T00:00:00Z`) : NaN;
+    if (!Number.isNaN(ms) && new Date(ms).toISOString().slice(0, 10) === raw) {
+      return { sinceMs: ms, label: `自 ${raw}` };
+    }
+    throw new Error(`invalid --since date: ${raw || '(missing)'}`);
   }
   if (args.includes('--year')) return { sinceMs: nowMs - 365 * DAY_MS, label: '最近 365 天' };
   if (args.includes('--month')) return { sinceMs: nowMs - 30 * DAY_MS, label: '最近 30 天' };

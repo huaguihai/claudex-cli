@@ -38,6 +38,12 @@ function getReadline() {
   return globalRl;
 }
 
+export function closeReadline() {
+  if (!globalRl) return;
+  globalRl.close();
+  globalRl = null;
+}
+
 import {
   buildNativeContext,
   buildNativeDoctorLines,
@@ -125,6 +131,8 @@ const TXT = {
     bye: '👋 已退出。',
     currentProvider: '📌 当前服务商: {v}',
     currentSettings: '当前配置文件: {file} {state}',
+    currentEndpoint: '接入点: {v}',
+    currentModels: '模型: haiku={haiku}, sonnet={sonnet}, opus={opus}',
     providers: '服务商列表: {v}',
     noProviders: '未找到任何服务商配置（~/.claude/settings.<name>.json）',
     noActiveProvider: '⚠️ 当前未设置服务商，请执行: claudex use <name>',
@@ -197,6 +205,7 @@ const TXT = {
     sonnetQ: 'Sonnet 模型（例如 gpt-5.4）: ',
     opusQ: 'Opus 模型（例如 gpt-5.4-xhigh）: ',
     requiredErr: 'name/base-url/api-key/haiku-model/sonnet-model/opus-model 为必填项',
+    nonInteractiveRequiresYes: '非交互模式删除需要加 --yes。',
     initialized: '初始化完成: {v}',
     shellFile: 'Shell 配置文件: {v}',
     helperAdded: '已写入快捷函数: cdxrun + claude（裸 claude 自动跟随当前服务商）',
@@ -272,6 +281,8 @@ const TXT = {
     bye: '👋 Exited.',
     currentProvider: '📌 Current provider: {v}',
     currentSettings: 'Current settings: {file} {state}',
+    currentEndpoint: 'Endpoint: {v}',
+    currentModels: 'Models: haiku={haiku}, sonnet={sonnet}, opus={opus}',
     providers: 'Providers: {v}',
     noProviders: 'No providers found in ~/.claude/settings.<name>.json',
     noActiveProvider: '⚠️ No active provider. Run: claudex use <name>',
@@ -344,6 +355,7 @@ const TXT = {
     sonnetQ: 'Sonnet model (e.g. gpt-5.4): ',
     opusQ: 'Opus model (e.g. gpt-5.4-xhigh): ',
     requiredErr: 'name/base-url/api-key/haiku-model/sonnet-model/opus-model are required.',
+    nonInteractiveRequiresYes: 'Non-interactive removal requires --yes.',
     initialized: 'Initialized: {v}',
     shellFile: 'Shell file: {v}',
     helperAdded: 'Injected shell helpers: cdxrun + claude (bare claude follows the current provider)',
@@ -439,7 +451,7 @@ Usage:
   claudex --continue          # 继续最近一次会话
   claudex menu                # 进入交互菜单
   claudex init
-  claudex add
+  claudex add [--current] [--no-input]
   claudex edit <name|index> [--base-url U --api-key K --haiku-model H --sonnet-model S --opus-model O]
   claudex list
   claudex use <name|index>
@@ -450,6 +462,7 @@ Usage:
   claudex native <on|off|status|profile|doctor>
   claudex update [--from-local <path>] [--from-npm]
   claudex run [claude args...]
+  claudex stats [--week|--month|--year|--since DATE] [--json]
   claudex provider add [--name N --base-url URL --api-key KEY --haiku-model H --sonnet-model S --opus-model O]
   claudex provider list
   claudex provider use <name>
@@ -467,10 +480,35 @@ Examples:
   claudex test
   claudex update
   claudex run --continue
+
+Credentials:
+  CLAUDEX_API_KEY=... claudex add ...   # avoid putting the key in shell history
 `);
 }
 
+function statsUsage() {
+  console.log(`Usage: claudex stats [options]
+
+Options:
+  --week                 最近 7 天（默认）
+  --month                最近 30 天
+  --year                 最近 365 天
+  --since YYYY-MM-DD     从指定日期开始
+  --idle-gap 5m|2h       活跃时长的空闲阈值
+  --json                 输出 JSON
+`);
+}
+
+const CLAUDE_PROVIDER_NAME_RE = /^[A-Za-z0-9_-]+$/;
+
+export function isValidClaudeProviderName(name) {
+  return typeof name === 'string' && CLAUDE_PROVIDER_NAME_RE.test(name);
+}
+
 function providerSettingsPath(name) {
+  if (!isValidClaudeProviderName(name)) {
+    throw new Error('invalid provider name: use letters, numbers, _ or -');
+  }
   return path.join(claudeDir, `settings.${name}.json`);
 }
 
@@ -535,8 +573,8 @@ async function listProviders() {
   const entries = await fsp.readdir(claudeDir);
   const out = [];
   for (const item of entries) {
-    const m = item.match(/^settings\.([a-zA-Z0-9_-]+)\.json$/);
-    if (m) out.push(m[1]);
+    const m = item.match(/^settings\.(.+)\.json$/);
+    if (m && isValidClaudeProviderName(m[1])) out.push(m[1]);
   }
   out.sort();
   return out;
@@ -944,35 +982,40 @@ async function ask(question) {
 }
 
 async function promptProviderAdd(flags, lang) {
-  const rl = getReadline();
-  try {
-    console.log(t(lang, 'backGuide'));
-    const askOrFlag = async (flagValue, key) => {
-      if (flagValue) return flagValue;
-      return new Promise((resolve) => {
-        rl.question(t(lang, key), (answer) => {
-          const v = answer.trim();
-          if (isBackInput(v)) throw new BackSignal();
-          resolve(v);
-        });
-      });
-    };
-
-    const name = await askOrFlag(flags.name, 'providerNameQ');
-    const baseUrl = await askOrFlag(flags['base-url'], 'baseUrlQ');
-    const apiKey = await askOrFlag(flags['api-key'], 'apiKeyQ');
-    const haikuModel = await askOrFlag(flags['haiku-model'], 'haikuQ');
-    const sonnetModel = await askOrFlag(flags['sonnet-model'], 'sonnetQ');
-    const opusModel = await askOrFlag(flags['opus-model'], 'opusQ');
-
-    if (!name || !baseUrl || !apiKey || !haikuModel || !sonnetModel || !opusModel) {
-      throw new Error(t(lang, 'requiredErr'));
-    }
-
-    return { name, baseUrl, apiKey, haikuModel, sonnetModel, opusModel };
-  } catch (err) {
-    throw err;
+  const apiKey = flags['api-key'] || process.env.CLAUDEX_API_KEY;
+  const interactive = input.isTTY === true && flags['no-input'] !== true;
+  const required = [
+    flags.name,
+    flags['base-url'],
+    apiKey,
+    flags['haiku-model'],
+    flags['sonnet-model'],
+    flags['opus-model']
+  ];
+  if (!interactive && required.some((value) => !value)) {
+    throw new Error(t(lang, 'requiredErr'));
   }
+
+  console.log(t(lang, 'backGuide'));
+  const askOrFlag = async (flagValue, key) => {
+    if (flagValue) return flagValue;
+    const value = await ask(t(lang, key));
+    if (isBackInput(value)) throw new BackSignal();
+    return value;
+  };
+
+  const name = await askOrFlag(flags.name, 'providerNameQ');
+  const baseUrl = await askOrFlag(flags['base-url'], 'baseUrlQ');
+  const resolvedApiKey = await askOrFlag(apiKey, 'apiKeyQ');
+  const haikuModel = await askOrFlag(flags['haiku-model'], 'haikuQ');
+  const sonnetModel = await askOrFlag(flags['sonnet-model'], 'sonnetQ');
+  const opusModel = await askOrFlag(flags['opus-model'], 'opusQ');
+
+  if (!name || !baseUrl || !resolvedApiKey || !haikuModel || !sonnetModel || !opusModel) {
+    throw new Error(t(lang, 'requiredErr'));
+  }
+
+  return { name, baseUrl, apiKey: resolvedApiKey, haikuModel, sonnetModel, opusModel };
 }
 
 async function writeProviderSettings({ name, baseUrl, apiKey, haikuModel, sonnetModel, opusModel }) {
@@ -1026,7 +1069,7 @@ async function readProviderSettings(name) {
  */
 async function promptProviderEdit(name, flags, lang) {
   const current = await readProviderSettings(name);
-  const interactive = process.stdin.isTTY === true;
+  const interactive = process.stdin.isTTY === true && flags['no-input'] !== true;
 
   if (!interactive) {
     return {
@@ -1039,33 +1082,23 @@ async function promptProviderEdit(name, flags, lang) {
     };
   }
 
-  const rl = getReadline();
-  try {
-    console.log(t(lang, 'editIntro', { v: name }));
+  console.log(t(lang, 'editIntro', { v: name }));
+  const askField = async (flagValue, currentValue, label, hint = '') => {
+    if (typeof flagValue === 'string') return flagValue;
+    const shown = label === 'api_key' ? maskApiKey(currentValue) : (currentValue || t(lang, 'editUnset'));
+    console.log(`  ${label} ${t(lang, 'editCurrent')}: ${shown}`);
+    const next = await ask(`  ${t(lang, 'editNewOrKeep', { hint: hint ? ', ' + hint : '' })}: `);
+    if (isBackInput(next)) throw new BackSignal();
+    return next.length > 0 ? next : currentValue;
+  };
 
-    const askField = async (flagValue, currentValue, label, hint = '') => {
-      if (typeof flagValue === 'string') return flagValue;
-      const shown = label === 'api_key' ? maskApiKey(currentValue) : (currentValue || t(lang, 'editUnset'));
-      console.log(`  ${label} ${t(lang, 'editCurrent')}: ${shown}`);
-      return new Promise((resolve) => {
-        rl.question(`  ${t(lang, 'editNewOrKeep', { hint: hint ? ', ' + hint : '' })}: `, (answer) => {
-          const next = answer.trim();
-          if (isBackInput(next)) throw new BackSignal();
-          resolve(next.length > 0 ? next : currentValue);
-        });
-      });
-    };
+  const baseUrl = await askField(flags['base-url'], current.baseUrl, 'base_url');
+  const apiKey = await askField(flags['api-key'], current.apiKey, 'api_key');
+  const haikuModel = await askField(flags['haiku-model'], current.haikuModel, 'haiku_model');
+  const sonnetModel = await askField(flags['sonnet-model'], current.sonnetModel, 'sonnet_model');
+  const opusModel = await askField(flags['opus-model'], current.opusModel, 'opus_model');
 
-    const baseUrl = await askField(flags['base-url'], current.baseUrl, 'base_url');
-    const apiKey = await askField(flags['api-key'], current.apiKey, 'api_key');
-    const haikuModel = await askField(flags['haiku-model'], current.haikuModel, 'haiku_model');
-    const sonnetModel = await askField(flags['sonnet-model'], current.sonnetModel, 'sonnet_model');
-    const opusModel = await askField(flags['opus-model'], current.opusModel, 'opus_model');
-
-    return { name, baseUrl, apiKey, haikuModel, sonnetModel, opusModel };
-  } catch (err) {
-    throw err;
-  }
+  return { name, baseUrl, apiKey, haikuModel, sonnetModel, opusModel };
 }
 
 function readProviderAuth(settings) {
@@ -1599,7 +1632,8 @@ async function cmdProvider(subArgs, lang) {
     const file = await writeProviderSettings(info);
     if (flags.current || flags['set-current']) await setCurrentProvider(info.name);
     console.log(t(lang, 'saved', { v: file }));
-    console.log(`claudex provider test ${info.name}`);
+    console.log(`claudex test ${info.name}`);
+    console.log(`claudex use ${info.name}`);
     return;
   }
 
@@ -1659,12 +1693,10 @@ async function cmdProvider(subArgs, lang) {
     if (!(await exists(file))) throw new Error(`provider settings not found: ${file}`);
 
     if (!flags.yes) {
-      const rl = getReadline();
-      const ans = await new Promise((resolve) => {
-        rl.question(t(lang, 'removeConfirm', { v: file }), (answer) => {
-          resolve(answer.trim().toLowerCase());
-        });
-      });
+      if (!input.isTTY || flags['no-input'] === true) {
+        throw new Error(t(lang, 'nonInteractiveRequiresYes'));
+      }
+      const ans = (await ask(t(lang, 'removeConfirm', { v: file }))).toLowerCase();
       if (ans !== 'y' && ans !== 'yes') {
         console.log(t(lang, 'cancelled'));
         return;
@@ -1698,6 +1730,19 @@ async function cmdStatus(lang) {
   if (current) {
     const file = providerSettingsPath(current);
     console.log(t(lang, 'currentSettings', { file, state: await exists(file) ? '(exists)' : '(missing)' }));
+    if (await exists(file)) {
+      try {
+        const settings = await readProviderSettings(current);
+        console.log(t(lang, 'currentEndpoint', { v: settings.baseUrl || '(unset)' }));
+        console.log(t(lang, 'currentModels', {
+          haiku: settings.haikuModel || '(unset)',
+          sonnet: settings.sonnetModel || '(unset)',
+          opus: settings.opusModel || '(unset)'
+        }));
+      } catch (err) {
+        console.log(`⚠️ ${String(err.message || err)}`);
+      }
+    }
   }
   console.log(t(lang, 'providers', { v: providers.length ? providers.join(', ') : '(none)' }));
   console.log(t(lang, 'nativeStatus', { state: nativeStateLabel(lang, native.enabled) }));
@@ -2264,6 +2309,12 @@ export async function main(argv = process.argv.slice(2)) {
     return;
   }
 
+  if (['add', 'edit', 'list', 'use', 'remove', 'test', 'provider'].includes(cmd) &&
+      (rest.includes('--help') || rest.includes('-h'))) {
+    usage();
+    return;
+  }
+
   if (cmd === 'add') {
     await cmdProvider(['add', ...rest], lang);
     return;
@@ -2344,6 +2395,10 @@ export async function main(argv = process.argv.slice(2)) {
   }
 
   if (cmd === 'stats') {
+    if (rest.includes('--help') || rest.includes('-h')) {
+      statsUsage();
+      return;
+    }
     console.log(await runStats(rest));
     return;
   }
@@ -2352,8 +2407,10 @@ export async function main(argv = process.argv.slice(2)) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((err) => {
-    console.error(`Error: ${err.message || err}`);
-    process.exit(1);
-  });
+  main()
+    .finally(closeReadline)
+    .catch((err) => {
+      console.error(`Error: ${err.message || err}`);
+      process.exit(1);
+    });
 }

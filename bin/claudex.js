@@ -1,7 +1,9 @@
 #!/usr/bin/env node
-import { main } from '../src/cli.js';
+import { closeReadline, main } from '../src/cli.js';
 
-main().catch((err) => {
-  console.error(`Error: ${err.message || err}`);
-  process.exit(1);
-});
+main()
+  .finally(closeReadline)
+  .catch((err) => {
+    console.error(`Error: ${err.message || err}`);
+    process.exit(1);
+  });

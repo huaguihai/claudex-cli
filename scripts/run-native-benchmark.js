@@ -409,6 +409,16 @@ async function main() {
 
   await fs.writeFile(outputPath, JSON.stringify(report, null, 2) + '\n', 'utf8');
   console.log(`Wrote benchmark report: ${outputPath}`);
+
+  const gateFailures = report.providerResults.flatMap((provider) =>
+    provider.results
+      .filter((scenario) => scenario.recommendation?.passedGate === false)
+      .map((scenario) => `${provider.providerName}/${scenario.id}`)
+  );
+  if (gateFailures.length > 0) {
+    console.error(`Benchmark gate failed: ${gateFailures.join(', ')}`);
+    process.exitCode = 1;
+  }
 }
 
 main().catch((err) => {

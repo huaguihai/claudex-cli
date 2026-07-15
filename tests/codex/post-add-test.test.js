@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   decidePostAddTest,
+  isSuccessfulHttpStatus,
   shouldRunTestInput
 } from '../../src/codex/cli.js';
 
@@ -56,4 +57,9 @@ test('decidePostAddTest: non-interactive without flags → skip', () => {
     decidePostAddTest({ interactive: false, forceTest: false, forceNoTest: false }),
     'skip'
   );
+});
+
+test('provider probes only accept 2xx responses', () => {
+  for (const status of [200, 201, 204, 299]) assert.equal(isSuccessfulHttpStatus(status), true);
+  for (const status of [199, 300, 401, 403, 404, 429, 500]) assert.equal(isSuccessfulHttpStatus(status), false);
 });

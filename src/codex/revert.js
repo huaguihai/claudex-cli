@@ -140,27 +140,32 @@ export async function restoreBackup(id, opts = {}) {
 
   const configPath = opts.configTomlPath || codexConfigTomlPath();
   const authPath = opts.authJsonPath || codexAuthJsonPath();
-  const restored = { config_toml: false, auth_json: false };
+  const envPath = opts.envFilePath || codexEnvFilePath();
+  const restored = { config_toml: false, auth_json: false, env_file: false };
+  const deleted = { config_toml: false, auth_json: false, env_file: false };
 
-  const bkConfig = path.join(target.dir, 'config.toml');
-  if (await exists(bkConfig)) {
-    const txt = await fsp.readFile(bkConfig, 'utf8');
-    await writeAtomic(configPath, txt);
-    restored.config_toml = true;
-  }
-  const bkAuth = path.join(target.dir, 'auth.json');
-  if (await exists(bkAuth)) {
-    const txt = await fsp.readFile(bkAuth, 'utf8');
-    await writeAtomic(authPath, txt, { mode: 0o600 });
-    restored.auth_json = true;
+  for (const [key, fileName, filePath, mode] of [
+    ['config_toml', 'config.toml', configPath, undefined],
+    ['auth_json', 'auth.json', authPath, 0o600],
+    ['env_file', '.env', envPath, 0o600]
+  ]) {
+    const backupPath = path.join(target.dir, fileName);
+    if (await exists(backupPath)) {
+      const txt = await fsp.readFile(backupPath, 'utf8');
+      await writeAtomic(filePath, txt, mode ? { mode } : undefined);
+      restored[key] = true;
+    } else if (await exists(filePath)) {
+      await fsp.unlink(filePath);
+      deleted[key] = true;
+    }
   }
 
   if (opts.appendAudit !== false) {
     await appendAuditEvent(
-      { action: 'restore', backup_id: target.id, restored },
+      { action: 'restore', backup_id: target.id, restored, deleted },
       opts.auditOpts
     );
   }
 
-  return { id: target.id, dir: target.dir, restored };
+  return { id: target.id, dir: target.dir, restored, deleted };
 }

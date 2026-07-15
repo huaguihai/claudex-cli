@@ -7,6 +7,7 @@ const TXT = {
 
     // status / list
     currentProvider: '📌 当前 Codex 服务商: {v}',
+    providerMissing: '⚠️ 当前指针 {v} 没有对应配置。请运行: codexx use <name>',
     currentEndpoint: '   接入点: {v}',
     currentModel: '   模型: {v}',
     currentWireApi: '   Wire API: {v}',
@@ -32,6 +33,7 @@ const TXT = {
     addedOk: '✅ 已添加服务商: {v}',
     askConfirm: '继续吗? [y/N]: ',
     canceled: '已取消。',
+    nonInteractiveRequiresYes: '非交互模式需要显式加 --yes。',
 
     // remove
     removeConfirm: '将删除服务商 {v}。继续吗? [y/N]: ',
@@ -48,6 +50,7 @@ const TXT = {
     restartCodexHint: 'ℹ️ 如果 Codex CLI / 桌面 App / VS Code 扩展正在运行，需重启以应用新配置。',
     driftDetected: '⚠️ 检测到外部修改: {v}',
     driftPrompt: '继续切换会保留外部修改。继续吗? [y/N]: ',
+    driftNonInteractive: '检测到外部修改。非交互模式请使用 --force，或先运行 codexx reconcile --yes。',
 
     // test
     testNowQ: '是否立即测试连接？(Y/n): ',
@@ -149,6 +152,7 @@ const TXT = {
     opFailed: '⚠️ Operation failed: {v}',
 
     currentProvider: '📌 Current Codex provider: {v}',
+    providerMissing: '⚠️ Current pointer {v} has no provider metadata. Run: codexx use <name>',
     currentEndpoint: '   Endpoint: {v}',
     currentModel: '   Model: {v}',
     currentWireApi: '   Wire API: {v}',
@@ -173,6 +177,7 @@ const TXT = {
     addedOk: '✅ Added provider: {v}',
     askConfirm: 'Continue? [y/N]: ',
     canceled: 'Canceled.',
+    nonInteractiveRequiresYes: 'Non-interactive mode requires --yes.',
 
     removeConfirm: 'Remove provider {v}. Continue? [y/N]: ',
     removedOk: '✅ Removed provider: {v}',
@@ -187,6 +192,7 @@ const TXT = {
     restartCodexHint: 'ℹ️ Restart any running Codex CLI / Desktop App / VS Code extension to pick up the new config.',
     driftDetected: '⚠️ External modifications detected in: {v}',
     driftPrompt: 'Switching will preserve external modifications. Continue? [y/N]: ',
+    driftNonInteractive: 'External modifications detected. In non-interactive mode use --force or run codexx reconcile --yes first.',
 
     testNowQ: 'Test connection now? (Y/n): ',
     testRunning: 'Testing {v} ...',

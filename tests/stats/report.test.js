@@ -9,7 +9,10 @@ const USAGE = {
     { date: '2026-06-01', input: 81517, output: 26052, cacheCreation: 356286, cacheRead: 1124610, total: 1588465 },
     { date: '2026-06-02', input: 100, output: 200, cacheCreation: 0, cacheRead: 0, total: 300 }
   ],
-  models: ['claude-opus-4-8', 'gpt-5.5'],
+  models: [
+    { name: 'claude-opus-4-8', tokens: 1200000 },
+    { name: 'gpt-5.5', tokens: 388465 }
+  ],
   costUSD: 3.57,
   costReliable: true
 };
@@ -29,7 +32,7 @@ test('buildReport assembles the StatsReport contract', () => {
   assert.equal(r.cost.reliable, true);
   assert.equal(r.activity.activeDays, 2);
   assert.equal(r.activity.activeHours, 2.5); // 9000000ms = 2.5h
-  assert.equal(r.activity.currentStreak, 5);
+  assert.equal(r.activity.currentStreak, 2);
 });
 
 test('humanizeTokens scales to K / M', () => {
@@ -46,12 +49,12 @@ test('humanizeDuration formats hours / minutes', () => {
 test('renderText includes key figures and trend', () => {
   const r = buildReport({ usage: USAGE, activity: ACTIVITY, window: WINDOW });
   const out = renderText(r);
-  assert.match(out, /用量统计/);
+  assert.match(out, /Token 消耗统计/);
   assert.match(out, /过去 30 天/);
-  assert.match(out, /合计 1\.6M/);
-  assert.match(out, /连续 5 天/);
-  assert.match(out, /高峰 14:00/);
-  assert.match(out, /每日 token/);
+  assert.match(out, /总计\s+1\.6M/);
+  assert.match(out, /连续天数\s+2/);
+  assert.match(out, /高峰时段\s+14:00/);
+  assert.match(out, /每日趋势/);
   assert.match(out, /06-01/);
 });
 

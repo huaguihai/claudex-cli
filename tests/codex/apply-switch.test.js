@@ -7,7 +7,7 @@ import crypto from 'node:crypto';
 
 import { applyProviderSwitch } from '../../src/codex/apply-switch.js';
 import { revertToPreClaudex, restoreBackup } from '../../src/codex/revert.js';
-import { readSnapshotManifest, listBackups } from '../../src/codex/snapshot.js';
+import { readSnapshotManifest, listBackups, takeBackup } from '../../src/codex/snapshot.js';
 import { parseConfigToml } from '../../src/codex/config-toml.js';
 import { readAuthJson } from '../../src/codex/auth-json.js';
 import { tailAuditLog, readLastKnownHashes } from '../../src/codex/audit.js';
@@ -266,10 +266,14 @@ test('apply-switch: backs up ChatGPT OAuth tokens before overwriting auth.json',
 test('restoreBackup: restores a prior backup', async () => {
   await withIsolatedHome(async ({ codexHome }) => {
     const configPath = path.join(codexHome, 'config.toml');
+    const authPath = path.join(codexHome, 'auth.json');
+    const envPath = path.join(codexHome, '.env');
     await fsp.writeFile(configPath, SAMPLE_USER_CONFIG);
 
     await applyProviderSwitch(PROVIDER_A);
     const configAfterA = await fsp.readFile(configPath, 'utf8');
+    const authAfterA = await fsp.readFile(authPath, 'utf8');
+    const envAfterA = await fsp.readFile(envPath, 'utf8');
 
     await applyProviderSwitch(PROVIDER_B, { previousProvider: 'openrouter' });
 
@@ -277,8 +281,25 @@ test('restoreBackup: restores a prior backup', async () => {
     // so it should be the state right after A was applied)
     const result = await restoreBackup('latest');
     assert.ok(result.restored.config_toml);
-    const restored = await fsp.readFile(configPath, 'utf8');
-    assert.equal(restored, configAfterA);
+    assert.ok(result.restored.auth_json);
+    assert.ok(result.restored.env_file);
+    assert.equal(await fsp.readFile(configPath, 'utf8'), configAfterA);
+    assert.equal(await fsp.readFile(authPath, 'utf8'), authAfterA);
+    assert.equal(await fsp.readFile(envPath, 'utf8'), envAfterA);
+  });
+});
+
+test('restoreBackup: removes files that were absent from the backup', async () => {
+  await withIsolatedHome(async ({ codexHome }) => {
+    const configPath = path.join(codexHome, 'config.toml');
+    const envPath = path.join(codexHome, '.env');
+    await fsp.writeFile(configPath, SAMPLE_USER_CONFIG);
+    await takeBackup('before env existed');
+    await fsp.writeFile(envPath, 'OPENAI_API_KEY=stale\n');
+
+    const result = await restoreBackup('latest');
+    assert.equal(result.deleted.env_file, true);
+    await assert.rejects(() => fsp.access(envPath), { code: 'ENOENT' });
   });
 });
 

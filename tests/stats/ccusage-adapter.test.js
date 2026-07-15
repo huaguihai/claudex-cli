@@ -22,14 +22,27 @@ test('parseCcusageJson extracts object, tolerating leading log noise', () => {
 test('normalizeDaily sums totals, dedupes models, flags cost reliability', () => {
   const json = {
     daily: [
-      { date: '2026-06-10', inputTokens: 100, outputTokens: 200, cacheCreationTokens: 300, cacheReadTokens: 400, totalTokens: 1000, modelsUsed: ['opus'], totalCost: 0 },
-      { date: '2026-06-11', inputTokens: 10, outputTokens: 20, cacheCreationTokens: 30, cacheReadTokens: 40, totalTokens: 100, modelsUsed: ['opus', 'sonnet'], totalCost: 1.5 }
+      {
+        date: '2026-06-10', inputTokens: 100, outputTokens: 200,
+        cacheCreationTokens: 300, cacheReadTokens: 400, totalTokens: 1000,
+        modelBreakdowns: [{ modelName: 'opus', inputTokens: 100, outputTokens: 200, cacheCreationTokens: 300, cacheReadTokens: 400 }],
+        totalCost: 0
+      },
+      {
+        date: '2026-06-11', inputTokens: 10, outputTokens: 20,
+        cacheCreationTokens: 30, cacheReadTokens: 40, totalTokens: 100,
+        modelBreakdowns: [
+          { modelName: 'opus', inputTokens: 5, outputTokens: 10, cacheCreationTokens: 15, cacheReadTokens: 20 },
+          { modelName: 'sonnet', inputTokens: 5, outputTokens: 10, cacheCreationTokens: 15, cacheReadTokens: 20 }
+        ],
+        totalCost: 1.5
+      }
     ]
   };
   const r = normalizeDaily(json);
   assert.equal(r.days.length, 2);
   assert.deepEqual(r.totals, { input: 110, output: 220, cacheCreation: 330, cacheRead: 440, total: 1100 });
-  assert.deepEqual(r.models, ['opus', 'sonnet']);
+  assert.deepEqual(r.models, [{ name: 'opus', tokens: 1050 }, { name: 'sonnet', tokens: 50 }]);
   assert.equal(r.costUSD, 1.5);
   assert.equal(r.costReliable, true);
 });
@@ -45,7 +58,7 @@ test('fetchDailyUsage builds args and normalizes via injected runner (no real sp
   let captured;
   const runner = async (args) => {
     captured = args;
-    return '{"daily":[{"date":"2026-06-10","inputTokens":5,"outputTokens":5,"cacheCreationTokens":0,"cacheReadTokens":0,"totalTokens":10,"modelsUsed":["opus"],"totalCost":0}]}';
+    return '{"daily":[{"date":"2026-06-10","inputTokens":5,"outputTokens":5,"cacheCreationTokens":0,"cacheReadTokens":0,"totalTokens":10,"modelBreakdowns":[{"modelName":"opus","inputTokens":5,"outputTokens":5}],"totalCost":0}]}';
   };
   const r = await fetchDailyUsage({
     sinceMs: Date.UTC(2026, 5, 1),
@@ -55,7 +68,7 @@ test('fetchDailyUsage builds args and normalizes via injected runner (no real sp
   });
   assert.deepEqual(captured, ['daily', '--json', '--since', '20260601', '--until', '20260630']);
   assert.equal(r.totals.total, 10);
-  assert.deepEqual(r.models, ['opus']);
+  assert.deepEqual(r.models, [{ name: 'opus', tokens: 10 }]);
 });
 
 test('fetchDailyUsage throws on unparseable output', async () => {

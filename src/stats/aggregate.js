@@ -53,7 +53,7 @@ function computeStreaksFromDays(days) {
 /**
  * Build the StatsReport from its parts.
  * @param {{
- *   usage: { totals: object, days: object[], models: string[], costUSD: number, costReliable: boolean },
+ *   usage: { totals: object, days: object[], models: {name: string, tokens: number}[], costUSD: number, costReliable: boolean },
  *   activity: { activeMs: number, activeDays: number, sessionCount: number,
  *     currentStreak: number, longestStreak: number, mostActiveHour: number|null, byHour: number[] },
  *   window: { label: string, sinceMs: number, untilMs: number|null }
