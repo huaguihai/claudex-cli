@@ -431,8 +431,8 @@ async function cmdAdd(args, lang) {
     base_url: flags['base-url'] || flags.baseUrl,
     api_key: flags['api-key'] || flags.apiKey || process.env.CODEXX_API_KEY,
     model: flags.model,
-    wire_api: flags['wire-api'] || flags.wireApi || 'chat',
-    model_reasoning_effort: flags['reasoning-effort'] || flags.reasoningEffort
+    wire_api: flags['wire-api'] || flags.wireApi || 'responses',
+    model_reasoning_effort: flags['reasoning-effort'] || flags.reasoningEffort || 'high'
   };
 
   const allRequiredFromFlags = provider.name && provider.base_url && provider.api_key && provider.model;
