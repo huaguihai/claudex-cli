@@ -12,9 +12,15 @@ import { stdin as input, stdout as output } from 'node:process';
 // 输入行队列（用于管道模式）
 let inputLines = [];
 let inputReady = false;
+let inputStarted = false;
 
-// 预加载管道输入
-if (!input.isTTY) {
+// 惰性启动管道输入预加载。必须惰性：若在模块加载时就 attach 'data' 监听，
+// stdin 会被 ref 住，event loop 无法退出——`node --test` 的进程隔离模式下
+// 子进程 stdin 是 runner 长开的管道，会导致整个测试套件永久挂起。只有真正
+// 需要从管道读输入的 ask() 才触发它。
+function startPipedInput() {
+  if (inputStarted || input.isTTY) return;
+  inputStarted = true;
   let buffer = '';
   input.setEncoding('utf8');
   input.on('data', (chunk) => {
@@ -962,6 +968,7 @@ function parseFlags(argv) {
 async function ask(question) {
   // 管道模式：从预加载的行队列中读取
   if (!input.isTTY) {
+    startPipedInput();
     // 等待输入就绪
     while (!inputReady && inputLines.length === 0) {
       await new Promise(resolve => setTimeout(resolve, 10));
