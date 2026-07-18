@@ -13,7 +13,8 @@ import {
   relativeTime,
   formatSessionLine,
   sessionKindTag,
-  parseSelection
+  parseSelection,
+  buildResumeArgs
 } from '../../src/codex/sessions.js';
 
 async function mktemp(prefix = 'codexx-sessions-test-') {
@@ -393,4 +394,16 @@ test('parseSelection: valid / invalid', () => {
   assert.equal(parseSelection('6', 5), null);
   assert.equal(parseSelection('abc', 5), null);
   assert.equal(parseSelection('', 5), null);
+});
+
+test('buildResumeArgs: pins resume to the active provider via -c override', () => {
+  assert.deepEqual(
+    buildResumeArgs('019f-abc', 'gpt_any_linuxdo'),
+    ['resume', '019f-abc', '-c', 'model_provider=claudex-gpt_any_linuxdo']
+  );
+});
+
+test('buildResumeArgs: no active provider → plain resume, no override', () => {
+  assert.deepEqual(buildResumeArgs('019f-abc', null), ['resume', '019f-abc']);
+  assert.deepEqual(buildResumeArgs('019f-abc', ''), ['resume', '019f-abc']);
 });

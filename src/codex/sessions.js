@@ -26,7 +26,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import readline from 'node:readline';
 
-import { codexSessionsDir, fromClaudexProviderId } from './constants.js';
+import { codexSessionsDir, fromClaudexProviderId, toClaudexProviderId } from './constants.js';
 
 // Stop scanning a rollout for the preview after this many lines — the first
 // real user message is always near the top, right after the meta + injected
@@ -300,4 +300,22 @@ export function parseSelection(input, count) {
   const n = parseInt(trimmed, 10);
   if (n < 1 || n > count) return null;
   return n - 1;
+}
+
+/**
+ * Pure: build the `codex` argv that resumes a session under the ACTIVE
+ * provider. codex ≥0.144 restores the session's original model_provider from
+ * the rollout's thread settings, so resuming a session born under provider A
+ * while B is active silently targets A's base_url with B's injected key —
+ * guaranteed 401. An explicit `-c model_provider=<id>` override beats the
+ * restored thread settings (verified against 0.144.5), keeping sessions
+ * portable across provider switches — the whole point of codexx.
+ * With no active codexx provider, no override is added.
+ */
+export function buildResumeArgs(sessionId, activeProviderName) {
+  const args = ['resume', sessionId];
+  if (activeProviderName) {
+    args.push('-c', `model_provider=${toClaudexProviderId(activeProviderName)}`);
+  }
+  return args;
 }

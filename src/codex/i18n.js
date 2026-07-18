@@ -137,6 +137,7 @@ const TXT = {
     resumeNone: '当前目录（{v}）暂无 Codex 主会话记录。',
     resumePrompt: '输入序号恢复会话（1-{v}，直接回车取消）: ',
     resumeListOnly: 'ℹ️ 非交互模式：仅列出。要直接恢复某条，请用: codexx resume <id>',
+    resumeCrossProvider: '📌 该会话创建于 provider {v}，将改用当前 provider（{v2}）继续',
 
     // help (rendered in usage())
     usageHeader: 'codexx — 切换 OpenAI Codex 服务商，体感与原生 codex 一致',
@@ -272,6 +273,7 @@ const TXT = {
     resumeNone: 'No Codex main sessions recorded for this directory ({v}).',
     resumePrompt: 'Enter a number to resume (1-{v}, empty to cancel): ',
     resumeListOnly: 'ℹ️ Non-interactive: list only. To resume one directly: codexx resume <id>',
+    resumeCrossProvider: '📌 Session was created under provider {v}; continuing with the active provider ({v2})',
 
     usageHeader: 'codexx — switch OpenAI Codex providers; daily UX matches native codex',
     usageRun: 'Run codex:',
