@@ -42,7 +42,7 @@ import {
   providerExists,
   normalizeBaseUrl
 } from './providers.js';
-import { scanSessions, formatSessionLine, parseSelection } from './sessions.js';
+import { scanSessions, formatSessionLine, parseSelection, buildResumeArgs } from './sessions.js';
 import { applyProviderSwitch } from './apply-switch.js';
 import { revertToPreClaudex, restoreBackup } from './revert.js';
 import {
@@ -1267,7 +1267,12 @@ async function passthroughCodex(args) {
 // `codexx resume` stays a pure passthrough to codex's own picker, which only
 // shows sessions for the active provider. `codexx --resume` is the
 // enhancement: list THIS cwd's sessions across ALL providers, then hand the
-// chosen id to `codex resume` (recovered with the current active provider).
+// chosen id to `codex resume`, pinned to the current active provider via
+// `-c model_provider=...`. The explicit pin matters: codex ≥0.144 otherwise
+// restores the session's original provider from the rollout, which combines
+// the OLD provider's base_url with the ACTIVE provider's injected key → 401
+// (see buildResumeArgs). Sessions follow the switcher, not the provider they
+// were born on — otherwise a dead provider would hold its sessions hostage.
 // Subagent rollouts are hidden by default (they dominate real trees); pass
 // --include-subagents to show them tagged.
 async function cmdResumeAll(args, lang) {
@@ -1300,7 +1305,14 @@ async function cmdResumeAll(args, lang) {
     process.stdout.write(t(lang, 'canceled') + '\n');
     return 0;
   }
-  return await spawnCodex(['resume', sessions[idx].id]);
+  const chosen = sessions[idx];
+  const active = await getCurrentProvider();
+  if (active && chosen.providerLabel && chosen.providerLabel !== active) {
+    process.stdout.write(
+      t(lang, 'resumeCrossProvider', { v: chosen.providerLabel, v2: active }) + '\n'
+    );
+  }
+  return await spawnCodex(buildResumeArgs(chosen.id, active));
 }
 
 // ----- shared flag parser -----
