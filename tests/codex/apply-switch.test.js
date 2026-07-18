@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fsp from 'node:fs/promises';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -13,9 +14,17 @@ import { readAuthJson } from '../../src/codex/auth-json.js';
 import { tailAuditLog, readLastKnownHashes } from '../../src/codex/audit.js';
 import { getCurrentProvider } from '../../src/codex/providers.js';
 
+const tmpDirs = [];
+process.on('exit', () => {
+  for (const dir of tmpDirs) {
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+  }
+});
+
 async function mktemp(prefix = 'codexx-int-test-') {
   const dir = path.join(os.tmpdir(), prefix + crypto.randomBytes(8).toString('hex'));
   await fsp.mkdir(dir, { recursive: true });
+  tmpDirs.push(dir);
   return dir;
 }
 
