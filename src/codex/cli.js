@@ -390,7 +390,7 @@ async function cmdStatus(args, lang) {
       const p = await readProvider(active);
       process.stdout.write(t(lang, 'currentEndpoint', { v: p.base_url }) + '\n');
       process.stdout.write(t(lang, 'currentModel', { v: p.model }) + '\n');
-      process.stdout.write(t(lang, 'currentWireApi', { v: p.wire_api || 'chat' }) + '\n');
+      process.stdout.write(t(lang, 'currentWireApi', { v: p.wire_api || 'responses' }) + '\n');
     } catch {
       process.stdout.write(t(lang, 'providerMissing', { v: active }) + '\n');
     }
@@ -774,7 +774,7 @@ async function cmdTest(args, lang) {
 }
 
 async function probeProvider(provider) {
-  const wire = provider.wire_api || 'chat';
+  const wire = provider.wire_api || 'responses';
   const url = new URL(
     wire === 'responses' ? '/v1/responses' : '/v1/chat/completions',
     provider.base_url.endsWith('/') ? provider.base_url : provider.base_url + '/'

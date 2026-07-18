@@ -96,7 +96,7 @@ export function buildClaudexBlock(provider, opts = {}) {
     typeof opts.ts === 'string'
       ? opts.ts
       : (opts.ts instanceof Date ? opts.ts : new Date()).toISOString();
-  const wireApi = provider.wire_api || 'chat';
+  const wireApi = provider.wire_api || 'responses';
   const beginLine = `# claudex-cli managed BEGIN — provider=${provider.name} schema=v${SCHEMA_VERSION} ts=${ts}`;
   const lines = [
     beginLine,
