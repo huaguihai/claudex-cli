@@ -58,6 +58,12 @@ test('buildClaudexBlock: includes mandatory requires_openai_auth and env_key', (
   assert.ok(block.includes('env_key = "OPENAI_API_KEY"'));
 });
 
+test('buildClaudexBlock: wire_api defaults to responses when absent', () => {
+  const { wire_api, ...withoutWireApi } = SAMPLE_PROVIDER;
+  const block = buildClaudexBlock(withoutWireApi, buildOpts);
+  assert.ok(block.includes('wire_api = "responses"'));
+});
+
 test('buildClaudexBlock: writes optional reasoning_effort when present', () => {
   const block = buildClaudexBlock({ ...SAMPLE_PROVIDER, model_reasoning_effort: 'high' }, buildOpts);
   assert.ok(block.includes('model_reasoning_effort = "high"'));

@@ -142,7 +142,7 @@ async function checkActiveProvider() {
       name: 'active_provider_set',
       status: 'pass',
       message: `Active provider: ${name} (${p.base_url})`,
-      meta: { name, base_url: p.base_url, model: p.model, wire_api: p.wire_api || 'chat' }
+      meta: { name, base_url: p.base_url, model: p.model, wire_api: p.wire_api || 'responses' }
     };
   } catch (err) {
     return {
